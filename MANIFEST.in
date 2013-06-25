@@ -1,0 +1,26 @@
+include MANIFEST.in
+include LICENSE
+include RELEASE.rst
+include README.rst
+include TODO.rst
+include setup.py
+include setupegg.py
+
+graft doc
+prune doc/build
+
+graft uts3
+
+global-exclude *.so
+global-exclude *.pyd
+global-exclude *.pyc
+global-exclude .git*
+global-exclude .DS_Store
+global-exclude *.png
+global-exclude *.pyx
+global-exclude *.pyx~
+global-exclude *.c
+global-exclude *.h
+
+prune utils
+
