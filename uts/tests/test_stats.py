@@ -3,9 +3,9 @@ from numpy.testing import TestCase, assert_raises, run_module_suite, \
      assert_array_equal
 
 import numpy as np
-from uts3 import UniformTime, UniformTimeSeries, \
+from uts import UniformTime, UniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries
-import uts3.processing.stats as stats
+import uts.processing.stats as stats
 
 class test_Mean(TestCase):
 

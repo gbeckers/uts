@@ -5,8 +5,8 @@ cimport numpy as np
 cimport cython
 from cpython cimport bool
 
-from uts3 import UniformTimeSeries, isuts, iseuts, ismcuts, isemcuts
-from uts3.core.check_arg import check_int
+from uts import UniformTimeSeries, isuts, iseuts, ismcuts, isemcuts
+from uts.core.check_arg import check_int
 
 FLOATDTYPE = np.float32
 ctypedef np.float32_t FLOATDTYPE_t

@@ -1,6 +1,6 @@
 import tables
 import numpy as np
-from uts3.tests.defs import floattypes, inttypes
+from uts.tests.defs import floattypes, inttypes
 
 
 def create_h5arrays(testf):

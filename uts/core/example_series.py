@@ -1,7 +1,7 @@
 from io import load_UniformTimeSeriesfromh5
 import tables
 import os.path
-from uts3.core.check_arg import check_arg
+from uts.core.check_arg import check_arg
 
 __all__ = ["example_emcuts", "example_mcuts", "example_uts", "example_euts"]
 

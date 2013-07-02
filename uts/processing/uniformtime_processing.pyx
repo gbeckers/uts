@@ -4,8 +4,6 @@
 """
 The processing module holds functions that operate on time sampled signals.
 
-Some often used functions are methods of the time samples signals, and are 
-therefore not found in this module (e.g. convolve, decimate).
 
 """
 
@@ -16,29 +14,29 @@ import numpy as np
 from scipy.stats import nanmean, nanstd
 import scipy.signal
 import signalprocessing 
-from uts3.core.samplesource import NumpyArraySamples, h5ArraySamples
+from uts.core.samplesource import NumpyArraySamples, h5ArraySamples
 from signalprocessing import segment_axis, fit_frames, ica, \
      multi_taper_psd, iminterpolate
-from uts3.core.utils import round_nearesteven, round_nextradix2, allodd, alleven, isodd, iseven
-from uts3 import UniformTimeSeries, \
+from uts.core.utils import round_nearesteven, round_nextradix2, allodd, alleven, isodd, iseven
+from uts import UniformTimeSeries, \
      MultiChannelUniformTimeSeries, EpochedUniformTimeSeries, \
      EpochedMultiChannelUniformTimeSeries, isuts, iseuts, ismcuts, isemcuts,\
-    _assert_signal
-from uts3.core.epoched import Epoched
-from uts3.core.geometry import RectangularLattice
-from uts3.io.hdf5 import h5attr_to_geometry
+    assert_signal
+from uts.core.epoched import Epoched
+from uts.core.geometry import RectangularLattice
+from uts.io.hdf5 import h5attr_to_geometry
 from frequencysampled import FrequencySampled, Spectrum
 from timefrequencysampled import Spectrogram
 from helper import convadjusttime, unsqueeze
-from uts3.core.check_arg import check_arg, check_int, check_floatarray, check_float, check_bool
-from uts3 import isuts, iseuts, ismcuts, isemcuts
+from uts.core.check_arg import check_arg, check_int, check_floatarray, check_float, check_bool
+from uts import isuts, iseuts, ismcuts, isemcuts
 #FIXME
-from uts3.processing.stats import mean, std
-from uts3.processing.elementwise_math import add
+from uts.processing.stats import mean, std
+from uts.processing.elementwise_math import add
 from ifdv import cifdv
 from cstft import strft
 #from geometry import RectangularLattice
-from uts3.helper.progressbar import ProgressBar
+from uts.helper.progressbar import ProgressBar
 from stats import mad
 from windows import windows
 import time
@@ -70,8 +68,8 @@ def overlap_and_add(tss1, tss2, overlapdur):
 
     """
 
-    _assert_signal(tss1)
-    _assert_signal(tss2)
+    assert_signal(tss1)
+    assert_signal(tss2)
     window = np.hanning
     overlapdur = check_float(overlapdur)
     noverlap = round_nearesteven(overlapdur * tss1.fs)
@@ -140,22 +138,9 @@ def apply_to_samples(tss, f, copy=True, **nargs):
 
 
     """
-    _assert_signal(tss)
+    assert_signal(tss)
     samples = f(tss.samples.get(copy=copy), **nargs)
     return tss._instantiatefromself(samples=samples, copy=False)
-
-
-#NOT FINISHED
-#def ramp(tss, duration, rtype='cosine', part='side'):
-    #_assert_signal(tss)
-    #duration = check_arg(duration, 'duration')
-    #if not part in ('start', 'end', 'both'):
-        #raise ValueError, "invalid part parameter"
-    #if not rtype in ('cosine'):
-        #raise ValueError, "invalid rtype parameter"
-    #if rtype == 'cosine':
-        #r = np.cos(np.linspace(0.0,0.5*np.pi,duration/tss.fs))        
-
 
 
 def crosscorrelatetime(s1, s2, normalized=True):
@@ -172,10 +157,10 @@ def crosscorrelatetime(s1, s2, normalized=True):
 
     """
 
-    from uts3.processing.correlate import crosscorrelate_1d, crosscorrelate_2d
+    from uts.processing.correlate import crosscorrelate_1d, crosscorrelate_2d
 
-    _assert_signal(s1)
-    _assert_signal(s2)
+    assert_signal(s1)
+    assert_signal(s2)
     check_bool(normalized)
     if not (s1.axes == s2.axes):
         raise ValueError('axes are not the same')
@@ -250,7 +235,7 @@ def convolve(uts, kernel, mode='same'):#, out=None):
     shifted in time, just convolved.
 
     """
-    _assert_signal(uts)
+    assert_signal(uts)
     kernel = np.array(kernel, copy=False)
     ## is the following necessary?? We want to be flexible and upcast
     #if kernel.dtype != uts.dtype:
@@ -323,7 +308,7 @@ def iter_convolve(uts, kernel, mode='same', chunksize=1024*64,
     stepsize = chunksize - validntimesamples
     nframes, newsize, remainder = fit_frames(
         uts.ntimesamples, chunksize, stepsize=stepsize)
-    #print "nframes", "newsize", "remainder", nframes, newsize, remainder
+    # print "nframes", "newsize", "remainder", nframes, newsize, remainder
     if remainder > 0:
         lastframei = nframes
     else:
@@ -332,15 +317,18 @@ def iter_convolve(uts, kernel, mode='same', chunksize=1024*64,
         p = ProgressBar(minValue = 0, maxValue = nframes, totalWidth=40)
     if channels is None:
         gen = enumerate(uts.iter_frames(framesize=chunksize,
-                                    stepsize=stepsize))
+                                        stepsize=stepsize,
+                                        include_remainder=True))
     else:
         gen = enumerate(uts.iter_frames(framesize=chunksize,
-                                    stepsize=stepsize, channels=channels))
+                                        stepsize=stepsize,
+                                        channels=channels,
+                                        include_remainder=True))
     #print "chunksize, stepsize", chunksize, stepsize
     for i, ss in gen:
         #print 'frame', i, ss.samples[slice(None,None,None)]
         #t1 = time.time()
-        #print "i",i
+        # print i, ss, ss.samples[:]
         if reportprogress:
             p.updateAmount(i)
             print p, "\r",
@@ -499,7 +487,7 @@ def decimate(uts, q, trunc='tail'):
     aliasing will occur.
 
     """
-    _assert_signal(uts)
+    assert_signal(uts)
     if not trunc in ('tail','head'):
         raise ValueError("trunc parameter can only be 'tail' or 'head'")
     q = check_int(q, negative=False, zero=False)
@@ -539,7 +527,7 @@ def resample(uts, factor, window=None):
         (see scipy.signal.resample docstring for explanation)
 
     """
-    _assert_signal(uts)
+    assert_signal(uts)
     factor = check_float(factor, negative=False, zero=False)
     num = int(np.round(factor * uts.ntimesamples))
     timeaxis = uts.samples.axes['time']
@@ -551,7 +539,7 @@ def resample(uts, factor, window=None):
     return uts._instantiatefromself(samples=samples, fs=fs, copy=False)
 
 def remove_nan(tss, axis='epoch'):
-    _assert_signal(tss)
+    assert_signal(tss)
     if not axis in tss.axes.keys():
         raise ValueError('axis %s does not exist')
     
@@ -563,7 +551,7 @@ def remove_nan(tss, axis='epoch'):
 #                          copy=False, origintime=self.origintime)
 
 def fft(tss):
-    _assert_signal(tss, (UniformTimeSeries,))
+    assert_signal(tss, (UniformTimeSeries,))
 
     samples = np.fft.fft(tss.samples.get(copy=False)) / float(tss.ntimesamples)**0.5
     startfrequency = 0.0 - 0.5 * tss.fs/tss.ntimesamples
@@ -579,7 +567,7 @@ def stft(tss, windowtype='gaussian', windowduration=None, fftduration=None,
     
     """
 
-    _assert_signal(tss, (UniformTimeSeries,))
+    assert_signal(tss, (UniformTimeSeries,))
 
     # check parameters
     if windowtype not in windows.keys():
@@ -623,7 +611,7 @@ def stft(tss, windowtype='gaussian', windowduration=None, fftduration=None,
 def stmtt(tss, BW=None, windowduration=None, stepduration=None, 
           symmetric=True):
 
-    _assert_signal(tss, (UniformTimeSeries,))
+    assert_signal(tss, (UniformTimeSeries,))
 
     # check parameters
     if windowduration is None:
@@ -662,7 +650,7 @@ def ifdv(tss, windowduration=None, stepduration=None,
          sigma=2.0, zoomt=1, zoomf=3, tl=5, fl=5, symmetric=True,
          consensus=False, sigmarange=np.arange(0.5,3.6,0.1)):
 
-    _assert_signal(tss, (UniformTimeSeries,))
+    assert_signal(tss, (UniformTimeSeries,))
 
     if windowduration is None:
         windowduration = 1024 / tss.fs
@@ -768,7 +756,7 @@ def ifdv_to_image(a,b, nyquistfreq, startfreq=0.0, endfreq=None, tbins=None, fbi
 
 
 def ica(tss, **kwargs):
-    _assert_signal(tss, (MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries))
+    assert_signal(tss, (MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries))
     if isinstance(tss, EpochedMultiChannelUniformTimeSeries):
         samples = tss.samples.transpose(('epoch','time','channel')).get()
         samples = samples.reshape(-1, tss.nchannels )
@@ -1017,7 +1005,7 @@ def fftconvolve(signal, kernellist, mode='same'):
         return results
 
 def ramp(uts, duration=8e-3, window=np.hanning):
-    _assert_signal(uts)
+    assert_signal(uts)
     duration = check_arg(duration, 'duration')
     ruts = uts.copy()
     axis = ruts.samples.axes['time']

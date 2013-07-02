@@ -1,7 +1,7 @@
 #!/usr/local/bin/python
 # -*- coding: utf-8 -*-
 
-from uts3 import UniformTime
+from uts import UniformTime
 import uniformtime_processing
 import correlate
 

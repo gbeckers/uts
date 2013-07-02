@@ -4,10 +4,10 @@ __docformat__ = 'restructuredtext'
 
 #from datetime import datetime
 
-from uts3.core.uniformtime import *
+from uts.core.uniformtime import *
 
 try:
-    from uts3.core.uniformtime import *
+    from uts.core.uniformtime import *
 except Exception as e:  # pragma: no cover
     if 'No module named' in str(e):
         raise ImportError('C extensions not built: if you installed already '
@@ -16,14 +16,14 @@ except Exception as e:  # pragma: no cover
     else:
         raise
 
-from uts3.version import version as __version__
-from uts3.info import __doc__
-from uts3.core.uniformtime import *
-from uts3.io.hdf5 import *
-from uts3.io.audio import *
-from uts3.io.matlab import *
-from uts3.core.check_arg import check_arg
-from uts3.display.stftview import STFTView
+from uts.version import version as __version__
+from uts.info import __doc__
+from uts.core.uniformtime import *
+from uts.io.hdf5 import *
+from uts.io.audio import *
+from uts.io.matlab import *
+from uts.core.check_arg import check_arg
+from uts.display.stftview import STFTView
 
 from signalfactory.factory import *
 from signalfactory.testsignals import *

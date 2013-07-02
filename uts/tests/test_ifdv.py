@@ -4,11 +4,11 @@ from numpy.testing import TestCase, assert_raises, run_module_suite, \
      assert_almost_equal
 import numpy as np
 from scipy.io import loadmat
-import uts3
-from uts3.processing.signalprocessing import ifdv
-from uts3.processing.ifdv import cifdv
+import uts
+from uts.processing.signalprocessing import ifdv
+from uts.processing.ifdv import cifdv
 
-TEST_DATA_DIR = os.path.join(os.path.dirname(uts3.__file__),
+TEST_DATA_DIR = os.path.join(os.path.dirname(uts.__file__),
                              'testdata')
 
 class test_ifdv(TestCase):

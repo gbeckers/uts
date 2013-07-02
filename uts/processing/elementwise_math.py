@@ -1,12 +1,12 @@
 import numpy as np
 import numexpr
-from uts3 import UniformTimeSeries, \
+from uts import UniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedUniformTimeSeries, \
-    EpochedMultiChannelUniformTimeSeries
-from uts3.core.samplesource import NumpyArraySamples, h5ArraySamples
+    EpochedMultiChannelUniformTimeSeries, assert_signal
+from uts.core.samplesource import NumpyArraySamples, h5ArraySamples
 from frequencysampled import Spectrum
 from timefrequencysampled import Spectrogram
-from uts3.core.check_arg import check_arg, check_float, check_floatarray, check_argarray
+from uts.core.check_arg import check_arg, check_float, check_floatarray, check_argarray
 
 
 __all__ = ['add', 'power', 'scale', 'abs', 'sin', 'cos', 'tan', 
@@ -17,17 +17,6 @@ __all__ = ['add', 'power', 'scale', 'abs', 'sin', 'cos', 'tan',
            'exp', 'expm1', 'sqrt',
            'real','imag', 'eval_expr']
 
-def _assert_signal(ts, signaltypes=None):
-    allowedtypes = (UniformTimeSeries, MultiChannelUniformTimeSeries,
-            EpochedUniformTimeSeries, EpochedMultiChannelUniformTimeSeries,
-            Spectrum, Spectrogram) 
-    if signaltypes is None: signaltypes = allowedtypes
-    if not ts.__class__ in signaltypes:
-        raise TypeError(
-            "object is not the correct ds signal type (allowed: %s)" \
-            % signaltypes)
-    return True
-
 ## Functions that are applied on element-wise on samples
 
 def eval_expr(s, expr, out=None, **kwargs):
@@ -36,7 +25,7 @@ def eval_expr(s, expr, out=None, **kwargs):
     variables as keyword arguments.
     
     """
-    _assert_signal(s)
+    assert_signal(s)
     if not isinstance(s.samples, (NumpyArraySamples, h5ArraySamples)):
         NotImplemented, "at the moment only numpy or hdf5 samples allowed" 
     if isinstance(s.samples, NumpyArraySamples):
@@ -44,7 +33,7 @@ def eval_expr(s, expr, out=None, **kwargs):
     else:
         kwargs['a'] = s.samples.h5array
     if not (out is None):
-        _assert_signal(out)        
+        assert_signal(out)
         if isinstance(out.samples, NumpyArraySamples):
             r = out.samples.array
         elif isinstance(out.samples, h5ArraySamples):

@@ -1,8 +1,8 @@
 import numpy
 from helper import LazyProperty
-from uts3.core.multichannel import MultiChannel
-from uts3.core.epoched import Epoched
-from uts3 import UniformTimeSeries, MultiChannelUniformTimeSeries
+from uts.core.multichannel import MultiChannel
+from uts.core.epoched import Epoched
+from uts import UniformTimeSeries, MultiChannelUniformTimeSeries
 from check_arg import check_arg, check_argarray
 
 class DimensionError(Exception): pass

@@ -1,7 +1,7 @@
 import numpy as np
 import scipy
 import warnings
-from uts3.core.check_arg import check_arg, check_int
+from uts.core.check_arg import check_arg, check_int
 
 defined_integers = (int, long, np.uint8, np.int8, np.uint16,
         np.int16, np.uint32, np.int32, np.uint64, np.int64)

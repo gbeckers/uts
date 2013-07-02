@@ -2,10 +2,10 @@ from unittest import TestCase
 
 from numpy.testing import assert_raises, run_module_suite
 import numpy as np
-from uts3.core.multichannel import MultiChannel, ChannelIndexError, ChannelFormatError
-from uts3.core.defs import DimensionError
-from uts3.core.geometry import RectangularLattice, GeometryError
-from uts3.tests.defs import nan, inf, pfloats, zfloats, nfloats, floattypes, inttypes, eps,\
+from uts.core.multichannel import MultiChannel, ChannelIndexError, ChannelFormatError
+from uts.core.defs import DimensionError
+from uts.core.geometry import RectangularLattice, GeometryError
+from uts.tests.defs import nan, inf, pfloats, zfloats, nfloats, floattypes, inttypes, eps,\
      pints, zints, nints, float_to_floats, int_to_nints, int_to_pints
 
 

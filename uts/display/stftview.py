@@ -1,6 +1,6 @@
 import numpy as np
-from uts3.core.uniformtime import isuts, ismcuts
-from uts3.processing.cstft import strft
+from uts.core.uniformtime import isuts, ismcuts
+from uts.processing.cstft import strft
 from traits.api import HasTraits, Range, Bool, Float, Instance, \
      on_trait_change, Enum, Array, Button
 from traitsui.api import View, Item, Group, ButtonEditor

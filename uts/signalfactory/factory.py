@@ -1,9 +1,10 @@
 import numpy as np
-from uts3.core.uniformtime import UniformTimeSeries, EpochedUniformTimeSeries, \
-      MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries
-from uts3.core.utils import timeparams
-from uts3.core.check_arg import check_arg, check_int, check_float, check_floatarray
-from uts3.io.hdf5 import _newh5uts, _newh5euts, _newh5mcuts, _newh5emcuts
+from uts.core.uniformtime import UniformTimeSeries, EpochedUniformTimeSeries, \
+      MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
+      isuts, iseuts, ismcuts, isemcuts
+from uts.core.utils import timeparams
+from uts.core.check_arg import check_arg, check_int, check_float, check_floatarray
+from uts.io.hdf5 import _newh5uts, _newh5euts, _newh5mcuts, _newh5emcuts
 
 __all__ = ['fill_new','fill_like', 'fromsamples','ones','zeros','noise', 
            'chirp', 'modfreq', 'harmonic']
@@ -232,19 +233,19 @@ def fill_like(s, value=0.0, h5group=None, name=None, dtype=None, channelaxis=Non
                    expectedrows=None, filters=None, chunkshape=None, complib=None, 
                    complevel=None, attrs={}):
     
-    if s._typeid == 'uts':
+    if isuts(s):
         return  _uts_fill_like(s, value=value, h5group=h5group, name=name, dtype=dtype, 
                  overwrite=overwrite, extensible=extensible, expectedrows=expectedrows, 
                  chunkshape=chunkshape, complib=complib, complevel=complevel, attrs=attrs)
-    elif s._typeid == 'mcuts':
+    elif ismcuts(s):
         return _mcuts_fill_like(s, value=value, h5group=h5group, name=name, dtype=dtype, channelaxis=channelaxis,
                  overwrite=overwrite, extensible=extensible, expectedrows=expectedrows, 
                  chunkshape=chunkshape, complib=complib, complevel=complevel, attrs=attrs)
-    elif s._typeid == 'euts':
+    elif iseuts(s):
         return _euts_fill_like(s, value=value, h5group=h5group, name=name, dtype=dtype, epochaxis=epochaxis,
                  overwrite=overwrite, extensible=extensible, expectedrows=expectedrows, 
                  chunkshape=chunkshape, complib=complib, complevel=complevel, attrs=attrs)
-    elif s._typeid == 'emcuts':
+    elif isemcuts(s):
         return _emcuts_fill_like(s, value=value, h5group=h5group, name=name, dtype=dtype, channelaxis=channelaxis,
                  epochaxis=epochaxis, overwrite=overwrite, extensible=extensible, expectedrows=expectedrows, 
                  chunkshape=chunkshape, complib=complib, complevel=complevel, attrs=attrs)

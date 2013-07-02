@@ -3,10 +3,10 @@ from unittest import TestCase
 from numpy.testing import assert_raises, run_module_suite, \
      assert_almost_equal, assert_array_almost_equal
 import numpy as np
-from uts3.core.utils import round_nextradix2, round_nearestradix2, \
+from uts.core.utils import round_nextradix2, round_nearestradix2, \
                             round_nearestodd, round_nearesteven, \
                             allodd, alleven, isodd, iseven
-from uts3.tests.defs import int_to_pints, float_to_floats
+from uts.tests.defs import int_to_pints, float_to_floats
 
 class test_Rounding(TestCase):
 

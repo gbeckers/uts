@@ -10,14 +10,14 @@ from numpy.testing import assert_raises, run_module_suite, \
      assert_almost_equal, assert_array_almost_equal, assert_equal
 import numpy as np
 import tables
-from uts3 import UniformTime, UniformTimeSeries, EpochedUniformTimeSeries, \
+from uts import UniformTime, UniformTimeSeries, EpochedUniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries
-from uts3.core.defs import DimensionError
-from uts3.core.check_arg import argtypes
-from uts3.core.errors import WriteError
-from uts3.tests.defs import nan, inf, pfloats, zfloats, nfloats, floattypes, inttypes, eps,\
+from uts.core.defs import DimensionError
+from uts.core.check_arg import argtypes
+from uts.core.errors import WriteError
+from uts.tests.defs import nan, inf, pfloats, zfloats, nfloats, floattypes, inttypes, eps,\
      pints, zints, nints, float_to_floats, int_to_nints, int_to_pints
-from uts3.tests.create_testarrays import create_h5arrays
+from uts.tests.create_testarrays import create_h5arrays
 from tempfile import NamedTemporaryFile
 
 goodtimeinputs = pfloats + zfloats + nfloats
@@ -307,7 +307,9 @@ def test_movingtimeframeindices():
         assert_raises(ValueError, list, s.movingtimeframeindices(framesize=testtype(1), endindex=testtype(6)))
         assert_raises(ValueError, list, s.movingtimeframeindices(framesize=testtype(1), startindex=testtype(4), endindex=testtype(3)))
 
-        
+    s = UniformTime(ntimesamples=20, fs=5.0)
+    assert_equal(list(s.movingtimeframeindices(framesize=5, stepsize=4, include_remainder=True)), [(0,5),(4,9),(8,13),(12,17),(16,20)])
+
         
 class test_UniformTimeSeries(TestCase):
 

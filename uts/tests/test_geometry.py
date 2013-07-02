@@ -3,8 +3,8 @@ from unittest import TestCase
 from numpy.testing import assert_raises, run_module_suite, \
      assert_almost_equal, assert_array_almost_equal
 import numpy as np
-from uts3.core.geometry import RectangularLattice, GeometryError
-from uts3.tests.defs import int_to_pints, float_to_floats
+from uts.core.geometry import RectangularLattice, GeometryError
+from uts.tests.defs import int_to_pints, float_to_floats
 
 
 def pn(n):

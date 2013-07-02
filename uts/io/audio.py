@@ -1,9 +1,9 @@
 import warnings
 import numpy as np
-from uts3.core.uniformtime import UniformTimeSeries, MultiChannelUniformTimeSeries
-from uts3.core.utils import fit_frames
-from uts3.processing.stats import extremes
-from uts3.processing.signalprocessing import segment_axis
+from uts.core.uniformtime import UniformTimeSeries, MultiChannelUniformTimeSeries
+from uts.core.utils import fit_frames
+from uts.processing.stats import extremes
+from uts.processing.signalprocessing import segment_axis
 
 
 __all__ = ['load_audiofile', 'iter_load_audiofile', 'save_audiofile']
@@ -213,7 +213,7 @@ def convert_audiotoh5(filename, h5group, h5arrayname, origintime=0.0,
                       extensible=False, expectedrows=None, filters=None, 
                       chunkshape=None, attrs={}, readsize=4096):
     
-    from uts3.io.hdf5 import load
+    from uts.io.hdf5 import load
 
     import scikits.audiolab as audiolab
     a = audiolab.Sndfile(filename, 'r')

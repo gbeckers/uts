@@ -2,7 +2,7 @@ import numpy as np
 import scipy
 import scipy.ndimage
 import warnings
-from uts3.core.check_arg import check_arg, check_int
+from uts.core.check_arg import check_arg, check_int
 
 eps = np.power(2.0, -52.0)
 

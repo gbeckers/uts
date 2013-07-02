@@ -8,8 +8,8 @@ from scipy.misc import toimage
 from scipy.misc import imresize
 from os.path import abspath, join
 import os, os.path
-from uts3.core.utils import iminterpolate
-import uts3
+from uts.core.utils import iminterpolate
+import uts
 from matplotlib.colors import LinearSegmentedColormap
 import Image, ImageFont, ImageDraw
 
@@ -115,8 +115,8 @@ def iter_image_series_noresample(mcuts, ranges=None, clip=None,
     if not clip is None:
         low,high = clip
     else:
-        low = uts3.min(mcuts)
-        high = uts3.max(mcuts)
+        low = uts.min(mcuts)
+        high = uts.max(mcuts)
     if zeroincenter:
         high = max(abs(low),abs(high))
         low = -high
@@ -341,7 +341,7 @@ def create_movie(moviename, moviepath, moviedir=None, fs=30., fps=30., audio=Non
     # and add audio if requested
     if not audio is None:
         audiofilename = os.path.join(moviepath,'audio.wav')
-        uts3.io.write_audiofile(audio,audiofilename,fmt=('wav','pcm16','file'),
+        uts.io.write_audiofile(audio,audiofilename,fmt=('wav','pcm16','file'),
                                overwrite=True)
         subprocess.call(['ffmpeg', '-i', moviename+'.webm', '-i', audiofilename,
                          '-ar', '22050', '-acodec', 'libvorbis', 

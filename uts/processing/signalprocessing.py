@@ -20,7 +20,7 @@ from helper import fit_frames
 import scipy
 from windows import windows
 from scipy.weave import converters, inline
-from uts3.core.utils import round_nextradix2, round_nearestodd, round_nearesteven, eps
+from uts.core.utils import round_nextradix2, round_nearestodd, round_nearesteven, eps
 
 
 

@@ -2,7 +2,7 @@ import os
 from numpy.testing import TestCase, assert_raises, run_module_suite, \
      assert_almost_equal, assert_array_almost_equal
 import numpy as np
-from uts3 import UniformTime, UniformTimeSeries, \
+from uts import UniformTime, UniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
     noise, argmax, convolve, iter_convolve, iter_convolve_info, concatenate, \
     decimate, crosscorrelatetime
@@ -70,7 +70,10 @@ class TestIterconvolve(TestCase):
                         iterreslist = []
                         gen = iter_convolve(s, kernel, chunksize=chunksize, mode=mode)
                         info = iter_convolve_info(s, kernel, chunksize=chunksize, mode=mode)
+                        # print mode, kernel, s.nt, chunksize
+                        # print info
                         frames = [frame for frame in gen]
+                        # print frames
                         assert frames[0].ntimesamples == info['firstchunksize']
                         assert info['nmidframes'] == len(frames) - 2
                         assert info['lastchunksize'] == frames[-1].ntimesamples

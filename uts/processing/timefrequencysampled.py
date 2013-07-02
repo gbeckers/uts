@@ -1,8 +1,8 @@
 import numpy as np
-from uts3 import UniformTimeSeries
+from uts import UniformTimeSeries
 from frequencysampled import FrequencySampled
-from uts3.core.samplesource import Samples, assamples #FIXME 
-from uts3.core.check_arg import check_arg
+from uts.core.samplesource import Samples, assamples #FIXME
+from uts.core.check_arg import check_arg
 
 class Spectrogram(UniformTimeSeries, FrequencySampled):
 
@@ -59,7 +59,7 @@ class Spectrogram(UniformTimeSeries, FrequencySampled):
     #FIXME klopt niet
     def get_plot(self, log=True, dynamicrange=50.):
         
-        from uts3.display.singlechannel import imageplot
+        from uts.display.singlechannel import imageplot
         
         samples = self.samples.get(copy=False)
         if self.timeaxis == 0:
@@ -81,7 +81,7 @@ class Spectrogram(UniformTimeSeries, FrequencySampled):
 
     def show(self, log=True, dynamicrange=50.):
 
-        from uts3.display.singlechannel import PlotView
+        from uts.display.singlechannel import PlotView
         
         PlotView(self.get_plot(log=log,dynamicrange=dynamicrange)).configure_traits()
 

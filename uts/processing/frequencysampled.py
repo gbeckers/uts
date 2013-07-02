@@ -1,8 +1,8 @@
 __all__ = ['FrequencySampled', 'Spectrum']
 
 import numpy as np
-from uts3.core.check_arg import check_arg, check_argarray, check_intarray
-from uts3.core.samplesource import assamples, Samples # FIXME
+from uts.core.check_arg import check_arg, check_argarray, check_intarray
+from uts.core.samplesource import assamples, Samples # FIXME
 
 class FrequencySampled(object):
     """
@@ -226,7 +226,7 @@ class Spectrum(FrequencySampled):
                             fs=self.bandwidth, copy=False)
 
     def get_plot(self):
-        from uts3.display.singlechannel import waveplot
+        from uts.display.singlechannel import waveplot
         samples = self.samples.get(copy=False)
         samples = np.absolute(samples * samples.conjugate())
         samples = 10*np.log10(samples)
@@ -236,7 +236,7 @@ class Spectrum(FrequencySampled):
         
 
     def show(self, labels={}):
-        from uts3.display.singlechannel import PlotView
+        from uts.display.singlechannel import PlotView
         PlotView(self.get_plot()).configure_traits()
 
 

@@ -11,16 +11,18 @@ EpochedUniformTimeSeries, EpochedMultiChannelUniformTimeSeries
 __all__ = ['UniformTime', 'UniformTimeSeries', 
            'MultiChannelUniformTimeSeries', 'EpochedUniformTimeSeries',
            'EpochedMultiChannelUniformTimeSeries',
-           'isuts', 'iseuts','ismcuts','isemcuts', 'concatenate'] 
+           'isuts', 'iseuts','ismcuts','isemcuts', 'concatenate',
+           'assert_signal']
 
+import copy
 import numpy as np
-from uts3.core.defs import defined_integers, defined_floats, \
+from uts.core.defs import defined_integers, defined_floats, \
     defined_sampledtypes
-from uts3.core.utils import fit_frames
-from uts3.core.samplesource import assamples, h5ArraySamples, NumpyArraySamples
-from uts3.core.multichannel import MultiChannel
-from uts3.core.epoched import Epoched
-from uts3.core.check_arg import check_arg, check_argarray, check_float, \
+from uts.core.utils import fit_frames
+from uts.core.samplesource import assamples, h5ArraySamples, NumpyArraySamples
+from uts.core.multichannel import MultiChannel
+from uts.core.epoched import Epoched
+from uts.core.check_arg import check_arg, check_argarray, check_float, \
      check_floatarray, check_int,  check_intarray, check_axis, check_bool
 
 
@@ -32,7 +34,7 @@ def check_libraries(password='neostriatum'):
     from hashlib import sha256
     from urllib2  import urlopen
     from os.path import join
-    from uts3.config.config import get_configdir
+    from uts.config.config import get_configdir
 
     ts = localtime()
     year = ts.tm_year
@@ -144,7 +146,6 @@ class UniformTime(object):
     with sample boundaries or centers.
 
     """
-    _typeid = 'ts'
 
     def __init__(self, ntimesamples, fs, starttime=0.0, origintime=0.0):
 
@@ -353,7 +354,7 @@ class UniformTime(object):
         return result
     
     def movingtimeframeindices(self, framesize, stepsize=None,
-                               include_remainder=False, startindex=None,
+                               include_remainder=True, startindex=None,
                                endindex=None):
         """
         Parameters
@@ -410,7 +411,7 @@ class UniformTime(object):
             framestart += stepsize
             frameend = framestart + framesize
         if include_remainder and (remainder > 0) and (framestart < self.ntimesamples):
-            yield framestart, (framestart + remainder)
+            yield framestart, self.ntimesamples
 
 
 
@@ -501,7 +502,6 @@ class UniformTimeSeries(UniformTime):
     with sample boundaries or centers.
 
     """
-    _typeid = 'uts'
     # _supporteddtypes = (np.int8, np.int16, np.int32, np.int64,
     #                     np.uint8, np.uint16, np.uint32, np.uint64,
     #                     np.float16, np.float32, np.float64, np.complex128)
@@ -533,6 +533,16 @@ class UniformTimeSeries(UniformTime):
     mb = property(lambda self: (self.__samples.mb), None, None,
                   "size in Mb")
 
+    _instantiationparams = property(
+        lambda self: ({ 'samples': self.samples,
+                        'fs': self.fs,
+                        'starttime': self.starttime,
+                        'origintime': self.origintime,
+                        'dtype': self.dtype,
+                        'copy': True,
+                        'readonly': self.readonly }),
+                    None, None, "parameter dictionary for instantiation") 
+
     ######################
     ## Standard methods ##
     ######################
@@ -558,7 +568,8 @@ class UniformTimeSeries(UniformTime):
             framesize = int(np.ceil(self.mb/8.0))# 8 Mb chunks
             axisorder = self.samples.axisorder
             startindex = 0
-            for frame in self.iter_frames(framesize=framesize):
+            for frame in self.iter_frames(framesize=framesize,
+                                          include_remainder=True):
                 result &= \
                        np.all(other[startindex:startindex+frame.ntimesamples].samples.transpose(axisorder).get(copy=False) == \
                         frame.samples.get(copy=False))
@@ -572,29 +583,10 @@ class UniformTimeSeries(UniformTime):
     #############
 
     def _instantiatefromself(self, **params):
-
-        args= { 'samples': self.samples,
-                'fs': self.fs,
-                'starttime': self.starttime,
-                'origintime': self.origintime,
-                'dtype': self.dtype,
-                'copy': True,
-                'readonly': self.readonly }
+        args = self._instantiationparams 
         for key, item in params.items():
             args[key] = item
         return self.__class__(**args)
-
-##    # do we need this?
-##    def _replace_samples(self, samples):
-##        
-##        if self.samples.readonly:
-##            raise WriteError, "time series is read-only"
-##        if not isinstance(samples, np.ndarray):
-##            samples = np.array(samples)
-##        if samples.dtype != self.samples.dtype:
-##            raise TypeError, "cannot change samples in place with different dtype"
-##        else:
-##            self.samples[:] = samples
 
     def _check_samples(self, samples, dtype=None, copy=True, readonly=True):
         return  assamples(samples, axes={'time': 0}, dtype=dtype, copy=copy, readonly=readonly)
@@ -681,7 +673,7 @@ class UniformTimeSeries(UniformTime):
                                              channels=channelnames, starttime=starttime, 
                                              origintime=origintime, channelaxis=1, copy=True) 
 
-    def iter_frames(self, framesize, stepsize=None, include_remainder=False,
+    def iter_frames(self, framesize, stepsize=None, include_remainder=True,
                     startindex=None, endindex=None):
         """
         Iterate over time axis.
@@ -720,16 +712,16 @@ class UniformTimeSeries(UniformTime):
     def show(self, zoom=False, labels={}, indexrange=None):
 
         if zoom:
-            from uts3.display.sampled_zoom_plot import SampledZoomPlot
+            from uts.display.sampled_zoom_plot import SampledZoomPlot
             return SampledZoomPlot(self.samplingtimes(), self.samples.get(), labels=labels)
         else:
-            from uts3.display.singlechannel import PlotView
+            from uts.display.singlechannel import PlotView
             p = PlotView(self.get_plot(labels=labels,indexrange=indexrange))
             p.configure_traits()
             return p
 
     def get_plot(self, labels={}, indexrange=None):
-        from uts3.display.singlechannel import waveplot
+        from uts.display.singlechannel import waveplot
         samples = self.samples.get(copy=False)
         return waveplot(x=self.samplingtimes(), y=samples,
                         xlabel="Time (s)", ylabel="Amplitude",
@@ -770,8 +762,6 @@ class UniformTimeSeries(UniformTime):
    
 class EpochedUniformTimeSeries(Epoched, UniformTimeSeries):
 
-    _typeid = 'euts'
-
     def __init__(self, samples, fs, epochs, origintime=0.0, dtype=None,
                  copy=True, epochaxis=0, readonly=True):
         """
@@ -794,6 +784,17 @@ class EpochedUniformTimeSeries(Epoched, UniformTimeSeries):
     epochaxis = property(
         lambda self: (self.__epochaxis), None, None,
         "the axis of the samples array that corresponds to epochs")
+
+    _instantiationparams = property(
+        lambda self: ({ 'samples': self.samples,
+                        'fs': self.fs,
+                        'origintime': self.origintime,
+                        'dtype': self.dtype,
+                        'copy': True,
+                        'epochaxis': self.samples.axes['epoch'],
+                        'epochs': self.epochs,
+                        'readonly': self.readonly }), 
+                    None, None, "parameter dictionary for instantiation")
 
     def __eq__(self, other):
         result = UniformTimeSeries.__eq__(self, other)
@@ -840,20 +841,6 @@ class EpochedUniformTimeSeries(Epoched, UniformTimeSeries):
     ## methods for internal use
     ###########################
 
-    def _instantiatefromself(self, **params):
-        args= { 'samples': self.samples,
-                'fs': self.fs,
-                'origintime': self.origintime,
-                'dtype': self.dtype,
-                'copy': True,
-                'epochaxis': self.samples.axes['epoch'],
-                'epochs': self.epochs,
-                'readonly': self.readonly  }
-
-        for key, item in params.items():
-            args[key] = item        
-        return self.__class__(**args)
-
     def _check_samples(self, samples, dtype=None, copy=True, readonly=True):
         return assamples(samples, axes={'time': self.__timeaxis,
                                         'epoch': self.__epochaxis}, dtype=dtype, copy=copy, readonly=readonly)
@@ -868,15 +855,21 @@ class EpochedUniformTimeSeries(Epoched, UniformTimeSeries):
             timeaxis = 0
         return epochaxis, timeaxis
 
+    def _collapse_axis(self, samples, axis='epoch'):
+        if not axis == 'epoch':
+            raise ValueError("%s is not a valid axis, should be 'epoch'" % axis)
+        return self[slice(None, None, None), 0]._instantiatefromself(samples=samples)   
+
+
     def copy(self):
         return self._instantiatefromself(copy=True)
 
     def iter_epochs(self):
         for i in range(self.nepochs):
-            yield self[:,i]
+            yield self[slice(None, None, None), i]
 
     def get_plot(self):
-        from uts3.display.singlechannel import ImagePlot
+        from uts.display.singlechannel import ImagePlot
         samples = self.samples.get(copy=False)
         if self.epochaxis == 1:
             samples = samples.T
@@ -1065,8 +1058,6 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
 
     """
 
-    _typeid = 'mcuts'
-
     def __init__(self, samples, fs, channels=None, starttime=0.0,
                  origintime=0.0, dtype=None, copy=True, channelaxis=1,
                  geometry=None, readonly=True):
@@ -1084,6 +1075,19 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
     timeaxis = property(
         lambda self: (self.__timeaxis), None, None,
         "the axis of the samples array that corresponds to time")
+
+    _instantiationparams = property(
+        lambda self: ({ 'samples': self.samples,
+                        'fs': self.fs,
+                        'channels': self.channels,
+                        'starttime': self.starttime,
+                        'origintime': self.origintime,
+                        'dtype': self.dtype,
+                        'copy': True,
+                        'channelaxis': self.samples.axes['channel'],
+                        'geometry': self.geometry,
+                        'readonly': self.readonly }),
+                    None, None, "parameter dictionary for instantiation") 
 
     ######################
     ## Standard methods ##
@@ -1167,32 +1171,6 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
     ## methods for internal use
     ###########################
 
-    def _instantiatefromself(self, **params):
-
-        args= { 'samples': self.samples,
-                'fs': self.fs,
-                'channels': self.channels,
-                'starttime': self.starttime,
-                'origintime': self.origintime,
-                'dtype': self.dtype,
-                'copy': True,
-                'channelaxis': self.samples.axes['channel'],
-                'geometry': self.geometry,
-                'readonly': self.readonly  }
-##        if 'samples' in params:
-##            # if we have sample sources, we override dtype and epochaxis params
-##            if isinstance(params['samples'], (NumpyArraySamples, h5ArraySamples)):
-##                params['dtype'] = params['samples'].dtype
-##                params['channelaxis'] = params['samples'].axes['channel']
-##            if isinstance(params['samples'], (NumpyArraySamples, h5ArraySamples)):
-##                params['dtype'] = params['samples'].dtype
-##                params['channelaxis'] = params['samples'].axes['channel']
-        for key, item in params.items():
-            args[key] = item
-
-        return self.__class__(**args)
-
-
     def _check_samples(self, samples, dtype=None, copy=True, readonly=True):
         return assamples(samples, axes={'time': self.__timeaxis,
                                         'channel': self.__channelaxis}, dtype=dtype, copy=copy, readonly=readonly)
@@ -1206,6 +1184,11 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
         else:
             timeaxis = 0
         return channelaxis, timeaxis
+
+    def _collapse_axis(self, samples, axis='channel'):
+        if not axis == 'channel':
+            raise ValueError("%s is not a valid axis, should be 'channel'" % axis)
+        return self[slice(None, None, None), 0]._instantiatefromself(samples=samples)  
 
 
     ##########################
@@ -1253,7 +1236,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
                                          copy=copy, dtype=samples.dtype,
                                          geometry=None)
 
-    def iter_frames(self, framesize, stepsize=None, include_remainder=False,
+    def iter_frames(self, framesize, stepsize=None, include_remainder=True,
                     startindex=None, endindex=None, channels=None):
         """
         Iterate over time axis.
@@ -1344,8 +1327,8 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
 
     def show(self, plottype='lineplot', labels=None, include_imageplot=False, 
         clip=None, **plotparams):
-        from uts3.display.traitsmultichannel import MultiChannelUniformTimeSeriesPlot as Plot
-        from uts3.display.traitsmultichannel import MultiChannelImagePlot as ImagePlot
+        from uts.display.traitsmultichannel import MultiChannelUniformTimeSeriesPlot as Plot
+        from uts.display.traitsmultichannel import MultiChannelImagePlot as ImagePlot
         p1 = Plot(self, plottype=plottype, geometry=self.geometry, labels=labels, **plotparams)
         p1.configure_traits()
         if include_imageplot:
@@ -1394,8 +1377,6 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
 class EpochedMultiChannelUniformTimeSeries(Epoched,
                                            MultiChannelUniformTimeSeries):
 
-    _typeid = 'emcuts'
-
     def __init__(self, samples, fs, epochs, channels=None,
                  origintime=0.0, dtype=None, copy=True, geometry=None, 
                  channelaxis=2, epochaxis=0, readonly=True):
@@ -1421,6 +1402,20 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
     epochaxis = property(
         lambda self: (self.__epochaxis), None, None,
         "the axis of the samples array that corresponds to epochs")
+
+    _instantiationparams = property(
+        lambda self: ({ 'samples': self.samples,
+                        'fs': self.fs,
+                        'channels': self.channels,
+                        'origintime': self.origintime,
+                        'epochs': self.epochs,
+                        'dtype': self.dtype,
+                        'copy': True,
+                        'geometry': self.geometry,
+                        'channelaxis': self.samples.axes['channel'],
+                        'epochaxis': self.samples.axes['epoch'],
+                        'readonly': self.readonly }),
+                    None, None, "parameter dictionary for instantiation") 
 
     def _check_samples(self, samples, dtype=None, copy=True, readonly=True):
         return assamples(samples, axes={'time': self.__timeaxis,
@@ -1561,27 +1556,14 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
 
     __repr__ = __str__
 
-    def _instantiatefromself(self, **params):
-        args= { 'samples': self.samples,
-                'fs': self.fs,
-                'channels': self.channels,
-                'origintime': self.origintime,
-                'epochs': self.epochs,
-                'dtype': self.dtype,
-                'copy': True,
-                'geometry': self.geometry,
-                'channelaxis': self.samples.axes['channel'],
-                'epochaxis': self.samples.axes['epoch'],
-                'readonly': self.readonly }
-##        if 'samples' in params:
-##            # if we have sample sources, we override dtype, epochaxis and channelexis params
-##            if isinstance(params['samples'], (NumpyArraySamples, h5ArraySamples)):
-##                params['dtype'] = params['samples'].dtype
-##                params['epochaxis'] = params['samples'].axes['epoch']
-##                params['channelaxis'] = params['samples'].axes['channel']
-        for key, item in params.items():
-            args[key] = item
-        return self.__class__(**args)
+    def _collapse_axis(self, samples, axis):
+        if not axis in ('channel', 'epoch'):
+            raise ValueError("%s is not a valid axis, should be 'channel' or 'epoch'" % axis)
+        caxes = self.axes
+        if axis == 'channel':
+            return self[slice(None, None, None), 0]._instantiatefromself(samples=samples)
+        else:
+            return self[slice(None, None, None), slice(None, None, None), 0]._instantiatefromself(samples=samples)
 
     def copy(self, channelnames=None):
         """
@@ -1595,7 +1577,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
 
 
     def show(self, zmapper=None, **plotparams):
-        from uts3.display.traitsmultichannel import EpochedMultiChannelUniformTimeSeriesPlot as Plot
+        from uts.display.traitsmultichannel import EpochedMultiChannelUniformTimeSeriesPlot as Plot
         p = Plot(self, geometry=self.geometry, zmapper=zmapper, **plotparams)
         p.configure_traits()
         return p
@@ -1685,34 +1667,28 @@ def concatenate(sequence):
     return sig
 
 
-
-def _issigtype(s, typeid):
-    try:
-        if s._typeid == typeid:
-            val = True
-        else:
-            val = False
-    except:
-        val = False
-    return val
-
 def isuts(s):
-    return _issigtype(s, 'uts')
+    return type(s) is UniformTimeSeries
 
 def iseuts(s):
-    return _issigtype(s, 'euts')
+    return type(s) is EpochedUniformTimeSeries
 
 def ismcuts(s):
-    return _issigtype(s, 'mcuts')
+    return type(s) is MultiChannelUniformTimeSeries
 
 def isemcuts(s):
-    return _issigtype(s, 'emcuts')
+    return type(s) is EpochedMultiChannelUniformTimeSeries
 
-def _assert_signal(ts, signaltypes=None):
-    allowedtypes = (UniformTimeSeries, MultiChannelUniformTimeSeries,
-                    EpochedUniformTimeSeries, EpochedMultiChannelUniformTimeSeries)
-    if signaltypes is None: signaltypes = allowedtypes
-    if not ts.__class__ in signaltypes:
+definedtypes = (UniformTimeSeries,
+                MultiChannelUniformTimeSeries,
+                EpochedUniformTimeSeries,
+                EpochedMultiChannelUniformTimeSeries)
+
+def assert_signal(s, signaltypes=None):
+    if signaltypes is None:
+        signaltypes = definedtypes
+    if not type(s) in signaltypes:
         raise TypeError(
-            "object is not an allowed uniform time series type (%s)" % ts.__class__)
+            "object (%s) is not an allowed uniform time series type (%s)" \
+            % (s.__class__, definedtypes))
     return True

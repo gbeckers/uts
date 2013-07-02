@@ -1,7 +1,7 @@
 import numpy as np
-from uts3.core.geometry import Geometry, RectangularLattice
-from uts3.core.defs import defined_integers, DimensionError
-from uts3.core.check_arg import check_arg
+from uts.core.geometry import Geometry, RectangularLattice
+from uts.core.defs import defined_integers, DimensionError
+from uts.core.check_arg import check_arg
 
 class ChannelIndexError(IndexError): pass
 

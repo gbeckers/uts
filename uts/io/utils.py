@@ -1,5 +1,5 @@
 def h5attr_to_geometry(attr, pointnames=None):
-    from uts3.core.geometry import RectangularLattice
+    from uts.core.geometry import RectangularLattice
     code = '%s(' % attr[0] #class
     for key,item in attr[1].items(): #parameters
         code += '%s=%s,' % (key,item)

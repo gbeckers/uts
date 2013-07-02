@@ -11,8 +11,8 @@ Samples.
 
 import numpy as np
 import tables
-from uts3.core.check_arg import check_arg, check_int, check_argarray
-from uts3.core.errors import WriteError
+from uts.core.check_arg import check_arg, check_int, check_argarray
+from uts.core.errors import WriteError
 from defs import defined_sampledtypes
 
 class Samples(object):

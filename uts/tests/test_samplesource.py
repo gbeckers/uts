@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from numpy.testing import assert_raises, run_module_suite
 import numpy as np
-from uts3.core.samplesource import Samples
+from uts.core.samplesource import Samples
 
 
 class test_Samples(TestCase):

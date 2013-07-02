@@ -20,7 +20,7 @@ from enable.component_editor import ComponentEditor
 from enable.api import BaseTool
 from enable.events import KeyEvent
 
-from uts3 import MultiChannelUniformTimeSeries
+from uts import MultiChannelUniformTimeSeries
 
 class MultiChannelPlot(HasTraits):
 

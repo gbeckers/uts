@@ -1,11 +1,11 @@
 import numpy as np
 import _stats
-from uts3 import UniformTimeSeries, \
+from uts import UniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedUniformTimeSeries, \
-    EpochedMultiChannelUniformTimeSeries
+    EpochedMultiChannelUniformTimeSeries, assert_signal
 from frequencysampled import Spectrum
 from helper import unsqueeze
-from uts3.core.check_arg import check_arg, check_int, check_float, check_floatarray,\
+from uts.core.check_arg import check_arg, check_int, check_float, check_floatarray,\
      check_axis
 import scipy.stats #import nanmean, nanstd, nanmedian
 
@@ -15,19 +15,10 @@ __all__ = [ 'argmax', 'argmin','extremes', 'kurtosis', 'mad', 'max', 'mean',
 
 
 # FIXME start, end parameters for functions (see extremes)
-
-def _assert_signal(ts, signaltypes=None):
-    allowedtypes = (UniformTimeSeries, MultiChannelUniformTimeSeries,
-            EpochedUniformTimeSeries, EpochedMultiChannelUniformTimeSeries,
-            Spectrum) 
-    if signaltypes is None: signaltypes = allowedtypes
-    if not ts.__class__ in signaltypes:
-        raise TypeError("%s is not an allowed signal type" % ts.__class__)
-    return True
     
 
 def _meaniterframefunc(func, s, axis=None, framesize=1024*64, **kwargs):
-    _assert_signal(s)
+    assert_signal(s)
     axis = check_axis(axis, s)
     axissize = s.samples.shape[s.samples.axes[axis]]
     if axissize < 1:
@@ -37,14 +28,16 @@ def _meaniterframefunc(func, s, axis=None, framesize=1024*64, **kwargs):
     else:
         ms = []
         weights = []
-        for f in s.iter_frames(framesize=framesize):
+        for f in s.iter_frames(framesize=framesize, include_remainder=True):
             m = func(f.samples.get(copy=False), axis=s.samples.axes[axis],**kwargs)
             ms.append(m)
             weights.append(f.ntimesamples / float(framesize))
         ms = np.array(ms, dtype=np.float64)
         weights = np.array(weights, dtype=np.float64)
-        m = np.average(ms,axis=0,weights=weights)
+        m = np.average(ms, axis=0, weights=weights)
 
+    if not axis == s.baseaxis:
+        m = s._collapse_axis(samples=m, axis=axis)
     return m
     
 
@@ -134,7 +127,7 @@ def mad(s, axis=None, framesize=1024*128, c=0.6745):
                               framesize=framesize, c=c)
 
 def sum(s, axis=None, framesize=1024*128):
-    _assert_signal(s)
+    assert_signal(s)
     axis = check_axis(axis, s)
     axissize = s.samples.shape[s.samples.axes[axis]]
     if axissize < 1:
@@ -153,7 +146,7 @@ def sum(s, axis=None, framesize=1024*128):
     return m
 
 def max(s, axis=None, framesize=1024*128):
-    _assert_signal(s)
+    assert_signal(s)
     axis = check_axis(axis, s)
     axissize = s.samples.shape[s.samples.axes[axis]]
     if axissize < 1:
@@ -167,7 +160,7 @@ def max(s, axis=None, framesize=1024*128):
             shape = [1]
         m = np.empty(shape, dtype=np.float64)
         m[:] = -np.inf
-        for f in s.iter_frames(framesize=framesize):
+        for f in s.iter_frames(framesize=framesize, include_remainder=True):
             currm = np.array(np.amax(f.samples.get(copy=False), 
                                      axis=s.samples.axes[axis]), ndmin=1)
             index = (currm > m)
@@ -178,7 +171,7 @@ def max(s, axis=None, framesize=1024*128):
 
 
 def argmax(s, axis=None, framesize=1024*128):
-    _assert_signal(s)
+    assert_signal(s)
     axis = check_axis(axis, s)
     axissize = s.samples.shape[s.samples.axes[axis]]
     if axissize < 1:
@@ -192,7 +185,7 @@ def argmax(s, axis=None, framesize=1024*128):
             shape = [1]
         m = np.empty(shape, dtype=np.float64)
         m[:] = -np.inf
-        for f in s.iter_frames(framesize=framesize):
+        for f in s.iter_frames(framesize=framesize,  include_remainder=True):
             currm = np.array(np.argmax(f.samples.get(copy=False), 
                                      axis=s.samples.axes[axis]), ndmin=1)
             index = (currm > m)
@@ -203,7 +196,7 @@ def argmax(s, axis=None, framesize=1024*128):
 
 
 def min(s, axis=None, framesize=1024*128):
-    _assert_signal(s)
+    assert_signal(s)
     axis = check_axis(axis, s)
     axissize = s.samples.shape[s.samples.axes[axis]]
     if axissize < 1:
@@ -217,7 +210,7 @@ def min(s, axis=None, framesize=1024*128):
             shape = [1]
         m = np.empty(shape, dtype=np.float64)
         m[:] = np.inf
-        for f in s.iter_frames(framesize=framesize):
+        for f in s.iter_frames(framesize=framesize, include_remainder=True):
             currm = np.array(np.amin(f.samples.get(copy=False), 
                                      axis=s.samples.axes[axis]), ndmin=1)
             index = (currm < m)
@@ -227,7 +220,7 @@ def min(s, axis=None, framesize=1024*128):
     return m
 
 def argmin(s, axis=None, framesize=1024*128):
-    _assert_signal(s)
+    assert_signal(s)
     axis = check_axis(axis, s)
     axissize = s.samples.shape[s.samples.axes[axis]]
     if axissize < 1:
@@ -241,7 +234,7 @@ def argmin(s, axis=None, framesize=1024*128):
             shape = [1]
         m = np.empty(shape, dtype=np.float64)
         m[:] = np.inf
-        for f in s.iter_frames(framesize=framesize):
+        for f in s.iter_frames(framesize=framesize, include_remainder=True):
             currm = np.array(np.argmin(f.samples.get(copy=False), 
                                      axis=s.samples.axes[axis]), ndmin=1)
             index = (currm < m)
@@ -251,7 +244,7 @@ def argmin(s, axis=None, framesize=1024*128):
     return m
 
 def extremes(s, axis=None, framesize=1024*128, start=None, end=None):
-    _assert_signal(s)
+    assert_signal(s)
     axis = check_axis(axis, s)
     axissize = s.samples.shape[s.samples.axes[axis]]
     if axissize < 1:
@@ -272,7 +265,8 @@ def extremes(s, axis=None, framesize=1024*128, start=None, end=None):
         mmax = np.empty(shape, dtype=np.float64)
         mmax[:] = -np.inf
         mmaxindex = np.empty(shape, dtype=np.int64)
-        for f in s.iter_frames(framesize=framesize, start=start, end=end):
+        for f in s.iter_frames(framesize=framesize, startindex=start,
+                               endindex=end, include_remainder=True):
             currmin = np.array(np.min(f.samples.get(copy=False), 
                                      axis=s.samples.axes[axis]), ndmin=1)
             currminindex = np.array(np.argmin(f.samples.get(copy=False), 
@@ -296,7 +290,7 @@ def extremes(s, axis=None, framesize=1024*128, start=None, end=None):
     return mmin, mmax, mminindex, mmaxindex
 
 def ptp(s, axis=None, framesize=1024*128):
-    _assert_signal(s)
+    assert_signal(s)
     axis = check_axis(axis, s)
     axissize = s.samples.shape[s.samples.axes[axis]]
     if axissize < 1:
@@ -337,7 +331,7 @@ def standardize(s, axis='time', sdone=True, ignorenan=True):
         mean = np.mean
         std = np.std
 
-    _assert_signal(s)
+    assert_signal(s)
     axis = s.samples.axes[axis]
     samples = s.samples.get(copy=True)
     m = mean(samples, axis=axis)

@@ -3,7 +3,7 @@ from unittest import TestCase
 from numpy.testing import assert_raises, assert_almost_equal
 import numpy as np
 from defs import float_to_floats, int_to_nints, int_to_pints
-from uts3.core.check_arg import check_bool, check_float, check_int
+from uts.core.check_arg import check_bool, check_float, check_int
 
 
 __all__ = ['TestCheck_bool', 'TestCheck_float', 'TestCheck_int']

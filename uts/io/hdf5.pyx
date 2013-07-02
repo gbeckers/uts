@@ -4,13 +4,14 @@ from types import GeneratorType
 import numpy as np
 import tables
 from numpy import fromfile
-from uts3.core.uniformtime import UniformTimeSeries, EpochedUniformTimeSeries, \
-    MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries
-from uts3.core.multichannel import MultiChannel
-from uts3.core.epoched import Epoched
+from uts.core.uniformtime import UniformTimeSeries, EpochedUniformTimeSeries, \
+    MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
+    isuts, iseuts, ismcuts, isemcuts
+from uts.core.multichannel import MultiChannel
+from uts.core.epoched import Epoched
 from utils import h5attr_to_geometry
-from uts3.core.check_arg import check_arg, check_int
-from uts3.core.utils import fit_frames
+from uts.core.check_arg import check_arg, check_int
+from uts.core.utils import fit_frames
 
 __all__ = ['save', 'load']
 
@@ -69,19 +70,19 @@ def save(s, signalname, h5group=None, filename=None, channelaxis=None, epochaxis
         for sn in s:
             h5mcss.append(sn)
         return h5mcss
-    elif s._typeid == 'uts':
+    elif isuts(s):
         return _save_uts(s, h5group=h5group, name=signalname, attrs=attrs, overwrite=overwrite,
                 extensible=extensible, expectedrows=expectedrows, dtype=dtype, 
                 complib=complib, complevel=complevel, chunkshape=chunkshape)
-    elif s._typeid == 'mcuts':
+    elif ismcuts(s):
         return _save_mcuts(s, h5group=h5group, name=signalname, channelaxis=channelaxis, attrs=attrs, 
                            overwrite=overwrite, extensible=extensible, expectedrows=expectedrows, 
                            dtype=dtype, complib=complib, complevel=complevel, chunkshape=chunkshape)
-    elif s._typeid == 'euts':
+    elif iseuts(s):
         return _save_euts(s, h5group=h5group, name=signalname, epochaxis=epochaxis, attrs=attrs, 
                           overwrite=overwrite, extensible=extensible, expectedrows=expectedrows, 
                           dtype=dtype, complib=complib, complevel=complevel, chunkshape=chunkshape)
-    elif s._typeid == 'emcuts':
+    elif isemcuts(s):
         return _save_emcuts(s, h5group=h5group, name=signalname, channelaxis=channelaxis,
                             epochaxis=epochaxis, attrs=attrs, overwrite=overwrite,
                 extensible=extensible, expectedrows=expectedrows, dtype=dtype, 

@@ -1,4 +1,5 @@
 import os
+from isuts, iseuts, ismcuts, isemcuts
 from types import GeneratorType
 
 __all__ = ['savemat']
@@ -37,16 +38,16 @@ def savemat(s, filename, appendmat=True, format='5', do_compression=False,
             os.remove(filename + '.mat')
         else:
             raise IOError('filename exists')
-    if s._typeid == 'uts':
+    if isuts(s):
         mdict = {'samples': s.samples.get(False), 'fs': s.fs, 'starttime': s.starttime, 
                  'origintime': s.origintime}
-    elif s._typeid == 'mcuts':
+    elif ismcuts(s):
         mdict = {'samples': s.samples.get(False), 'fs': s.fs, 'starttime': s.starttime, 
                  'origintime': s.origintime, 'channelnames': s.channelnames.copy()}
-    elif s._typeid == 'euts':
+    elif iseuts(s):
         mdict = {'samples': s.samples.get(False), 'fs': s.fs, 'starttime': s.starttime, 
                  'origintime': s.origintime, 'starttimes': s.starttimes}
-    elif s._typeid == 'emcuts':
+    elif isemcuts(s):
         mdict = {'samples': s.samples.get(False), 'fs': s.fs, 'starttime': s.starttime, 
                  'origintime': s.origintime, 'starttimes': s.starttimes.copy(), 
                  'channelnames': s.channelnames.copy()}

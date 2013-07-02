@@ -1,4 +1,4 @@
-from uts3 import MultiChannelUniformTimeSeries
+from uts import MultiChannelUniformTimeSeries
 ## can be handy if you have EEG data with channels in different textfile
 def iter_loadfromtxtfiles(filenames, channelnames, fs, chunksize=1024*10):
     

@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from uts3.core.uniformtime import UniformTimeSeries, EpochedUniformTimeSeries, \
+from uts.core.uniformtime import UniformTimeSeries, EpochedUniformTimeSeries, \
       MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries
 
 
