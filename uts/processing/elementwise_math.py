@@ -4,8 +4,8 @@ from uts import UniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedUniformTimeSeries, \
     EpochedMultiChannelUniformTimeSeries, assert_signal
 from uts.core.samplesource import NumpyArraySamples, h5ArraySamples
-from frequencysampled import Spectrum
-from timefrequencysampled import Spectrogram
+from uts.core.uniformfrequency import Spectrum
+from uts.core.uniformtimefrequency import Spectrogram
 from uts.core.check_arg import check_arg, check_float, check_floatarray, check_argarray
 
 

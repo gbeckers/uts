@@ -1,12 +1,14 @@
 import warnings
 import numpy as np
-from uts.core.uniformtime import UniformTimeSeries, MultiChannelUniformTimeSeries
+from uts.core.uniformtime import UniformTimeSeries, MultiChannelUniformTimeSeries, isuts, ismcuts
 from uts.core.utils import fit_frames
+from uts.core.check_arg import check_arg
 from uts.processing.stats import extremes
 from uts.processing.signalprocessing import segment_axis
+from contextlib import contextmanager, closing
 
 
-__all__ = ['load_audiofile', 'iter_load_audiofile', 'save_audiofile']
+__all__ = ['load_audiofile', 'iter_load_audiofile', 'save_audiofile', 'save_wav', 'load_wav']
 
 
 def load_audiofile(filename, dtype=np.float32, starttime=0.0, correct_audiolabbug=True):
@@ -116,8 +118,9 @@ def iter_load_audiofile(filename, readsize=1024**2, stepsize=None, dtype=np.floa
     
 
 # FIXME allow specific channels
-def save_audiofile(tss, filename, fmt=('flac', 'pcm24', 'file'), writesize=1024**2, start=None,
-                    end=None, overwrite=False, maxamp=None, fs=None):
+def save_audiofile(tss, filename, fmt=('flac', 'pcm24', 'file'),
+                   writesize=1024**2, start=None, end=None,
+                   overwrite=False, maxamp=None, fs=None):
     import os.path
     import scikits.audiolab as audiolab
     #FIXME check if tss is tss
@@ -141,7 +144,8 @@ def save_audiofile(tss, filename, fmt=('flac', 'pcm24', 'file'), writesize=1024*
         fs = int(np.round(fs))
         warnings.warn("flac only supports integer sampling rate => will round to %d"%fs)
     f = audiolab.Sndfile(filename, 'w', fmt, nchannels, fs)
-    for frame in tss.iter_frames(framesize=writesize/nchannels, start=start, end=end):
+    for frame in tss.iter_frames(framesize=writesize/nchannels,
+                                 startindex=start, endindex=end):
         samples = frame.samples.get(copy=False)
         if ampfactor:
             samples *= ampfactor
@@ -157,9 +161,73 @@ def save_audiofile(tss, filename, fmt=('flac', 'pcm24', 'file'), writesize=1024*
 #            raise IOError, "file exists, use overwrite parameter if desired"
 #        numpy.savetxt(filename, ar,delimeter=',')
         
+
+@contextmanager
+def _open_wavefile(filename, mode='r'):
+    import wave
+    with closing(wave.open(filename, mode=mode)) as f:
+        yield f
     
+def load_wav(filename, dtype=np.int16, starttime=0.0):
+    with _open_wavefile(filename=filename, mode='r') as f:
+        samplewidth = f.getsampwidth()
+        nframes = f.getnframes()
+        nchannels = f.getnchannels()
+        fs = f.getframerate()
+        conv_code, audiotofloatfactor = packing_code(samplewidth)
+        data = np.frombuffer(f.readframes(f.getnframes()), dtype=conv_code)
+        if np.issubdtype(dtype, float):
+            data = (data / audiotofloatfactor).astype(dtype)
+        if nchannels == 1:
+            return UniformTimeSeries(samples=data, fs=float(fs), starttime=starttime)
+        else:
+            return MultiChannelUniformTimeSeries(samples=data.reshape(-1, nchannels), fs=float(fs), starttime=starttime, channelaxis=1)
+
+# def reset_fs_wavefile(filename, newfs):
+#     with _open_wavefile(filename, mode='a') as f:
+#         f.setframerate(newfs)
+
+
+# FIXME make multichannel capability
+def save_wav(tss, filename, override_fs=None,
+                   writesize=1024**2, start=None, end=None,
+                   overwrite=False, maxamp=None):
+    import os.path
     
+    isuts(tss)
+    if os.path.exists(filename) and not overwrite:
+        raise IOError("file exists, use overwrite parameter if desired")
+    if not maxamp is None:
+        mmin, mmax, mminindex, mmaxindex = extremes(tss, start=start, end=end)
+        m = max(abs(min(np.array(mmin, ndmin=1))),abs(max(np.array(mmax, ndmin=1))))
+        ampfactor = maxamp / float(m)
+    else:
+        ampfactor = None
+    if not (override_fs is None):
+        fs = check_arg(override_fs, 'fs')
+    else:
+        fs = tss.fs
+    if (fs % 1) >  0:
+        warnings.warn("wav only supports integer sampling rate => will round %d"%fs)
+        fs = np.round(tss.fs)
+    fs = int(fs)
     
+    with _open_wavefile(filename,'w') as f:
+        f.setnchannels(1)
+        f.setframerate(fs)
+        f.setsampwidth(2)
+        floattoaudiofactor = packing_code(2)[1]
+        for frame in tss.iter_frames(framesize=writesize,
+                                     startindex=start, endindex=end):
+            samples = frame.samples.get(copy=False)
+            if np.issubdtype(samples.dtype, float):
+                if np.any((samples >= 1.0) | (samples <= -1.0)):
+                    warnings.warn('not all samples are > -1.0 and < 1.0')
+                samples *= floattoaudiofactor
+            if ampfactor:
+                samples *= ampfactor
+            f.writeframes(samples.astype('h').tostring())
+
 
 #FIXME now only single channel
 
@@ -243,4 +311,14 @@ def convert_audiotoh5(filename, h5group, h5arrayname, origintime=0.0,
         
     arnode.flush()
     return loadh5(arnode, inmemory=False)
+
+
+def packing_code(samplewidth):
+    if samplewidth == 1:            # 8 bits are unsigned, 16 & 32 signed
+        return 'B', 128.0        # unsiged 8 bits
+    elif samplewidth == 2:
+        return 'h', 32768.0        # signed 16 bits
+    elif samplewidth == 4:
+        return 'i',  32768.0 * 65536.0    # signed 32 bits
+    raise 'WaveIO Packing Error','Not able to parse %s bytes' % samp_width
     

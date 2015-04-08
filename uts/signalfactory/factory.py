@@ -29,9 +29,17 @@ def fromsamples(samples, fs, channels=None, starttime=0.0, \
                         geometry=geometry)
 
 def zeros(*args, **kwargs):
+    """
+    See documentation of fill_new
+    
+    """
     return fill_new(0.0, *args, **kwargs)
 
 def ones(*args, **kwargs):
+    """
+    See documentation of fill_new
+    
+    """
     return fill_new(1.0, *args, **kwargs)
 
 #FIXME 
@@ -395,7 +403,7 @@ def _emcuts_fill_like(s, value=0.0, h5group=None, name=None, dtype=None, channel
     return s._instantiatefromself(samples=samples, copy=False, 
                                      channelaxis=channelaxis)
 
-def noise(duration=1.0, ntimesamples=44100, fs=None, nchannels=0, channels=None, 
+def noise(duration=None, ntimesamples=None, fs=44100., nchannels=0, channels=None, 
           starttime=0.0, origintime=0.0, channelaxis=1, dtype=None, geometry=None, 
           peakamp=None, rmsamp=None):
 
@@ -421,7 +429,7 @@ def noise(duration=1.0, ntimesamples=44100, fs=None, nchannels=0, channels=None,
             starttime=starttime, origintime=origintime, dtype=dtype, copy=False,
             channelaxis=channelaxis, geometry=geometry)
 
-def chirp(duration=1.0, ntimesamples=44100, fs=None, startfreq=0., endfreq=10000.,
+def chirp(duration=None, ntimesamples=None, fs=44100., startfreq=0., endfreq=10000.,
           dtype=None, peakamp=None, rmsamp=None):
     (ntimesamples, fs, duration) = timeparams(ntimesamples=ntimesamples, fs=fs,
                                                duration=duration)
@@ -446,13 +454,13 @@ def modfreq(freqpattern, fs, dtype=None, peakamp=None, rmsamp=None):
     ar = _scale(ar, peakamp=peakamp, rmsamp=rmsamp)
     return UniformTimeSeries(samples=ar, fs=fs)
 
-def harmonic(duration=1.0, fs=44100., fundfreq=500., nharmonics=1, dtype=None, 
+def harmonic(duration=None, ntimesamples=None, fs=44100., fundfreq=500., nharmonics=1, dtype=None, 
              hweights=None, hphases=None, peakamp=None, rmsamp=None):
     """
     If you don't provide peakamp and rmsamp, default peakamp is 0.99.
     """
-    duration = check_arg(duration, 'duration')
-    fs = check_arg(fs, 'fs')
+    (ntimesamples, fs, duration) = timeparams(ntimesamples=ntimesamples, fs=fs,
+                                               duration=duration)
     fundfreq = check_float(fundfreq, positive=True, zero=False, negative=False)
     nharmonics = check_int(nharmonics, positive=True, zero=False, 
                             negative=False, cast=int)

@@ -12,15 +12,15 @@ accept signals.
 
 
 import numpy as np
-import mdp
-from time import time
-import warnings
+# from time import time
+# import warnings
+import scipy.fftpack
 from scipy.signal import cheby1, firwin, lfilter, remez
 from helper import fit_frames
 import scipy
 from windows import windows
-from scipy.weave import converters, inline
-from uts.core.utils import round_nextradix2, round_nearestodd, round_nearesteven, eps
+# from scipy.weave import converters, inline
+from uts.core.utils import round_nearestodd, eps
 
 
 
@@ -111,7 +111,7 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
         return np.ndarray.__new__(np.ndarray,strides=newstrides,
                                      shape=newshape,buffer=a,dtype=a.dtype)
     except TypeError:
-        warnings.warn("Problem with ndarray creation forces copy.")
+        #warnings.warn("Problem with ndarray creation forces copy.")
         a = a.copy()
         # Shape doesn't change but strides does
         newstrides = a.strides[:axis]+((length-overlap)*s,s) + a.strides[axis+1:]
@@ -156,225 +156,23 @@ def stft(s, windowsize, windowtype, fftsize, stepsize, symmetric=False, real=Fal
 
     return stft, firstsamplecenter
 
+def specgram(s, windowsize, windowtype, fftsize, stepsize, symmetric=False):
+    S, firstsamplecenter = stft(s=s, windowsize=windowsize, windowtype=windowtype, 
+                               fftsize=fftsize, stepsize=stepsize, symmetric=symmetric, real=False)
 
+    # putative Nyquist freq
+    Fn = fftsize / 2 + 1
+    # last duplicate freq
+    Fl = (fftsize + 1) / 2
+    pshape = list(S.shape)
+    pshape[-1] = Fn
+    P = np.zeros(pshape, 'd')
+    P[..., 0] = (S[..., 0] * S[..., 0].conj()).real
+    P[..., 1:Fl] = 2 * (S[..., 1:Fl] * S[..., 1:Fl].conj()).real
+    if Fn > Fl: # fftsize is even
+        P[..., Fn - 1] = (S[..., Fn - 1] * S[..., Fn - 1].conj()).real
+    return P, firstsamplecenter
 
-def ifdv(s, SAMPLING, N, OVERLAP, sigma=2.0, ZOOMT=1, ZOOMF=3, TL=5, FL=5, 
-         symmetric=False, weave=True):
-    """
-    Calculates remapped sonograms, as described in Gardner & Magnasco PNAS 2006
-    
-    This function follows the one provided by Timothy Gardner in a  Matlab 
-    script as closely as possible.
-    
-    Parameters
-    ----------
-    s: 1-D numpy array
-    SAMPLING: float
-    N: int
-    OVERLAP: int
-    sigma: float
-    ZOOMT: int
-    ZOOMF: int
-    TL: int
-    FL: int
-    symmetric: {True, False}
-    weave: {True, False}
-    
-    Reference
-    ---------
-
-    Gardner, T.J. and Magnasco, M.O. (2006) Sparse time-frequency 
-    representations. Proc. Natl. Acad. Sci. USA, 103(16): 6094-6099.
-    doi: 10.1073/pnas.0601707103
-    
-    """
-    #Remapped sonograms, as described in
-    #Gardner & Magnasco PNAS 2006
-    #
-    #For lack of a better name, at the moment, "ifdgram" is the new sonogram
-    # 
-    # [s] Signal to be analyzed.
-    # [SAMPLING] Sampling rate of the signal. 
-    # [N] Number of filters in the filter-bank.
-    #------
-    # [OVERLAP] Number of samples to overlap in each successive window;
-    #
-    # The number of time points in the final image is proportional to
-    # length(s)/(N-OVERLAP);
-    # Higher overlap will result in sharper lines.
-    #------
-    # [sigma] is the temporal resolution of the analysis in milliseconds.
-    # N should be larger than 5*SAMPLING*(sigma/1000);
-    #
-    # Choose sigma small to represent sound in a time-like fashion - as a
-    # series of clicks, or sigma large, to represent sound in a frequency-like
-    # fasion, as a series of tones. For most signals of interest, intermediate
-    # values of sigma are best.
-    #-------
-    # [ZOOMT] sets the temporal resolution of the final image typically ZOOMT=1.
-    #-------
-    #[ZOOMF] sets the resultion of final image in Frequency. Res=ZOOMF*(N/2)
-    # In contrast to ZOOMT, it is typically useful to set ZOOMF great than one,
-    #------
-    #
-    #[TL] temporal locking window in pixels
-    #[FL] frequency locking window in pixels
-    #
-    #When the remapping moves a pixel by more than TL, or FL, that pixel
-    #acquires zero weight. For discussion of the locking window, see
-    #Gardner & Magnasco, J. Acoust. Soc. Am. 2005
-    #
-    #When these parameters are small (order 1) "stray" points are removed and the lines are sharpened.
-    #If these parameters are too small, lines become too thin, and appear
-    #discontinuous.
-    #
-    #Typical parameters: SAMPLING 44100, N=1024, OVERLAP=1010, 
-    #sigma=2, ZOOMT=1, ZOOMF=3; FL=5;TL=5
-    #---
-    # Implementation note:
-    #The best results will come from calculating an ifdgram for many values of
-    #sigma, (.5:.1:3.5) for example, then combining by multiplying together images
-    #with neighboring values of sigma, and adding them all together.
-    #Rational for this is given in Gardner & Magnasco PNAS 2006.
-    #---------------
-    #example: Compute an ifdgram of 100ms of white noise
-    #s=rand(4000,1)-0.5;
-    #[ifdgram,sonogram]=ifdv(s,44100,1024,1020,1,1,1,2,2);
-    #colormap(hot)
-    #imagesc(log(ifdgram+3));
-    #-------
-    #Comment: As in the previous example, log scaling of the ifdgram,
-    #may be optimal for most sounds.
-    
-    N = int(N) # for some reason this is important
-    
-    FACTOR=np.float64(N - OVERLAP)
-    nsamples = s.size
-    nt, nsoundsamples, remainder = fit_frames(nsamples, N, FACTOR)
-    
-    if symmetric:
-        fromsoundsample = remainder // 2.0
-        tosoundsample = fromsoundsample + nsoundsamples
-    else:
-        fromsoundsample = 0
-        tosoundsample = nsoundsamples
-    
-    segmentedsound = segment_axis(a=s[fromsoundsample:tosoundsample],
-            length=N, overlap=OVERLAP)
-    
-    #t=-N/2+1:N/2;
-    t = np.arange(-N//2+1,N//2+1)
-
-    #Gaussian and first derivative as windows.
-
-    #sigma=(sigma/1000)*SAMPLING;
-    sigma = (sigma/1000.0) * SAMPLING
-    #w=exp(-(t/sigma).^2);
-    w = np.exp(-np.power((t/sigma),2.0))
-    #dw=(w).*((t)/(sigma^2))*-2;
-    dw = w * t/(np.power(sigma,2)) * -2
-    #q=specgram(s,N,[],w,OVERLAP)+eps; %gaussian windowed spectrogram
-    
-    q = np.fft.rfft(segmentedsound * w, axis=-1).T + eps
-    q2 = np.fft.rfft(segmentedsound * dw, axis=-1).T + eps
-    #q,f,t = rspecgram(soundar=s, window=w, noverlap=OVERLAP).T + eps
-    #q2=specgram(s,N,[],dw,OVERLAP)+eps; %deriv gaussian windowed spectrogram
-    #q2,f,t = rspecgram(soundar=s, window=dw, noverlap=OVERLAP).T + eps
-
-    #[F,T]=size(q);
-    F,T= q.shape
-    #dx=(q2./q)/(2*pi); %displacement according to the remapping algorithm
-    dx=(q2/q)/(2*np.pi) #displacement according to the remapping algorithm
-
-    #sonogram=q;
-    sonogram = q.copy()
-    #fo=zeros(size(q));
-    fo = np.zeros(q.shape)
-    #to=zeros(size(q));
-    to = np.zeros(q.shape)
-
-    #for(k=1:T) to(:,k)=k; end
-    to[:,:] = np.arange(1,T+1)[np.newaxis,:]
-    #for(n=1:F) fo(n,:)=(.5*n-1)/(F-1); end
-    fo[:,:] = ((0.5 * np.arange(1,F+1)-1)/(F-1))[:,np.newaxis]
-    #f_est= ((fo-imag(dx))*N)+1; %calculate frequency displacement factors
-    f_est= ((fo-np.imag(dx)) * N) + 1 #calculate frequency displacement factors
-    #t_est= to-(pi*sigma*sigma)*real(dx)/FACTOR; %calculate temporal displacement
-    t_est= to - (np.pi * sigma * sigma) * np.real(dx) / FACTOR# %calculate temporal displacement
-    #print t_est
-
-    #tref=ZOOMT*repmat(1:T,F,1);
-    tref = ZOOMT * np.tile(np.arange(1,T+1), (F, 1))
-    #fref=ZOOMF*repmat(1:F,T,1)';
-    fref = ZOOMF * np.tile(np.arange(1,F+1), (T, 1)).T
-
-    #F=F*ZOOMF;T=T*ZOOMT; %rescale the image by the resolution stretching factors.
-    F = F * ZOOMF #rescale the image by the resolution stretching factors.
-    T = T * ZOOMT
-    #f_e=round(ZOOMF*f_est);
-    f_e= np.round(ZOOMF * f_est)#.astype(np.int)
-    #t_e=round(ZOOMT*t_est);
-    t_e=np.round(ZOOMT * t_est)#.astype(np.int)
-
-    #q(f_e<1 | f_e>F)=0; %set to zero the points that are mapped out of the image
-    q[(f_e < 1) | (f_e > F)] = 0  #set to zero the points that are mapped out of the image
-    #q(t_e<1 | t_e>T)=0;
-    q[(t_e < 1) | (t_e > T)] = 0 
-
-    #f_e(f_e<1)=1; f_e(f_e>F)=F; t_e(t_e<1)=1; t_e(t_e>T)=T;%keep all points in the image
-    f_e[f_e < 1] = 1 #keep all points in the image
-    f_e[f_e > F] = F
-    t_e[t_e < 1] = 1
-    t_e[t_e > T] = T
-    #q(abs(f_e-fref)>FL)=0; q(abs(t_e-tref)>TL)=0; %remove "stray points"
-    q[np.abs(f_e-fref) > FL] = 0 #remove "stray points"
-    q[np.abs(t_e-tref) > TL] = 0
-    #[a,b]=size(f_e);n=a*b;
-    [a,b] = f_e.shape
-    n = a * b
-
-    #newq=accumarray([f_e(1:n)' t_e(1:n)'],abs(q(1:n)')); %build the remapped sonogram
-    #indices = np.array([f_e.flatten(), t_e.flatten()]).T
-
-    #indices -= 1
-    q = q.flatten()
-
-    f_e = f_e.flatten() - 1
-    t_e = t_e.flatten() - 1
-    newq = np.zeros([f_e.max()+1,t_e.max()+1], dtype=np.float64)
-    if weave:
-        code = """
-             int a, b;
-             for (int i = 0; i < n; ++i) {
-             a = f_e(i);
-             b = t_e(i);
-             newq(a, b) += abs(q(i));
-             }
-             return_val = 0;
-             """
-        inline(code, ['n', 'q', 'newq','f_e', 't_e'],
-               type_converters=converters.blitz, compiler = 'gcc')
-    else:
-        for i,index in enumerate(zip(f_e,t_e)):
-            newq[index] += abs(q[i])
-    
-    
-        #newq = (q[f_e] + q[t_e]).reshape(a,b)
-        #newq[f_e,t_e] = q 
-        #newq.resize(q.shape)
-    
-    
-        #newq = accumarray(indices , np.abs(q[0:n].T)) #build the remapped sonogram
-    
-    #%the Frequency axis of the final image is zero to Nyquist freqeuncy, that is
-    #%(SAMPLING/2) Hz.
-
-    #ifdgram=abs(flipdim(newq,1)); %flip image, so low frequency is at the bottom.
-    #sonogram=abs(flipdim(sonogram,1)); %this is the standard sonogram
-    ifdgram = np.abs(np.rot90(newq.T))
-    sonogram = np.abs(np.rot90(sonogram.T))
-    
-    return ifdgram, sonogram
 
 from numpy import vstack, hstack, eye, ones, zeros, linalg, \
 newaxis, r_, flipud, convolve, matrix, array
@@ -510,9 +308,11 @@ def lpfirkernel(N, cutoff, fs, width, window='kaiser'):
     Nodd = round_nearestodd(N)
     if Nodd != N:
         raise ValueError("only odd kernel lengths allowed")
-    nyquist = fs/2.0
+    nyquist = fs/2.
+    if not width is None:
+        width = width/nyquist
     return firwin(numtaps=Nodd, cutoff=cutoff/nyquist, 
-                  width=width/nyquist, window=window)
+                  width=width, window=window)
 
 design_lpfirfilter = lpfirkernel
 
@@ -522,11 +322,13 @@ def hpfirkernel(N, cutoff, fs, width, window='kaiser'):
     kernel[N // 2] += 1
     return kernel
 
-def bpfirkernel(N, cutoff, fs, width):
-    kernela = lpfirkernel(N=N, cutoff=cutoff, fs=fs, width=width)
-    kernelb = hpfirkernel(N=N, cutoff=cutoff, fs=fs, width=width)
+def bpfirkernel(N, freqs, fs, width, window='kaiser'):
+    cutofflow, cutoffhigh = freqs
+    kernela = lpfirkernel(N=N, cutoff=cutofflow, fs=fs, width=width, window=window)
+    kernelb = hpfirkernel(N=N, cutoff=cutoffhigh, fs=fs, width=width, window=window)
     kernelc = -(kernela + kernelb)
-    kernelc[N//2] = kernelc[n//2] + 1.0
+    kernelc[N//2] = kernelc[N//2] + 1.0
+    return kernelc
 
 def design_bp_filter(ntaps, lfreq, hfreq, fs, transband=300):
     #print [0, lfreq-transband, lfreq, hfreq, hfreq+transband, fs/2]
@@ -535,6 +337,8 @@ def design_bp_filter(ntaps, lfreq, hfreq, fs, transband=300):
 
 
 def ica(array, outputdim=None, method='fastica', dtype=None, return_node=False, **icaargs):
+
+    import mdp
 
     assert method in ('fastica', 'cubica', 'pca', 'jade', 'tdsep')#, 'isfa', 'sfa2', 'xsfa')
     assert ~np.any(np.isnan(array)), \
@@ -576,6 +380,9 @@ def ica(array, outputdim=None, method='fastica', dtype=None, return_node=False, 
     return icanode.get_projmatrix(), icanode.get_recmatrix()
 
 def sfa(array, outputdim=None, method='fastica', dtype=None, return_node=False, **sfaargs):
+
+    import mdp
+    
     assert method in ('isfa', 'sfa2','xsfa')
     assert ~np.any(np.isnan(array)), \
            "your array contains nan's; remove them first with the exclude_nan method"
@@ -624,66 +431,77 @@ def iminterpolate(im, newxsize, newysize, xyvalranges, newxyvalranges):
         im =  scipy.ndimage.map_coordinates(im, coords)
     return im
     
-def periodogram(s, Sk=None, N=None,  fs=2*np.pi, sides='onesided', normalize=True):
-    """
-	Takes an N-point periodogram estimate of the PSD function. The 
-	number of points N, or a precomputed FFT Sk may be provided. By 
-	default, the PSD function returned is normalized so that the 
-	integral of the PSD is equal to the mean squared amplitude 
-	(mean energy) of s (see Notes).
+def periodogram(s, fs=2 * np.pi, Sk=None, fftsize=None,
+                sides='default', normalize=True):
+
+    """Takes an N-point periodogram estimate of the PSD function. The
+    number of points N, or a precomputed FFT Sk may be provided. By default,
+    the PSD function returned is normalized so that the integral of the PSD
+    is equal to the mean squared amplitude (mean energy) of s (see Notes).
 
     Parameters
     ----------
     s : ndarray
-        Signal(s) for which to estimate the PSD, time dimension in the last axis
+    Signal(s) for which to estimate the PSD, time dimension in the last
+    axis
+
+    Fs : float (optional)
+    The sampling rate. Defaults to 2*pi
+
     Sk : ndarray (optional)
-        Precomputed FFT of s
+    Precomputed FFT of s
+
     N : int (optional)
-        Indicates an N-point FFT where N != s.shape[-1]
-    sides : str (optional)        
-        Indicates whether to return a one-sided or two-sided PSD
-    normalize : boolean (optional)
-        Normalizes the PSD
+    Indicates an N-point FFT where N != s.shape[-1]
+
+    sides : str (optional) [ 'default' | 'onesided' | 'twosided' ]
+    This determines which sides of the spectrum to return.
+    For complex-valued inputs, the default is two-sided, for real-valued
+    inputs, default is one-sided Indicates whether to return a one-sided
+    or two-sided
+
+    PSD normalize : boolean (optional, default=True) Normalizes the PSD
 
     Returns
     -------
+    (f, psd) : tuple
+    f: The central frequencies for the frequency bands
     PSD estimate for each row of s
 
-    Notes
-    -----
-    setting dw = 2*PI/N, then the integral from -PI, PI (or 0,PI) of PSD/(2PI)
-    will be nearly equal to sxx(0), where sxx is the autocorrelation function
-    of s(n). By definition, sxx(0) = E{s(n)s*(n)} ~ (s*s.conj()).mean()
-    
     The code for this function has been copied from the nitime package.
-    
+   
+
     """
     if Sk is not None:
-        N = Sk.shape[-1]
+        fftsize = Sk.shape[-1]
     else:
-        N = s.shape[-1] if not N else N
-        Sk = np.fft.fft(s, n=N)
+        fftsize = s.shape[-1] if not fftsize else fftsize
+        Sk = scipy.fftpack.fft(s, n=fftsize)
     pshape = list(Sk.shape)
-    norm = float(s.shape[-1])
-    # if the time series is a complex vector, a one sided PSD is invalid..
-    # should we check for that?
-    if sides=='onesided':
+
+    # if the time series is a complex vector, a one sided PSD is invalid:
+    if (sides == 'default' and np.iscomplexobj(s)) or sides == 'twosided':
+        sides = 'twosided'
+    elif sides in ('default', 'onesided'):
+        sides = 'onesided'
+
+    if sides == 'onesided':
         # putative Nyquist freq
-        Fn = N/2 + 1
+        Fn = fftsize / 2 + 1
         # last duplicate freq
-        Fl = (N+1)/2
+        Fl = (fftsize + 1) / 2
         pshape[-1] = Fn
         P = np.zeros(pshape, 'd')
-        freqs = np.linspace(0, fs/2.0, Fn)
-        P[...,0] = (Sk[...,0]*Sk[...,0].conj())
-        P[...,1:Fl] = 2 * (Sk[...,1:Fl]*Sk[...,1:Fl].conj())
+        freqs = np.linspace(0, fs / 2, Fn)
+        P[..., 0] = (Sk[..., 0] * Sk[..., 0].conj()).real
+        P[..., 1:Fl] = 2 * (Sk[..., 1:Fl] * Sk[..., 1:Fl].conj()).real
         if Fn > Fl:
-            P[...,Fn-1] = (Sk[...,Fn-1]*Sk[...,Fn-1].conj())
+            P[..., Fn - 1] = (Sk[..., Fn - 1] * Sk[..., Fn - 1].conj()).real
     else:
-        P = (Sk*Sk.conj()).real
-        freqs = np.linspace(0, fs, N, endpoint=False)
+        P = (Sk * Sk.conj()).real
+        freqs = np.linspace(0, fs, fftsize, endpoint=False)
     if normalize:
-        P /= norm
+        P /= (fs * s.shape[-1])
     return freqs, P
 
 def nDPSS(fs, N, BW):

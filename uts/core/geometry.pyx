@@ -27,8 +27,7 @@ class Geometry(object):
 
     """
 
-    def saveh5(self, node):
-        geometry_to_h5attr(node=node, geometry=self)
+    pass
 
 
 class RectangularLattice(Geometry):
@@ -163,7 +162,7 @@ class RectangularLattice(Geometry):
         newarray[...,self.indexfrom1Dto1D(pointnames)] = array
         return newarray
         
-    def mapfrom1Dto2D(self, array, pointnames):
+    def mapfrom1Dto2D(self, array, pointnames, hflip=False):
         '''
         Maps a 2-d array with given pointnames to a 1-d array of geometry.
         The last axis of the array is mapped to two axes representing 
@@ -177,7 +176,7 @@ class RectangularLattice(Geometry):
         newshape.extend([self.ny,self.nx])
         newarray = array.reshape(-1,self.ny,self.nx).copy()
         for i,el in enumerate(newarray):
-            el[self.indexfrom1Dto2D(pointnames)] = el.flatten()
+            el[self.indexfrom1Dto2D(pointnames, hflip=hflip)] = el.flatten()
         return newarray.reshape(newshape)
         
     def mapfrom2Dto1D(self, array, pointnames):
@@ -205,13 +204,15 @@ class RectangularLattice(Geometry):
             indices.append(row*self.nx+col)
         return np.array(indices)
 
-    def indexfrom1Dto2D(self, pointnames):
+    def indexfrom1Dto2D(self, pointnames, hflip=False):
         if not len(pointnames) == self.npoints:
             raise GeometryError("number of pointnames not congruent with number of points")
         indices = []
         for pointname in pointnames:
             indices.append(self.__pointdict[pointname])
         indices = np.array(indices).T
+        if hflip:
+            indices[1] = np.abs(indices[1]-7)
         return indices[0], indices[1]
         
     def indexfrom2Dto1D(self, pointnames):
@@ -262,15 +263,7 @@ class RectangularLattice(Geometry):
         return [self.pointnames[y, x] for y, x in neighbors if (0 <= x < self.nx) and (0 <= y < self.ny)]
                 
         
-def geometry_to_h5attr(node, geometry):
-    """
-    This does not include the pointnames array
-    """
-    if not isinstance(geometry , Geometry):
-        raise TypeError("geometry argument is not a Geometry instance")
-    node._f_setAttr('geometry', geometry.instantiationcode())
-    node._v_file.flush()
-    
+
 
 
 

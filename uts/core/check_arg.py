@@ -17,20 +17,23 @@ are allowed and may cast to different types.
 """
 
 from numpy import array, any, float32, float64, floating, integer, isnan, \
-     isinf, issubdtype, ndarray, uint8, int8, uint16, int16, uint32, int32, \
-     uint64, int64
+    isinf, issubdtype, ndarray, uint8, int8, uint16, int16, uint32, int32, \
+    uint64, int64
 
 from defs import defined_integers
 from defs import defined_floats
 
+
 class DimensionError(Exception): pass
+
+
 class SizeError(Exception): pass
 
-#defined_integers = (int, long, uint8, int8, uint16, int16, uint32, int32, int64)
+
+# defined_integers = (int, long, uint8, int8, uint16, int16, uint32, int32, int64)
 #defined_floats = (float, float32, float64)
 
 class ArgCheck(object):
-
     def __init__(self, allowedinputtypes, typedef, failfuncs=()):
         """
         Parameters
@@ -52,11 +55,13 @@ class ArgCheck(object):
 
     __repr__ = __str__
 
+
 ## define fail functions here
 
 def smaller0(arg):
     """smaller than zero"""
     if any(arg < 0.0): return True
+
 
 def smallerequal0(arg):
     """smaller than or equal to zero"""
@@ -81,6 +86,7 @@ argtypes = dict(
     fs=ArgCheck(defined_floats, float64, (isnan, isinf, smallerequal0)),
     inmemory=ArgCheck((bool,), bool, ()),
     nearest_boundary=ArgCheck((bool,), bool, ()),
+    nbytes=ArgCheck(defined_integers, int, (smaller0,)),
     nchannels=ArgCheck(defined_integers, int, (smallerequal0,)),
     nepochs=ArgCheck(defined_integers, int64, (smaller0,)),
     nfrequencysamples=ArgCheck(defined_integers, int64, (smaller0,)),
@@ -143,16 +149,19 @@ def check_argarray(argarray, argname, ndim=None, size=None):
                             % (argname, argarray.size))
     return argarray
 
+
 def _checkandconvert(arg, allowedinputtypes, outputtype):
     if not isinstance(arg, allowedinputtypes):
         raise TypeError("argument type is not valid (input: %s, allowed: %s)" \
                         % (type(arg), allowedinputtypes))
     return outputtype(arg)
 
+
 def check_bool(arg):
     if not isinstance(arg, bool):
         raise TypeError("argument not of bool type")
     return arg
+
 
 def check_float(arg, positive=True, zero=True, negative=True, nan=True,
                 inf=True, cast=float64):
@@ -172,11 +181,20 @@ def check_float(arg, positive=True, zero=True, negative=True, nan=True,
     if (not negative) and (arg < 0.0): raise ValueError("argument < 0.0")
     return arg
 
+
 def check_floatarray(arg, positive=True, zero=True, negative=True, nan=True,
-                inf=True, cast=float64, copy=False):
+                     inf=True, cast=float64, copy=False):
     """
     pass
 
+    :param arg:
+    :param positive:
+    :param zero:
+    :param negative:
+    :param nan:
+    :param inf:
+    :param cast:
+    :param copy:
     """
     for switch in (positive, zero, negative, nan, inf, copy):
         check_bool(switch)
@@ -195,6 +213,7 @@ def check_floatarray(arg, positive=True, zero=True, negative=True, nan=True,
     if (not negative) and any(arg < 0.0): raise ValueError("argument < 0.0")
     return arg
 
+
 def check_int(arg, positive=True, zero=True, negative=True, cast=int64):
     for switch in (positive, zero, negative):
         check_bool(switch)
@@ -206,6 +225,7 @@ def check_int(arg, positive=True, zero=True, negative=True, cast=int64):
     if (not zero) and (arg == 0): raise ValueError("argument == 0")
     if (not negative) and (arg < 0): raise ValueError("argument < 0")
     return cast(arg)
+
 
 def check_intarray(arg, positive=True, zero=True, negative=True, cast=int64,
                    copy=False):
@@ -227,6 +247,7 @@ def check_intarray(arg, positive=True, zero=True, negative=True, cast=int64,
     if (not zero) and any(arg == 0): raise ValueError("argument == 0")
     if (not negative) and any(arg < 0): raise ValueError("argument < 0")
     return arg
+
 
 def check_axis(axis, s):
     """

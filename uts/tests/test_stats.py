@@ -48,7 +48,7 @@ class test_Mean(TestCase):
         m = stats.mean(self.mctss1, axis='time', framesize=300)
         assert_array_almost_equal(m, [-0.50125313,  0.50125313])
         m = stats.mean(self.mctss2, axis='channel', framesize=300)
-        assert_array_almost_equal(m, [-0.50125313,  0.50125313])
+        assert_array_almost_equal(m.samples.get(), [-0.50125313,  0.50125313])
         
     def test_mctss_chunked(self):
         """mean of multichannel time sampled signal chunked"""
@@ -57,7 +57,7 @@ class test_Mean(TestCase):
         m = stats.mean(self.mctss1, axis='time', framesize=10)
         assert_array_almost_equal(m, [-0.50125313,  0.50125313])  
         m = stats.mean(self.mctss2, axis='channel', framesize=10)
-        assert_array_almost_equal(m, [-0.50125313,  0.50125313])
+        assert_array_almost_equal(m.samples.get(), [-0.50125313,  0.50125313])
         
     def test_emctss(self):
         """mean of epoched multichannel time sampled signal"""
@@ -74,7 +74,7 @@ class test_Mean(TestCase):
                                       [-0.16680567,  0.16680567],
                                       [ 0.50041701,  0.83402836]])
         m = stats.mean(self.emctss3, axis='channel', framesize=300)
-        assert_array_almost_equal(m, [[-0.66805671, -0.66638866],
+        assert_array_almost_equal(m.samples.get(), [[-0.66805671, -0.66638866],
                                       [-0.00083403,  0.00083403],
                                       [ 0.66638866,  0.66805671]])
     
@@ -93,7 +93,7 @@ class test_Mean(TestCase):
                                       [-0.16680567,  0.16680567],
                                       [ 0.50041701,  0.83402836]])
         m = stats.mean(self.emctss3, axis='channel', framesize=10)
-        assert_array_almost_equal(m, [[-0.66805671, -0.66638866],
+        assert_array_almost_equal(m.samples.get(), [[-0.66805671, -0.66638866],
                                       [-0.00083403,  0.00083403],
                                       [ 0.66638866,  0.66805671]])
     def test_wrong_input(self):

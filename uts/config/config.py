@@ -43,13 +43,13 @@ If True, the directory will be created if it doesn't exist.
                 if 'HOME' in env:
                     homedir = env['HOME'].decode(sys.getfilesystemencoding())
                 else:
-                    raise OSError('Could not find windows home directory to search for astropysics config dir')
+                    raise OSError('Could not find windows home directory to search for utd config dir')
     else:
         #for other platforms, try HOME, although it probably isn't there
         if 'HOME' in env:
             homedir = env['HOME'].decode(sys.getfilesystemencoding())
         else:
-            raise OSError('Could not find a home directory to search for astropysics config dir - are you on an unspported platform?')
+            raise OSError('Could not find a home directory to search for uts config dir - are you on an unspported platform?')
         
     configdir = os.path.realpath(os.path.join(homedir,'.uts'))
         

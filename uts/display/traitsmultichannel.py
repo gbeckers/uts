@@ -159,9 +159,13 @@ class MultiChannelPlot(HasTraits):
         return container
 
     def inspector_moved(self):
+        # I don understand what is going on here
         metadata = self.plots[0].components[0].index.metadata
         if metadata is not None and "selections" in metadata:
-            self.line_index = metadata["selections"][0]
+            if isinstance(metadata["selections"], tuple):
+                self.line_index = metadata["selections"][0]
+            else:
+                self.line_index = metadata["selections"]
         else:
             self.line_index = 0.
 
@@ -477,7 +481,8 @@ class EpochedMultiChannelUniformTimeSeriesPlot(MultiChannelPlot):
                        width=1200, height=800, resizable=True,
                        title="Chaco Plot")
 
-    def __init__(self, emcss, geometry=None, zmapper=None, plotparams={}):
+    def __init__(self, emcss, geometry=None, autovrange=False, vrangelow=None, 
+                    vrangehigh=None, zmapper=None, plotparams={}):
         '''
         We expect data to be a MultiChannelContinuousProcessEventSet
         '''
@@ -572,44 +577,64 @@ class EpochedMultiChannelUniformTimeSeriesPlot(MultiChannelPlot):
         else:
             plot.x_axis.visible = False
 
-        lix = LineInspector(renderer, axis="index_x",
-                                           write_metadata=True,
-                                           is_listener=True, color='white',
-                                           is_interactive=True)
-        renderer.overlays.append(lix)
-        liy = LineInspector(renderer, axis="index_y",
-                                           write_metadata=True,
-                                           is_listener=True, color='white',
-                                           is_interactive=True)
-        renderer.overlays.append(liy)
-        renderer.tools.append(PanTool(renderer, constrain=False,
-                                  constrain_direction="x", drag_button="middle"))
-        renderer.overlays.append(ZoomTool(renderer, drag_button="right",
-                                      always_on=True,
-                                      tool_mode="box",
-                                      axis="index",
-                                      enable_wheel=True))
+        # lix = LineInspector(renderer, axis="index_x",
+        #                                    write_metadata=True,
+        #                                    is_listener=True, color='white',
+        #                                    is_interactive=True)
+        # renderer.overlays.append(lix)
+        # # liy = LineInspector(renderer, axis="index_y",
+        # #                                    write_metadata=True,
+        # #                                    is_listener=True, color='white',
+        # #                                    is_interactive=True)
+        # # renderer.overlays.append(liy)
+        # renderer.tools.append(PanTool(renderer, constrain=False,
+        #                           constrain_direction="x", drag_button="middle"))
+        # renderer.overlays.append(ZoomTool(renderer, drag_button="right",
+        #                               always_on=True,
+        #                               tool_mode="box",
+        #                               axis="index",
+        #                               enable_wheel=True))
+        # return plot,renderer
+        if overlay_components is None:
+            li = LineInspector(renderer, axis="index_x",
+                                               write_metadata=True,
+                                               is_listener=True, color='magenta',
+                                               is_interactive=True,
+                                               metadata_name='selections')
+            renderer.overlays.append(li)
+            renderer.overlays.append(ZoomTool(renderer, drag_button="right",
+                                          always_on=True,
+                                          tool_mode="box",
+                                          axis="index",
+                                          enable_wheel=True))
+            #csr = CursorTool1D(renderer, drag_button="left",
+            #                      color='blue')
+            #   renderer.overlays.append(csr)
+        else:
+            for c in overlay_components:
+                renderer.overlays.append(c)
+        if tool_components is None:
+            renderer.tools.append(PanTool(renderer, constrain=False,
+                                  constrain_direction="x"))
+            #renderer.tools.append(KeyTool(renderer))
+        else:
+            for c in tool_components:
+                renderer.tools.append(c)
+        
         return plot,renderer
     
     def _vrangelow_changed(self, object, old, new):
-        print "vrangelow changed"
         if self.autovrange == False:
-            print "autovrange false"
             for i,r in self._renderers.items():
-                print new
                 r.value_range.set_bounds(low=new,high=self.vrangehigh)
                 r.request_redraw()
-                print "redraw %d" % i
                 
     def _vrangehigh_changed(self, object, old, new):
-        print "vrangehigh changed"
         if self.autovrange == False:
-            print "autovrange false"
             for i,r in self._renderers.items():
                 r.value_range.set_bounds(low=self.vrangelow,high=new)
-                print new
                 r.request_redraw()
-                print "redraw %d" % i
+
             
         
     def _autovrange_changed(self, object, old, new):

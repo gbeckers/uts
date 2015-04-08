@@ -19,13 +19,16 @@ except Exception as e:  # pragma: no cover
 from uts.version import version as __version__
 from uts.info import __doc__
 from uts.core.uniformtime import *
+from uts.core.utils import *
 from uts.io.hdf5 import *
 from uts.io.audio import *
 from uts.io.matlab import *
 from uts.core.check_arg import check_arg
-from uts.display.stftview import STFTView
+from viz.core import *
+# from uts.display.stftview import STFTView
 
 from signalfactory.factory import *
+from signalfactory.h5factory import *
 from signalfactory.testsignals import *
 
 from processing.processing import *

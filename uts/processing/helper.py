@@ -146,4 +146,4 @@ def unsqueeze(data, axis, oldshape):
     
     newshape = list(oldshape)
     newshape[axis] = 1
-    data.shape = newshape
+    return data.reshape(newshape)

@@ -3,7 +3,7 @@ import _stats
 from uts import UniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedUniformTimeSeries, \
     EpochedMultiChannelUniformTimeSeries, assert_signal
-from frequencysampled import Spectrum
+from uts.core.uniformfrequency import Spectrum
 from helper import unsqueeze
 from uts.core.check_arg import check_arg, check_int, check_float, check_floatarray,\
      check_axis

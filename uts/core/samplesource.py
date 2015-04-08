@@ -7,13 +7,14 @@ or some file that is accessed over a network. All classes should inherit from
 Samples.
 
 """
-#FIXME set_readonly
+# FIXME set_readonly
 
 import numpy as np
 import tables
 from uts.core.check_arg import check_arg, check_int, check_argarray
 from uts.core.errors import WriteError
 from defs import defined_sampledtypes
+
 
 class Samples(object):
     """
@@ -52,32 +53,32 @@ class Samples(object):
         self.__type = sampletype
         self.__ndim = len(self.__shape)
         self.__readonly = check_arg(readonly, 'readonly')
-        self.__mb = (self.__size * self.__dtype.itemsize) / float(1024*1024)
+        self.__mb = (self.__size * self.__dtype.itemsize) / float(1024 * 1024)
 
 
     dtype = property(lambda self: self.__dtype, None, None,
-                       "array of samples")
+                     "array of samples")
     ndim = property(lambda self: self.__ndim, None, None,
-                       "number of dimensions")
+                    "number of dimensions")
     shape = property(lambda self: self.__shape, None, None,
-                       "shape")
+                     "shape")
     size = property(lambda self: self.__size, None, None,
-                       "size")
+                    "size")
     sampletype = property(lambda self: self.__type, None, None,
-                       "type of samples")
+                          "type of samples")
     axes = property(lambda self: self.__axes, None, None,
-                       "dictionary with axisnames")
+                    "dictionary with axisnames")
     axisorder = property(lambda self: self.__axisorder, None, None,
-                       "dictionary with axisnames")
+                         "dictionary with axisnames")
     readonly = property(lambda self: self.__readonly, None, None,
-                       "are samples readonly or not")
+                        "are samples readonly or not")
     mb = property(lambda self: (self.__mb), None, None,
-                "size in Mb")
-    
+                  "size in Mb")
+
 
     def __getitem__(self, index):
         raise NotImplementedError("__getitem__ needs to be implemented by subclass")
-    
+
     def __setitem__(self, key, index):
         raise NotImplementedError("__setitem__ needs to be implemented by subclass")
 
@@ -86,15 +87,15 @@ class Samples(object):
                % (self.shape, self.axisorder, self.dtype)
 
     __repr__ = __str__
-    
+
     def _instantiatefromself(self, **params):
         raise NotImplementedError("__getitem__ needs to be implemented by subclass")
-        
+
     def _update_shape(self, shape):
         if (len(shape) != self.ndim):
             raise ValueError("shape parameter has wrong number of dimensions")
         self.__shape, self.__size = self._check_shape(shape)
-        self.__mb = (self.__size * self.__dtype.itemsize) / float(1024*1024)
+        self.__mb = (self.__size * self.__dtype.itemsize) / float(1024 * 1024)
 
     def _check_shape(self, shape):
         if not isinstance(shape, tuple):
@@ -104,13 +105,14 @@ class Samples(object):
                 raise ValueError("shape dimensions should be ints")
         size = np.product(shape)
         return shape, size
-    
+
     def _check_axes(self, axes, shape):
         if not isinstance(axes, dict):
             raise TypeError("axes parameter should be a dictionary")
         axiskeys = axes.keys()
         if not len(axiskeys) == len(shape):
-            raise ValueError("axes dictionary not congruent with shape parameter")
+            raise ValueError("axes dictionary (%s) not congruent with shape parameter (%s)" \
+                             % (axiskeys, shape))
         axisorder = np.array(axiskeys, copy=True)
         for axiskey in axiskeys:
             axisorder[axes[axiskey]] = axiskey
@@ -153,10 +155,9 @@ class Samples(object):
             return s.copy()
         else:
             return s
-          
-          
-class h5ArraySamples(Samples):
 
+
+class h5ArraySamples(Samples):
     # _supporteddtypes = (np.int8, np.int16, np.int32, np.int64,
     #                     np.uint8, np.uint16, np.uint32, np.uint64,
     #                     np.float16, np.float32, np.float64, np.complex128)
@@ -175,14 +176,13 @@ class h5ArraySamples(Samples):
                        "h5array object")
 
     def __getitem__(self, index):
-        
+
         return self.__h5array[index]
 
     def _check_h5array(self, h5array):
-        if not isinstance(h5array, (tables.carray.CArray,tables.array.Array,
+        if not isinstance(h5array, (tables.carray.CArray, tables.array.Array,
                                     tables.earray.EArray)):
             raise TypeError("h5node should be a PyTables array node")
-
 
         if h5array.atom.dtype not in defined_sampledtypes:
             raise TypeError("input type %s not supported" % h5array.atom.dtype)
@@ -207,7 +207,7 @@ class h5ArraySamples(Samples):
         self.__h5array.append(samples)
         self.__h5array.flush()
         self._update_shape(self.__h5array.shape)
-        
+
     def transpose(self, neworder):
         """
         Returns a NumpyArraySamples object that is a transpose of the 
@@ -219,12 +219,11 @@ class h5ArraySamples(Samples):
           sequence of axes names that represent the desired order
           
         """
-        return NumpyArraySamples(array=self[:], axes=self.axes, 
-            dtype=None, copy=False,readonly=self.readonly).transpose(neworder)
-          
+        return NumpyArraySamples(array=self[:], axes=self.axes,
+                                 dtype=None, copy=False, readonly=self.readonly).transpose(neworder)
+
 
 class NumpyArraySamples(Samples):
-
     # _supporteddtypes = (np.int8, np.int16, np.int32, np.int64,
     #                     np.uint8, np.uint16, np.uint32, np.uint64,
     #                     np.float16, np.float32, np.float64, np.complex128)
@@ -233,7 +232,7 @@ class NumpyArraySamples(Samples):
 
     def __init__(self, array, axes, dtype=None, copy=True, readonly=True):
         self.__array = self._check_array(array=array, dtype=dtype,
-                                    copy=copy)
+                                         copy=copy)
         dtype = self.__array.dtype
         shape = self.__array.shape
         sampletype = type(array)
@@ -241,17 +240,17 @@ class NumpyArraySamples(Samples):
                          axes=axes, readonly=readonly)
 
     array = property(lambda self: (self.__array), None, None,
-                       "number of samples")
+                     "number of samples")
 
     def __getitem__(self, index):
         return self.__array[index]
-    
+
     def __setitem__(self, key, item):
         if not self.readonly:
             self.__array[key] = item
         else:
             raise WriteError("the samples are read-only")
-    
+
     def _check_array(self, array, dtype, copy):
         # if not provided as such, try to convert samples to np array
         if not isinstance(array, np.ndarray):
@@ -287,8 +286,8 @@ class NumpyArraySamples(Samples):
             raise TypeError("samples has wrong dtype")
         self.__array = np.append(self.__array, samples, axis=axis)
         self._update_shape(self.__array.shape)
-        
-    def transpose(self, neworder):
+
+    def transpose(self, neworder, ignore_missingaxes=False):
         """
         Transposes the axes of the samples object
         
@@ -296,13 +295,19 @@ class NumpyArraySamples(Samples):
         ---------
         neworder:
           sequence of axes names that represent the desired order
+        ignore_missingaxes:
+            if neworder contains axes that do not exist, they will be ignored
           
         """
         # check arguments
+        axesnames = self.axes.keys()
+        if ignore_missingaxes:
+            neworder = [ax for ax in neworder if ax in axesnames]
         neworder = np.array(neworder)
-        axesnames = np.array(self.axes.keys()) # we still need to order
+        axesnames = np.array(axesnames)  # we still need to order
         if not len(neworder) == len(axesnames):
-            raise ValueError("neworder argument does not have the right number of axes")
+            raise ValueError("neworder argument (%s) does not have the right number of axes (%s)" \
+                             % (neworder, axesnames))
         for axisname, order in self.axes.items():
             axesnames[order] = axisname
         if (neworder == axesnames).all():
@@ -310,15 +315,15 @@ class NumpyArraySamples(Samples):
         else:
             t = []
             newaxes = {}
-            for i,a in enumerate(neworder):
+            for i, a in enumerate(neworder):
                 if a not in axesnames:
                     raise ValueError("axis %s does not exist" % a)
                 t.append(self.axes[a])
                 newaxes[a] = i
             array = np.transpose(self.array, t)
-            return self.__class__(array=array, axes=newaxes, dtype=self.dtype, 
-                                  copy=False,readonly=self.readonly)
-    
+            return self.__class__(array=array, axes=newaxes, dtype=self.dtype,
+                                  copy=False, readonly=self.readonly)
+
 
 def assamples(samples, axes, dtype=None, copy=True, readonly=True):
     """
@@ -356,21 +361,21 @@ def assamples(samples, axes, dtype=None, copy=True, readonly=True):
             samples = samples.get(copy=True)
         else:
             return samples
-        
+
     if isinstance(samples, (list, tuple, np.ndarray)):
         samples = NumpyArraySamples(array=samples,
                                     dtype=dtype, copy=copy,
                                     axes=axes, readonly=readonly)
-    elif isinstance(samples, (tables.carray.CArray,tables.array.Array,
-                                tables.earray.EArray)):
+    elif isinstance(samples, (tables.carray.CArray, tables.array.Array,
+                              tables.earray.EArray)):
         if not copy:
             if (dtype is not None) and (dtype != samples.atom.dtype):
                 raise ValueError("dtype argument is different from h5array dtype")
             samples = h5ArraySamples(h5array=samples, axes=axes, readonly=readonly)
-        else: # copy == True
+        else:  # copy == True
             samples = NumpyArraySamples(array=samples[:],
-                                    dtype=dtype, copy=True,
-                                    axes=axes, readonly=readonly)
+                                        dtype=dtype, copy=True,
+                                        axes=axes, readonly=readonly)
     else:
         raise TypeError("samples (%s) is not a list, tuple, or numpy / pytables array" \
                         % type(samples))

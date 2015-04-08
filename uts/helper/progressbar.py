@@ -1,38 +1,40 @@
+import sys, time
+try:
+    from IPython.display import clear_output
+    have_ipython = True
+except ImportError:
+    have_ipython = False
+
 class ProgressBar:
-	def __init__(self, minValue = 0, maxValue = 10, totalWidth=12):
-		self.progBar = "[]"   # This holds the progress bar string
-		self.min = minValue
-		self.max = maxValue
-		self.span = maxValue - minValue
-		self.width = totalWidth
-		self.amount = 0       # When amount == max, we are 100% done 
-		self.updateAmount(0)  # Build progress bar string
+    def __init__(self, iterations):
+        self.iterations = iterations
+        self.prog_bar = '[]'
+        self.fill_char = '*'
+        self.width = 40
+        self.__update_amount(0)
+        if have_ipython:
+            self.animate = self.animate_ipython
+        else:
+            self.animate = self.animate_noipython
 
-	def updateAmount(self, newAmount = 0):
-		if newAmount < self.min: newAmount = self.min
-		if newAmount > self.max: newAmount = self.max
-		self.amount = newAmount
+    def animate_ipython(self, iter):
+        print '\r', self,
+        sys.stdout.flush()
+        self.update_iteration(iter + 1)
 
-		# Figure out the new percent done, round to an integer
-		diffFromMin = float(self.amount - self.min)
-		percentDone = (diffFromMin / float(self.span)) * 100.0
-		percentDone = round(percentDone)
-		percentDone = int(percentDone)
+    def update_iteration(self, elapsed_iter):
+        self.__update_amount((elapsed_iter / float(self.iterations)) * 100.0)
+        self.prog_bar += '  %d of %s complete' % (elapsed_iter, self.iterations)
 
-		# Figure out how many hash bars the percentage should be
-		allFull = self.width - 2
-		numHashes = (percentDone / 100.0) * allFull
-		numHashes = int(round(numHashes))
+    def __update_amount(self, new_amount):
+        percent_done = int(round((new_amount / 100.0) * 100.0))
+        all_full = self.width - 2
+        num_hashes = int(round((percent_done / 100.0) * all_full))
+        self.prog_bar = '[' + self.fill_char * num_hashes + ' ' * (all_full - num_hashes) + ']'
+        pct_place = (len(self.prog_bar) // 2) - len(str(percent_done))
+        pct_string = '%d%%' % percent_done
+        self.prog_bar = self.prog_bar[0:pct_place] + \
+            (pct_string + self.prog_bar[pct_place + len(pct_string):])
 
-		# build a progress bar with hashes and spaces
-		self.progBar = "[" + '#'*numHashes + ' '*(allFull-numHashes) + "]"
-
-		# figure out where to put the percentage, roughly centered
-		percentPlace = (len(self.progBar) / 2) - len(str(percentDone)) 
-		percentString = str(percentDone) + "%"
-
-		# slice the percentage into the bar
-		self.progBar = self.progBar[0:percentPlace] + percentString + self.progBar[percentPlace+len(percentString):]
-
-	def __str__(self):
-		return str(self.progBar)
+    def __str__(self):
+        return str(self.prog_bar)

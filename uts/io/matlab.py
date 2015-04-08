@@ -1,5 +1,5 @@
 import os
-from isuts, iseuts, ismcuts, isemcuts
+from uts.core.uniformtime import isuts, iseuts, ismcuts, isemcuts
 from types import GeneratorType
 
 __all__ = ['savemat']

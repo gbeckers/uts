@@ -1,26 +1,86 @@
 import os.path
 import warnings
-from types import GeneratorType
 import numpy as np
-import tables
+import tables as tb
+from contextlib import contextmanager
 from numpy import fromfile
 from uts.core.uniformtime import UniformTimeSeries, EpochedUniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
     isuts, iseuts, ismcuts, isemcuts
 from uts.core.multichannel import MultiChannel
+from uts.core.geometry import Geometry
 from uts.core.epoched import Epoched
-from utils import h5attr_to_geometry
 from uts.core.check_arg import check_arg, check_int
 from uts.core.utils import fit_frames
 
-__all__ = ['save', 'load']
 
-#FIXME file/node/group handling for load and save should be improved in a separate function
+# uts, euts, mcuts and emcuts signals are saved as a h5 *Group*. The name/path of that 
+# group can be determined by the user and is the 'name' of that signal. The h5 Group 
+# should contain at least one array named 'samples', but may also contain the tables
+# 'epochs' or 'channels'
 
+__all__ = ['open', 'save', 'load', 'cache', 'remove']
 
-def save(s, signalname, h5group=None, filename=None, channelaxis=None, epochaxis=None,attrs={},
-         overwrite=False, extensible=False, expectedrows=None, dtype=None, 
-            complib='zlib', complevel=5, chunkshape=None):
+SAMPLEARRAYNAME = 'samples'
+EPOCHTABLENAME = 'epochs'
+CHANNELTABLENAME = 'channels'
+
+def h5attr_to_geometry(attr, pointnames=None):
+    from uts.core.geometry import RectangularLattice
+
+    code = '%s(' % attr[0]  #class
+    for key, item in attr[1].items():  #parameters
+        code += '%s=%s,' % (key, item)
+    if not pointnames is None:
+        code += '%s=%s,' % ('pointnames', list(pointnames))
+    code = code[:-1] + ')'
+    return eval(code)
+
+def _h5userattrs_to_dict(h5node, attrs=None):
+    """
+    Gets h5 user attrs as dict. If attrs dict is provided as parameter,
+    it will be updated. If item is present already, it will be overwritten.
+    """
+    if attrs is None:
+        attrs = {}
+    for attrname in h5node._v_attrs._v_attrnamesuser:
+        attr = h5node._v_attrs[attrname]
+        if hasattr(attr, 'tolist'):
+            attr = attr.tolist()
+        attrs[attrname] = attr
+    return attrs
+
+def _isgenerator(iterable):
+    return hasattr(iterable, '__iter__') and not hasattr(iterable, '__len__')
+
+def _remove(h5fileobject, h5path):
+    f = h5fileobject
+    if h5path == '/':
+        for child in f.root._v_children.keys():
+            f.remove_node('/', child, recursive=True)
+    else:
+        f.remove_node(h5path, recursive=True)
+
+def remove(filename, signalname):
+    with tb.open_file(filename, 'a') as f:
+        _remove(h5fileobject=f, h5path=signalname)
+
+@contextmanager
+def _create_h5savepoint(filename, h5path='/', overwrite=False):
+    with tb.open_file(filename, 'a') as f:
+        if h5path in f and overwrite:
+            _remove(h5fileobject=f, h5path=h5path)
+        grouppath = h5path.split('/')
+        '/'.join(grouppath[:-1])
+        h5group = f.create_group(where='/'.join(grouppath[:-1]),
+                                 name=grouppath[-1],
+                                 createparents=True)
+        yield h5group
+
+def save(s, signalname='/', filename=None, channelaxis=None,
+         epochaxis=None, overwrite=False, extensible=False,
+         expectedrows=None, dtype=None, complib='zlib', complevel=5,
+         chunkshape=None, warn=True):
     '''
         Saves a signal to h5 file. This function can also be used for generator objects that
         yield signals.
@@ -31,9 +91,8 @@ def save(s, signalname, h5group=None, filename=None, channelaxis=None, epochaxis
           generator that produces such signals. The latter can be handy if one 
           has very large signals on-disk, that don't fit into working memory.
         signalname: a valid name that can later be used to retrieve the
-          signal.
-        h5group: a pytables h5 group instance
-        filename:
+          signal. Note that this is a hdf5 groupname, with path, so it should
+          start with '/'
         channelaxis:
         epochaxis:
         overwrite: if True overwrites an existing signal if it has the same
@@ -43,178 +102,210 @@ def save(s, signalname, h5group=None, filename=None, channelaxis=None, epochaxis
           signal is always enlargeable.
 
     '''
-    if filename is None:
-        if not isinstance(h5group,tables.group.Group):
-            raise ValueError("h5group argument is not a pytables Group")
-    else:
-        f = tables.openFile(filename, 'a')
-        if h5group is None:
-            h5group = f.root
-        else:
-            if isinstance(h5group, str):
-                h5group = f.root._f_getChild(h5group)
+    with _create_h5savepoint(filename=filename,
+                             h5path=signalname,
+                             overwrite=overwrite) as h5group:
+        _save(s=s, h5group=h5group,
+              channelaxis=channelaxis, epochaxis=epochaxis,
+              overwrite=overwrite, extensible=extensible,
+              expectedrows=expectedrows, dtype=dtype, complib=complib,
+              complevel=complevel, chunkshape=chunkshape, warn=warn)
 
-    if isinstance(s, GeneratorType):
+def _save(s, h5group, channelaxis=None, epochaxis=None,
+          overwrite=False, extensible=False, expectedrows=None, dtype=None,
+          complib='zlib', complevel=5, chunkshape=None, warn=True):
+    if _isgenerator(s):
         s1 = s.next()
-        if not extensible:
-            warnings.warn("Saving generator to h5 array: setting extensible to True")
+        if (not extensible) and warn:
+            warnings.warn(
+                "Saving generator to h5 array: setting extensible to True")
         extensible = True
         # FIXME use standard function from uniformtime
         if not isinstance(s1, (EpochedMultiChannelUniformTimeSeries,
-                        MultiChannelUniformTimeSeries, UniformTimeSeries)):
+                               MultiChannelUniformTimeSeries,
+                               UniformTimeSeries)):
             raise TypeError("signal is not a sampled signal")
-        h5mcss = save(s1, signalname=signalname, h5group=h5group, filename=filename, 
-            channelaxis=channelaxis, epochaxis=epochaxis, attrs=attrs, overwrite=overwrite, 
-                        extensible=extensible,  expectedrows=expectedrows, dtype=dtype, 
-                        complib=complib, complevel=complevel, chunkshape=chunkshape)
+        h5mcss = _save(s1, h5group=h5group,
+                       channelaxis=channelaxis, epochaxis=epochaxis,
+                       overwrite=overwrite,
+                       extensible=extensible, expectedrows=expectedrows,
+                       dtype=dtype,
+                       complib=complib, complevel=complevel,
+                       chunkshape=chunkshape)
         for sn in s:
             h5mcss.append(sn)
         return h5mcss
     elif isuts(s):
-        return _save_uts(s, h5group=h5group, name=signalname, attrs=attrs, overwrite=overwrite,
-                extensible=extensible, expectedrows=expectedrows, dtype=dtype, 
-                complib=complib, complevel=complevel, chunkshape=chunkshape)
+        return _save_uts(s, h5group=h5group, overwrite=overwrite,
+                         extensible=extensible, expectedrows=expectedrows,
+                         dtype=dtype,
+                         complib=complib, complevel=complevel,
+                         chunkshape=chunkshape)
     elif ismcuts(s):
-        return _save_mcuts(s, h5group=h5group, name=signalname, channelaxis=channelaxis, attrs=attrs, 
-                           overwrite=overwrite, extensible=extensible, expectedrows=expectedrows, 
-                           dtype=dtype, complib=complib, complevel=complevel, chunkshape=chunkshape)
+        return _save_mcuts(s, h5group=h5group, channelaxis=channelaxis,
+                           overwrite=overwrite, extensible=extensible,
+                           expectedrows=expectedrows,
+                           dtype=dtype, complib=complib, complevel=complevel,
+                           chunkshape=chunkshape)
     elif iseuts(s):
-        return _save_euts(s, h5group=h5group, name=signalname, epochaxis=epochaxis, attrs=attrs, 
-                          overwrite=overwrite, extensible=extensible, expectedrows=expectedrows, 
-                          dtype=dtype, complib=complib, complevel=complevel, chunkshape=chunkshape)
+        return _save_euts(s, h5group=h5group, epochaxis=epochaxis,
+                          overwrite=overwrite, extensible=extensible,
+                          expectedrows=expectedrows,
+                          dtype=dtype, complib=complib, complevel=complevel,
+                          chunkshape=chunkshape)
     elif isemcuts(s):
-        return _save_emcuts(s, h5group=h5group, name=signalname, channelaxis=channelaxis,
-                            epochaxis=epochaxis, attrs=attrs, overwrite=overwrite,
-                extensible=extensible, expectedrows=expectedrows, dtype=dtype, 
-                complib=complib, complevel=complevel, chunkshape=chunkshape)
+        return _save_emcuts(s, h5group=h5group, channelaxis=channelaxis,
+                            epochaxis=epochaxis, overwrite=overwrite,
+                            extensible=extensible, expectedrows=expectedrows,
+                            dtype=dtype,
+                            complib=complib, complevel=complevel,
+                            chunkshape=chunkshape)
     else:
-        raise TypeError("signal is not a sampled signal, or generator")
+        raise TypeError(
+            "signal is not a sampled signal, or generator (%s)" % type(s))
 
+@contextmanager
+def cache(s, channelaxis=None, epochaxis=None,
+          extensible=False, expectedrows=None, dtype=None, complib='blosc',
+          complevel=5, chunkshape=None, path=None, report=False,
+          warn=True):
+    from tempfile import mkdtemp, gettempdir
+    from shutil import rmtree
 
-def load(h5group=None, filename=None, inmemory=False, mode='r'):
+    if path is None:
+        path = gettempdir()
+    tempdirname = mkdtemp(dir=path)
+    filename = os.path.join(tempdirname, 'cached.h5')
+    if report:
+        print 'created cache file {}'.format(filename)
+    try:
+        save(s, signalname='/cached', filename=filename,
+             channelaxis=channelaxis, epochaxis=epochaxis,
+             overwrite=False, extensible=extensible, expectedrows=expectedrows,
+             dtype=dtype, complib=complib, complevel=complevel,
+             chunkshape=chunkshape,
+             warn=warn)
+        yield load(signalname='/cached', filename=filename)
+    except:
+        raise
+    finally:
+        rmtree(tempdirname)
+        if report:
+            print 'removed cache file {}'.format(filename)
 
-    if not mode in ('r', 'a'):
-        raise ValueError('Only mode "r" and "a" allowed')
-    if filename is None:
-        if not isinstance(h5group, (tables.group.Group, tables.array.Array)):
-            raise ValueError("h5group argument is not a pytables Group")
-    else:
-        f = tables.openFile(filename, mode)
-        if h5group is None:
-            h5group = f.root
-        else:
-            if isinstance(h5group, str):
-                h5group = f.root._f_getChild(h5group)
+def load(signalname='/', filename=None, start=None, end=None):
+    with open(signalname=signalname, filename=filename) as s:
+        return s[start:end]
 
+@contextmanager
+def open(signalname='/', filename=None, mode='r'):
+    with tb.open_file(filename, mode=mode) as f:
+        h5group = f.get_node(signalname)
+        yield _open(h5group, mode=mode)
 
-    if isinstance(h5group,tables.group.Group):
-        h5array = h5group._f_getChild('samples')
-    else:
-        h5array = h5group # for backward compatibility
-    if not inmemory in (False,True):
-        raise TypeError("inmemory parameter should be True or False")
-    if inmemory:
-        samples = h5array[:]
-    else:
-        samples = h5array
+def _open(h5group, mode='r'):
+    f = h5group._v_file
+    samples = h5array = f.get_node(h5group, SAMPLEARRAYNAME)
+    attrs = _h5userattrs_to_dict(h5group)
+    attrs = _h5userattrs_to_dict(samples, attrs=attrs)
     fs = h5array.attrs.fs
+    attrs.pop('fs')
     origintime = h5array.attrs.origintime
-    
-    if len(h5array.shape) == 1: # uts
+    attrs.pop('origintime')
+
+    if len(h5array.shape) == 1:  # uts
         starttime = h5array.attrs.starttime
+        attrs.pop('starttime')
         signal = UniformTimeSeries(samples=samples, fs=fs, starttime=starttime,
-                                     origintime=origintime, copy=False,
-                                     dtype=None)
+                                   origintime=origintime, copy=False,
+                                   dtype=None, attrs=attrs)
     #FIXME use the attr to find name of channel and epoch tables, not hard-code strings
-    elif len(h5array.shape) == 2: # euts or mcuts
-        if "channelaxis" in h5array.attrs._v_attrnames: # mcuts
+    elif len(h5array.shape) == 2:  # euts or mcuts
+        if "channelaxis" in h5array.attrs._v_attrnames:  # mcuts
             starttime = h5array.attrs.starttime
+            attrs.pop('starttime')
             channelaxis = h5array.attrs.channelaxis
+            attrs.pop('channelaxis')
+            attrs.pop('channeltable')
             # there can be a table with channels info
-            if h5array._v_name + "_channels" in h5array._v_parent._v_children.keys():
-                name = h5array._v_pathname + "_channels"
-                channeltable = h5array._v_file.getNode(name)
+            if CHANNELTABLENAME in h5group:
+                channeltable = f.get_node(h5group, CHANNELTABLENAME)
                 channels = channeltable[:]
                 channelnames = channels['channelname']
                 if "geometry" in channeltable.attrs._v_attrnames:
                     pointnames = np.empty_like(channelnames)
                     pointnames[channels['geometrypoint']] = channelnames
-                    g = h5attr_to_geometry(channeltable.attrs.geometry, pointnames=pointnames)
-                else:
-                    g = None
-            elif "channelnames" in h5array.attrs._v_attrnames: # for compatibility with older data
-                channels = h5array.attrs.channelnames
-                if "geometry" in h5array.attrs._v_attrnames:
-                    g = h5attr_to_geometry(h5array.attrs.geometry, pointnames=None)
+                    g = h5attr_to_geometry(channeltable.attrs.geometry,
+                                           pointnames=pointnames)
                 else:
                     g = None
             else:
                 raise IOError(
-                    "no channelnames or channels found in %s" % h5array._v_pathname)
+                    "no channels found in %s" % h5array._v_pathname)
                 #channels = None
             signal = MultiChannelUniformTimeSeries(samples=samples,
-                fs=fs, channels=channels, starttime=starttime,
-                origintime=origintime, copy=False, dtype=None,
-                channelaxis=channelaxis, geometry=g)
-        else: #euts
+                                                   fs=fs, channels=channels,
+                                                   starttime=starttime,
+                                                   origintime=origintime,
+                                                   copy=False, dtype=None,
+                                                   channelaxis=channelaxis,
+                                                   geometry=g, attrs=attrs)
+        else:  #euts
             epochaxis = h5array.attrs.epochaxis
+            attrs.pop('epochaxis')
+            attrs.pop('epochtable')
             # there should be a table with epoch info
-            if h5array._v_name + "_records" in h5array._v_parent._v_children.keys():
-                name = h5array._v_pathname + "_records"
-            elif h5array._v_name + "_epochs" in h5array._v_parent._v_children.keys():
-                name = h5array._v_pathname + "_epochs"
+            if EPOCHTABLENAME in h5group:
+                epochtable = f.get_node(h5group, EPOCHTABLENAME)
             else:
                 raise IOError(
                     "no epochs table found in %s" % h5array._v_pathname)
-            epochs = h5array._v_file.getNode(name)
-            if inmemory: epochs = epochs[:]
             signal = EpochedUniformTimeSeries(samples=samples,
-                fs=fs, epochs=epochs,
-                origintime=origintime, copy=False, dtype=None,
-                epochaxis=epochaxis)       
-    else: # len(h5array.shape) == 3: # emcuts
+                                              fs=fs, epochs=epochtable,
+                                              origintime=origintime,
+                                              copy=False, dtype=None,
+                                              epochaxis=epochaxis, attrs=attrs)
+    else:  # len(h5array.shape) == 3: # emcuts
         epochaxis = h5array.attrs.epochaxis
+        attrs.pop('epochaxis')
+        attrs.pop('epochtable')
         channelaxis = h5array.attrs.channelaxis
+        attrs.pop('channelaxis')
+        attrs.pop('channeltable')
         # there should be a table with epoch info
-        if h5array._v_name + "_records" in h5array._v_parent._v_children.keys():
-            name = h5array._v_pathname + "_records"
-        elif h5array._v_name + "_epochs" in h5array._v_parent._v_children.keys():
-            name = h5array._v_pathname + "_epochs"
+        if EPOCHTABLENAME in h5group:
+            epochtable = f.get_node(h5group, EPOCHTABLENAME)
         else:
             raise IOError("no epochs table found in %s" % h5array._v_pathname)
-        epochs = h5array._v_file.getNode(name)
-        if inmemory: epochs = epochs[:]
         # there can be a table with channels info
-        if h5array._v_name + "_channels" in h5array._v_parent._v_children.keys():
-            name = h5array._v_pathname + "_channels"
-            channeltable = h5array._v_file.getNode(name)
+        if CHANNELTABLENAME in h5group:
+            channeltable = f.get_node(h5group, CHANNELTABLENAME)
             channels = channeltable[:]
             channelnames = channels['channelname']
             if "geometry" in channeltable.attrs._v_attrnames:
                 pointnames = np.empty_like(channelnames)
                 pointnames[channels['geometrypoint']] = channelnames
-                g = h5attr_to_geometry(channeltable.attrs.geometry, pointnames=pointnames)
-            else:
-                g = None
-        elif "channelnames" in h5array.attrs._v_attrnames:
-            channels = h5array.attrs.channelnames
-            if "geometry" in h5array.attrs._v_attrnames:
-                g = h5attr_to_geometry(h5array.attrs.geometry, pointnames=None)
+                g = h5attr_to_geometry(channeltable.attrs.geometry,
+                                       pointnames=pointnames)
             else:
                 g = None
         else:
-            #raise IOError, "no channelnames found in %s" % h5array._v_pathname
-            channels = None
+            raise IOError("no channels found in %s" % h5array._v_pathname)
         signal = EpochedMultiChannelUniformTimeSeries(samples=samples,
-            fs=fs, channels=channels, origintime=origintime, 
-            copy=False, dtype=None, epochs=epochs, geometry=g, 
-            channelaxis=channelaxis, epochaxis=epochaxis)
+                                                      fs=fs, channels=channels,
+                                                      origintime=origintime,
+                                                      copy=False, dtype=None,
+                                                      epochs=epochtable,
+                                                      geometry=g,
+                                                      channelaxis=channelaxis,
+                                                      epochaxis=epochaxis,
+                                                      attrs=attrs)
     return signal
-    
-def _newh5uts(h5group, name, dtype, ntimesamples, fs, origintime, 
-              starttime, dflt=0.0, overwrite=False, extensible=False, expectedrows=None, 
-              complib='zlib', complevel=5,  chunkshape=None, attrs={}):
 
+def _newh5uts(h5group, dtype, ntimesamples, fs, origintime,
+              starttime, dflt=0.0, overwrite=False, extensible=False,
+              expectedrows=None,
+              complib='zlib', complevel=5, chunkshape=None, attrs=None):
     """
     Returns an pytables CArray or EArray node with dimensions of ntimesamples, 
     filled with zeros.
@@ -225,110 +316,144 @@ def _newh5uts(h5group, name, dtype, ntimesamples, fs, origintime,
     starttime = check_arg(starttime, 'time')
     ntimesamples = check_int(ntimesamples, negative=False)
     dtype = np.dtype(dtype)
-
-    h5file = h5group._v_file
+    if attrs is None:
+        attrs = {}
+    f = h5group._v_file
     if overwrite:
-        if h5group._v_children.has_key(name):
-            h5group._v_children[name]._f_remove()
-            h5file.flush()
-    filters = tables.Filters(complevel=complevel, complib=complib)
-    atom = tables.Atom.from_dtype(dtype, dflt=dflt)
-    if extensible:    
-        arnode = h5file.createEArray(where=h5group, name=name, atom=atom,
-                                     shape=(0,), filters=filters,
-                                     expectedrows=expectedrows, chunkshape=chunkshape)
-        framesize = int(8*1024*1024/dtype.itemsize)# 8 Mb chunks
+        if SAMPLEARRAYNAME in h5group:
+            f.get_node(h5group, SAMPLEARRAYNAME)._f_remove()
+            f.flush()
+    filters = tb.Filters(complevel=complevel, complib=complib)
+    atom = tb.Atom.from_dtype(dtype, dflt=dflt)
+    if extensible:
+        arnode = f.create_earray(where=h5group, name=SAMPLEARRAYNAME,
+                                 atom=atom,
+                                 shape=(0,), filters=filters,
+                                 expectedrows=expectedrows,
+                                 chunkshape=chunkshape)
+        framesize = int(8 * 1024 * 1024 / dtype.itemsize)  # 8 Mb chunks
         framesize = max(framesize, 1)
         nframes, newsize, remainder = fit_frames(totalsize=ntimesamples,
-                                                 framesize=framesize, stepsize=framesize)
+                                                 framesize=framesize,
+                                                 stepsize=framesize)
         zf = np.zeros(framesize, dtype=dtype)
         for i in range(nframes):
             arnode.append(zf)
         arnode.append(np.zeros(remainder, dtype=dtype))
     else:
         shape = (ntimesamples,)
-        arnode = h5file.createCArray(where=h5group, name=name, 
-                                     atom=atom, shape=shape, title='', filters=filters, 
-                                     chunkshape=chunkshape, byteorder=None, createparents=False)
-    attrs['fs'] = fs
-    attrs['starttime'] = starttime
-    attrs['origintime'] = origintime
+        arnode = f.create_carray(where=h5group, name=SAMPLEARRAYNAME,
+                                 atom=atom, shape=shape, title='',
+                                 filters=filters,
+                                 chunkshape=chunkshape, byteorder=None,
+                                 createparents=False)
     for attrname, value in attrs.items():
-        arnode._f_setAttr(attrname, value)
+        h5group._f_setattr(attrname, value)
+    h5group._f_setattr('fs', fs)
+    h5group._f_setattr('starttime', starttime)
+    h5group._f_setattr('origintime', origintime)
+    for attrname, value in attrs.items():
+        arnode.set_attr(attrname, value)
+    arnode.set_attr('fs', fs)
+    arnode.set_attr('starttime', starttime)
+    arnode.set_attr('origintime', origintime)
+
     arnode.flush()
+
     return arnode
 
-def _newh5mcuts(h5group, name, dtype, ntimesamples, fs, origintime, 
+def _newh5mcuts(h5group, dtype, ntimesamples, fs, origintime,
                 starttime, channelaxis, nchannels, channels, geometry,
-                dflt=0.0, overwrite=False, extensible=False, expectedrows=None, 
-                complib='zlib', complevel=5,  chunkshape=None, attrs={}):
-
+                dflt=0.0, overwrite=False, extensible=False, expectedrows=None,
+                complib='zlib', complevel=5, chunkshape=None, attrs=None):
     """
     Returns an pytables CArray or EArray node with dimensions of self.samples, 
     filled with zeros.
 
     """
-    
+
     fs = check_arg(fs, 'fs')
     origintime = check_arg(origintime, 'time')
     starttime = check_arg(starttime, 'time')
     channelaxis = check_arg(channelaxis, 'channelaxis')
-    mc = MultiChannel(nchannels=nchannels, channels=channels, 
+    mc = MultiChannel(nchannels=nchannels, channels=channels,
                       geometry=geometry)
     ntimesamples = check_int(ntimesamples, negative=False)
     dtype = np.dtype(dtype)
-    h5file = h5group._v_file
+    if attrs is None:
+        attrs = {}
+    f = h5group._v_file
     if overwrite:
-        if h5group._v_children.has_key(name):
-            h5group._v_children[name]._f_remove()
-            h5file.flush()
-    filters = tables.Filters(complevel=complevel, complib=complib)
-    atom = tables.Atom.from_dtype(dtype,dflt=dflt)
+        if SAMPLEARRAYNAME in h5group:
+            h5group._v_children[SAMPLEARRAYNAME]._f_remove()
+            f.flush()
+        if h5group._v_children.has_key(CHANNELTABLENAME):
+            h5group._v_children[CHANNELTABLENAME]._f_remove()
+            f.flush()
+    filters = tb.Filters(complevel=complevel, complib=complib)
+    atom = tb.Atom.from_dtype(dtype, dflt=dflt)
     if extensible:
         if channelaxis is None:
             channelaxis = 0
         if channelaxis != 0:
             raise ValueError("Extensible mcuts can only have channelaxis 0")
         shape = (mc.nchannels, 0)
-        arnode = h5file.createEArray(where=h5group, name=name, atom=atom,
-                                     shape=shape, filters=filters,
-                                     expectedrows=expectedrows, chunkshape=chunkshape)
-        framesize = int(8*1024*1024/(dtype.itemsize*mc.nchannels))# 8 Mb chunks
+        arnode = f.create_earray(where=h5group, name=SAMPLEARRAYNAME,
+                                 atom=atom,
+                                 shape=shape, filters=filters,
+                                 expectedrows=expectedrows,
+                                 chunkshape=chunkshape)
+        framesize = int(
+            8 * 1024 * 1024 / (dtype.itemsize * mc.nchannels))  # 8 Mb chunks
         framesize = max(framesize, 1)
         nframes, newsize, remainder = fit_frames(totalsize=ntimesamples,
-                                                 framesize=framesize, stepsize=framesize)
-        zf = np.zeros((mc.nchannels,framesize), dtype=dtype)
+                                                 framesize=framesize,
+                                                 stepsize=framesize)
+        zf = np.zeros((mc.nchannels, framesize), dtype=dtype)
         for i in range(nframes):
             arnode.append(zf)
-        arnode.append(np.zeros((mc.nchannels,remainder), dtype=dtype))
+        arnode.append(np.zeros((mc.nchannels, remainder), dtype=dtype))
     else:
         if channelaxis is None:
-            channelaxis = 1 # most likely efficient if retrieving time chunks
+            channelaxis = 1  # most likely efficient if retrieving time chunks
         else:
-            if channelaxis not in (0,1):
+            if channelaxis not in (0, 1):
                 raise ValueError("channelaxis should be 0 or 1")
         if channelaxis == 0:
             shape = (mc.nchannels, ntimesamples)
         else:
             shape = (ntimesamples, mc.nchannels)
-        arnode = h5file.createCArray(where=h5group, name=name, 
-                                     atom=atom, shape=shape, title='', filters=filters, 
-                                     chunkshape=chunkshape, byteorder=None, createparents=False)
-    attrs['fs'] = fs
-    attrs['starttime'] = starttime
-    attrs['origintime'] = origintime
-    attrs['channelaxis'] = channelaxis
-    attrs['channeltable'] = name + "_channels"
+        arnode = f.create_carray(where=h5group, name=SAMPLEARRAYNAME,
+                                 atom=atom, shape=shape, title='',
+                                 filters=filters,
+                                 chunkshape=chunkshape, byteorder=None,
+                                 createparents=False)
+
     for attrname, value in attrs.items():
-        arnode._f_setAttr(attrname, value)
-    _save_multichannel(multichannel=mc, h5group=h5group, name=name+"_channels", overwrite=overwrite)
+        h5group._f_setattr(attrname, value)
+    h5group._f_setattr('fs', fs)
+    h5group._f_setattr('starttime', starttime)
+    h5group._f_setattr('origintime', origintime)
+    h5group._f_setattr('channelaxis', channelaxis)
+    h5group._f_setattr('channeltable', CHANNELTABLENAME)
+    for attrname, value in attrs.items():
+        arnode.set_attr(attrname, value)
+    arnode.set_attr('fs', fs)
+    arnode.set_attr('starttime', starttime)
+    arnode.set_attr('origintime', origintime)
+    arnode.set_attr('channelaxis', channelaxis)
+    arnode.set_attr('channeltable', CHANNELTABLENAME)
+
+    _save_multichannel(multichannel=mc, h5group=h5group, name=CHANNELTABLENAME,
+                       overwrite=overwrite)
     arnode.flush()
     return arnode
 
-def _newh5euts(h5group, name, dtype, ntimesamples, fs, origintime, 
-               starttime, epochaxis, epochs, dflt=0.0, overwrite=False, extensible=False, 
-               expectedrows=None, complib='zlib', complevel=5,  chunkshape=None, attrs={}):
-
+def _newh5euts(h5group, dtype, ntimesamples, fs, origintime,
+               starttime, epochaxis, epochs, dflt=0.0, overwrite=False,
+               extensible=False,
+               expectedrows=None, complib='zlib', complevel=5, chunkshape=None,
+               attrs=None):
     """
     Returns an pytables CArray or EArray node with dimensions of self.samples, 
     filled with zeros.
@@ -343,58 +468,79 @@ def _newh5euts(h5group, name, dtype, ntimesamples, fs, origintime,
     ntimesamples = check_int(ntimesamples, negative=False)
     origintime = check_arg(origintime, 'time')
     starttime = check_arg(starttime, 'time')
-    epochaxis = check_arg(epochaxis,'epochaxis')
-    ep = Epoched(duration=ntimesamples/fs, epochs=epochs, origintime=origintime)
+    epochaxis = check_arg(epochaxis, 'epochaxis')
+    ep = Epoched(duration=ntimesamples / fs, epochs=epochs,
+                 origintime=origintime)
     dtype = np.dtype(dtype)
-    h5file = h5group._v_file
+    if attrs is None:
+        attrs = {}
+    f = h5group._v_file
     if overwrite:
-        if h5group._v_children.has_key(name):
-            h5group._v_children[name]._f_remove()
-            h5file.flush()
-    filters = tables.Filters(complevel=complevel, complib=complib)
-    atom = tables.Atom.from_dtype(dtype,dflt=dflt)
+        if SAMPLEARRAYNAME in h5group:
+            h5group._v_children[SAMPLEARRAYNAME]._f_remove()
+            f.flush()
+        if EPOCHTABLENAME in h5group:
+            h5group._v_children[EPOCHTABLENAME]._f_remove()
+            f.flush()
+    filters = tb.Filters(complevel=complevel, complib=complib)
+    atom = tb.Atom.from_dtype(dtype, dflt=dflt)
     if extensible:
         if epochaxis is None:
             epochaxis = 1
         if epochaxis != 1:
             raise ValueError("Extensible euts can only have epochaxis 1")
-        shape = (ntimesamples,0)
-        arnode = h5file.createEArray(where=h5group, name=name, atom=atom,
-                                     shape=shape, filters=filters,
-                                     expectedrows=expectedrows, chunkshape=chunkshape)
+        shape = (ntimesamples, 0)
+        arnode = f.create_earray(where=h5group, name=SAMPLEARRAYNAME,
+                                 atom=atom,
+                                 shape=shape, filters=filters,
+                                 expectedrows=expectedrows,
+                                 chunkshape=chunkshape)
         nepochs = ep.nepochs
-        zf = np.zeros((ntimesamples,1), dtype=dtype)
+        zf = np.zeros((ntimesamples, 1), dtype=dtype)
         for i in range(ep.nepochs):
             arnode.append(zf)
     else:
         if epochaxis is None:
-            epochaxis = 0 # most likely efficient if retrieving whole epochs
+            epochaxis = 0  # most likely efficient if retrieving whole epochs
         else:
-            if epochaxis not in (0,1):
+            if epochaxis not in (0, 1):
                 raise ValueError("epochaxis should be 0 or 1")
         if epochaxis == 0:
             shape = (ep.nepochs, ntimesamples)
         else:
             shape = (ntimesamples, ep.nepochs)
-        arnode = h5file.createCArray(where=h5group, name=name, 
-                                     atom=atom, shape=shape, title='', filters=filters, 
-                                     chunkshape=chunkshape, byteorder=None, createparents=False)
-    attrs['fs'] = fs
-    attrs['starttime'] = starttime
-    attrs['origintime'] = origintime
-    attrs['epochaxis'] = epochaxis
-    attrs['epochtable'] = name+"_epochs"
+        arnode = f.create_carray(where=h5group, name=SAMPLEARRAYNAME,
+                                 atom=atom, shape=shape, title='',
+                                 filters=filters,
+                                 chunkshape=chunkshape, byteorder=None,
+                                 createparents=False)
+
     for attrname, value in attrs.items():
-        arnode._f_setAttr(attrname, value)
-    _save_epoched(epoched=ep, h5group=h5group, name=name+"_epochs", overwrite=overwrite)
+        h5group._f_setattr(attrname, value)
+    h5group._f_setattr('fs', fs)
+    h5group._f_setattr('starttime', starttime)
+    h5group._f_setattr('origintime', origintime)
+    h5group._f_setattr('epochaxis', epochaxis)
+    h5group._f_setattr('epochtable', EPOCHTABLENAME)
+    for attrname, value in attrs.items():
+        arnode.set_attr(attrname, value)
+    arnode.set_attr('fs', fs)
+    arnode.set_attr('starttime', starttime)
+    arnode.set_attr('origintime', origintime)
+    arnode.set_attr('epochaxis', epochaxis)
+    arnode.set_attr('epochtable', EPOCHTABLENAME)
+
+    _save_epoched(epoched=ep, h5group=h5group, name=EPOCHTABLENAME,
+                  overwrite=overwrite)
     arnode.flush()
     return arnode
 
-def _newh5emcuts(h5group, name, dtype, ntimesamples, fs, origintime, 
-                 starttime, epochaxis, channelaxis, nchannels, channels, geometry,
-                 epochs, dflt=0.0, overwrite=False, extensible=False, expectedrows=None, 
-                 complib='zlib', complevel=5,  chunkshape=None, attrs={}):
-
+def _newh5emcuts(h5group, dtype, ntimesamples, fs, origintime,
+                 starttime, epochaxis, channelaxis, nchannels, channels,
+                 geometry,
+                 epochs, dflt=0.0, overwrite=False, extensible=False,
+                 expectedrows=None,
+                 complib='zlib', complevel=5, chunkshape=None, attrs=None):
     """
     Returns an pytables CArray or EArray node with dimensions of self.samples, 
     filled with zeros.
@@ -402,22 +548,31 @@ def _newh5emcuts(h5group, name, dtype, ntimesamples, fs, origintime,
     """
 
     fs = check_arg(fs, 'fs')
-    ntimesamples = check_int(ntimesamples, negative=False)    
+    ntimesamples = check_int(ntimesamples, negative=False)
     origintime = check_arg(origintime, 'time')
     starttime = check_arg(starttime, 'time')
     channelaxis = check_arg(channelaxis, 'channelaxis')
-    mc = MultiChannel(nchannels=nchannels, channels=channels, 
-                      geometry=geometry)    
-    epochaxis = check_arg(epochaxis,'epochaxis')
-    ep = Epoched(duration=ntimesamples/fs, epochs=epochs, origintime=origintime)
+    mc = MultiChannel(nchannels=nchannels, channels=channels,
+                      geometry=geometry)
+    epochaxis = check_arg(epochaxis, 'epochaxis')
+    ep = Epoched(duration=ntimesamples / fs, epochs=epochs,
+                 origintime=origintime)
     dtype = np.dtype(dtype)
-    h5file = h5group._v_file
+    if attrs is None:
+        attrs = {}
+    f = h5group._v_file
     if overwrite:
-        if h5group._v_children.has_key(name):
-            h5group._v_children[name]._f_remove()
-            h5file.flush()
-    filters = tables.Filters(complevel=complevel, complib=complib)
-    atom = tables.Atom.from_dtype(dtype,dflt=dflt)
+        if SAMPLEARRAYNAME in h5group:
+            h5group._v_children[SAMPLEARRAYNAME]._f_remove()
+            f.flush()
+        if CHANNELTABLENAME in h5group:
+            h5group._v_children[CHANNELTABLENAME]._f_remove()
+            f.flush()
+        if EPOCHTABLENAME in h5group:
+            h5group._v_children[EPOCHTABLENAME]._f_remove()
+            f.flush()
+    filters = tb.Filters(complevel=complevel, complib=complib)
+    atom = tb.Atom.from_dtype(dtype, dflt=dflt)
     if extensible:
         if epochaxis is None:
             epochaxis = 2
@@ -425,24 +580,26 @@ def _newh5emcuts(h5group, name, dtype, ntimesamples, fs, origintime,
             raise ValueError("epochaxis should be 2 for extensible emcuts")
         if channelaxis is None:
             channelaxis = 1
-        if not channelaxis in (0,1):
+        if not channelaxis in (0, 1):
             raise ValueError(
                 "channelaxis should be 0 or 1 for extensible emcuts")
         if channelaxis == 1:
-            shape=(ntimesamples, mc.nchannels, 0)
+            shape = (ntimesamples, mc.nchannels, 0)
         else:
-            shape=(mc.nchannels, ntimesamples, 0)
-        arnode = h5file.createEArray(where=h5group, name=name, atom=atom,
-                                     shape=shape, filters=filters,
-                                     expectedrows=expectedrows, chunkshape=chunkshape)
+            shape = (mc.nchannels, ntimesamples, 0)
+        arnode = f.create_earray(where=h5group, name=SAMPLEARRAYNAME,
+                                 atom=atom,
+                                 shape=shape, filters=filters,
+                                 expectedrows=expectedrows,
+                                 chunkshape=chunkshape)
         nepochs = ep.nepochs
-        zf = np.zeros((shape[0],shape[1],1), dtype=dtype)
+        zf = np.zeros((shape[0], shape[1], 1), dtype=dtype)
         for i in range(nepochs):
             arnode.append(zf)
     else:
         # first figure out which axis is where. The default is to put
         # epoch at low axes and channel at high
-        shape = [ntimesamples,ntimesamples,ntimesamples]
+        shape = [ntimesamples, ntimesamples, ntimesamples]
         if epochaxis is None:
             if channelaxis != 0:
                 epochaxis = 0
@@ -461,126 +618,48 @@ def _newh5emcuts(h5group, name, dtype, ntimesamples, fs, origintime,
         if channelaxis == epochaxis:
             raise ValueError("channelaxis is same as epochaxis")
         shape[channelaxis] = mc.nchannels
-        arnode = h5file.createCArray(where=h5group, name=name, 
-                                     atom=atom, shape=shape, title='', filters=filters, 
-                                     chunkshape=chunkshape, byteorder=None, createparents=False)
-    attrs['fs'] = fs
-    attrs['starttime'] = starttime
-    attrs['origintime'] = origintime
-    attrs['epochaxis'] = epochaxis
-    attrs['channelaxis'] = channelaxis
-    attrs['channeltable'] = name + "_channels"
-    attrs['epochtable'] = name + "_epochs"
+        arnode = f.create_carray(where=h5group, name=SAMPLEARRAYNAME,
+                                 atom=atom, shape=shape, title='',
+                                 filters=filters,
+                                 chunkshape=chunkshape, byteorder=None,
+                                 createparents=False)
+
     for attrname, value in attrs.items():
-        arnode._f_setAttr(attrname, value)
-    _save_epoched(epoched=ep, h5group=h5group, name=name+"_epochs", overwrite=overwrite)
-    _save_multichannel(multichannel=mc, h5group=h5group, name=name+"_channels", overwrite=overwrite)
+        h5group._f_setattr(attrname, value)
+    h5group._f_setattr('fs', fs)
+    h5group._f_setattr('starttime', starttime)
+    h5group._f_setattr('origintime', origintime)
+    h5group._f_setattr('channelaxis', channelaxis)
+    h5group._f_setattr('channeltable', CHANNELTABLENAME)
+    h5group._f_setattr('epochaxis', epochaxis)
+    h5group._f_setattr('epochtable', EPOCHTABLENAME)
+    for attrname, value in attrs.items():
+        arnode.set_attr(attrname, value)
+    arnode.set_attr('fs', fs)
+    arnode.set_attr('starttime', starttime)
+    arnode.set_attr('origintime', origintime)
+    arnode.set_attr('channelaxis', channelaxis)
+    arnode.set_attr('channeltable', CHANNELTABLENAME)
+    arnode.set_attr('epochaxis', epochaxis)
+    arnode.set_attr('epochtable', EPOCHTABLENAME)
+
+    _save_epoched(epoched=ep, h5group=h5group, name=EPOCHTABLENAME,
+                  overwrite=overwrite)
+    _save_multichannel(multichannel=mc, h5group=h5group, name=CHANNELTABLENAME,
+                       overwrite=overwrite)
     arnode.flush()
     return arnode
 
-
-# def save_UniformTimeSeriestoh5(h5group, signal, signalname, overwrite=False,
-#                 extensible=False, expectedrows=None, filters=None, chunkshape=None):
-#         if isinstance(signal, (EpochedMultiChannelUniformTimeSeries,
-#                            MultiChannelUniformTimeSeries, UniformTimeSeries)):
-#             h5mcss = save(signal,h5group=h5group, name=signalname,
-#                              overwrite=overwrite, extensible=extensible,
-#                              expectedrows=expectedrows, filters=filters,
-#                              chunkshape=chunkshape)
-#         elif isinstance(signal, GeneratorType):
-#             s1 = signal.next()
-#             assert isinstance(s1, (EpochedMultiChannelUniformTimeSeries,
-#                             MultiChannelUniformTimeSeries, UniformTimeSeries))
-#             h5mcss = save(s1,h5group=h5group, name=signalname,
-#                              overwrite=overwrite, extensible=True,
-#                               filters=filters, chunkshape=chunkshape)
-#             for sn in signal:
-#                 h5mcss.append(sn)
-#         else:
-#             raise TypeError, "signal is not a sampled signal, or generator"
-
-#         return h5mcss
-
-# def create_emptyh5MultiChannelUniformTimeSeries(h5group, signalname, nsamples, 
-#                 nchannels, fs, starttime=0.0, origintime=0.0, channelaxis=0,
-#                 dtype=np.float64, geometry=None, channels=None, 
-#                 overwrite=False, extensible=False, expectedrows=None, complevel=0,
-#                 chunkshape=None, attrdict={}):
-    
-#     h5file = h5group._v_file
-#     if (channelaxis == 0) or extensible:
-#         shape = (nchannels, nsamples)
-#         channelaxis = 0
-#     else:
-#         shape = (nsamples,nchannels)
-#     filters = tables.Filters(complevel=complevel)
-#     atom = tables.Atom.from_dtype(dtype)
-#     if overwrite:
-#         if h5group._v_children.has_key(signalname):
-#             h5group._v_children[signalname]._f_remove()
-#             h5file.flush()
-#     if not extensible:
-#         arnode = h5file.createCArray(where=h5group, name=signalname, 
-#                                     atom=atom, shape=shape,filters=filters,
-#                                     chunkshape=chunkshape)
-#     else:
-#         if expectedrows is None:
-#             expectedrows = nsamples
-#         arnode = h5file.createEArray(where=h5group, name=name, atom=atom,
-#                 shape=(self.nchannels, 0), filters=filters,
-#                 expectedrows=expectedrows,chunkshape=chunkshape)
-#         blocksize = 1024
-#         nblocks,remainder = divmode(nsamples,blocksize)
-#         sampleblock = np.zeros([channels,blocksize],dtype=dtype)
-#         for i in range(nblocks):
-#             arnode.append(samples)
-#         if remainder > 0:
-#             arnode.append(samples[:,:remainder])
-#     attrs = {'fs': fs,
-#              'starttime': starttime,
-#              'origintime': origintime,
-#              'channelaxis': channelaxis,
-#              'channeltable': signalname + "_channels"}
-#     for attrname, value in attrs.items():
-#         arnode._f_setAttr(attrname, value)
-#     # if not geometry is None:
-#     #     geometry.saveh5(arnode)
-#     mc = MultiChannel(channels=channels,geometry=geometry)
-#     _save_multichannel(multichannel=mc, h5group=h5group, name=signalname+"_channels", overwrite=overwrite)
-#     arnode.flush()
-    
-#     return loadh5(arnode)
-
-# def create_h5MultiChannelUniformTimeSeries_emptylike(mctss, h5group, signalname,
-#                 overwrite=False, extensible=False, expectedrows=None, complevel=0,
-#                 attrdict={}):
-    
-#     fs = mctss.fs
-#     nsamples = mctss.ntimesamples
-#     nchannels = mctss.nchannels
-#     channels = mctss.channels
-#     geometry = mctss.geometry
-#     dtype = mctss.dtype
-#     starttime = mctss.starttime
-#     origintime = mctss.origintime
-#     channelaxis = mctss.channelaxis
-    
-#     return create_emptyh5MultiChannelUniformTimeSeries(h5group, signalname, nsamples, 
-#                 nchannels, fs, starttime=0.0, origintime=0.0, channelaxis=channelaxis,
-#                 dtype=dtype, geometry=geometry, channels=channels, 
-#                 overwrite=overwrite, extensible=False, expectedrows=None, complevel=0,
-#                 attrdict=attrdict)
-
 def _create_signalgroup(h5group, name, overwrite):
-    if overwrite and h5group._v_children.has_key(name):
-        h5group._v_children[name]._f_remove(recursive=True)
-        h5group._v_file.flush()
-    return h5group._v_file.createGroup(h5group, name)
+    f = h5group._v_file
+    if overwrite and (name in h5group):
+        f.get_node(h5group, name)._f_remove(recursive=True)
+        f.flush()
+    return f.create_group(h5group, name)
 
-
-def _save_uts(uts, h5group, name, attrs={}, overwrite=False,
-            extensible=False, expectedrows=None, dtype=None, 
-            complib='zlib', complevel=5, chunkshape=None):
+def _save_uts(uts, h5group, overwrite=False,
+              extensible=False, expectedrows=None, dtype=None,
+              complib='zlib', complevel=5, chunkshape=None):
     '''
     Saves the signal array in a hdf5 file.
 
@@ -595,31 +674,34 @@ def _save_uts(uts, h5group, name, attrs={}, overwrite=False,
     the h5 arraynode in which the array is saved
 
     '''
-    
-    signalgroup = _create_signalgroup(h5group=h5group, name=name, overwrite=overwrite)
+
     if dtype is None:
         dtype = uts.samples.dtype
-    arnode = _newh5uts(h5group=signalgroup, name='samples',
+    arnode = _newh5uts(h5group=h5group,
                        ntimesamples=uts.ntimesamples, fs=uts.fs,
-                       origintime=uts.origintime, starttime=uts.starttime, dtype=dtype, 
-                       overwrite=overwrite, extensible=extensible, expectedrows=expectedrows, 
-                       complib=complib, complevel=complevel, chunkshape=chunkshape, attrs=attrs)
+                       origintime=uts.origintime, starttime=uts.starttime,
+                       dtype=dtype,
+                       overwrite=overwrite, extensible=extensible,
+                       expectedrows=expectedrows,
+                       complib=complib, complevel=complevel,
+                       chunkshape=chunkshape, attrs=uts.attrs)
     # fill it with our samples; we take chunks of maximum 8 Mb
-    framesize = int(8*1024*1024/uts.samples.dtype.itemsize)
+    framesize = int(8 * 1024 * 1024 / uts.samples.dtype.itemsize)
     framesize = max(1, framesize)
     start = 0
-    for i,frame in enumerate(uts.iter_frames(framesize=framesize)):
+    for i, frame in enumerate(uts.iter_frames(framesize=framesize)):
         samples = frame.samples.get(copy=False)
         if dtype != samples.dtype:
             samples = samples.astype(dtype)
-        arnode[start:start+frame.ntimesamples] = samples
+        arnode[start:start + frame.ntimesamples] = samples
         start += frame.ntimesamples
     arnode.flush()
-    return uts._instantiatefromself(samples=arnode, dtype=arnode.dtype, copy=False)
+    return uts._instantiatefromself(samples=arnode, dtype=arnode.dtype,
+                                    copy=False)
 
-def _save_mcuts(mcuts, h5group, name, attrs={}, overwrite=False, channelaxis=None,
-               extensible=False, expectedrows=None, dtype=None, 
-               complib='zlib', complevel=5, chunkshape=None):
+def _save_mcuts(mcuts, h5group, overwrite=False, channelaxis=None,
+                extensible=False, expectedrows=None, dtype=None,
+                complib='zlib', complevel=5, chunkshape=None):
     '''
     Saves the signal array in a hdf5 file.
 
@@ -639,62 +721,69 @@ def _save_mcuts(mcuts, h5group, name, attrs={}, overwrite=False, channelaxis=Non
     underlying hdf5 object only allows to append along dimension 0.
 
     '''
-    signalgroup = _create_signalgroup(h5group=h5group, name=name, overwrite=overwrite)
     if extensible:
         if channelaxis == 1:
             raise ValueError("Extensible mcuts must have channelaxis 0")
         else:
-            channelaxis = 0 # in case the param wasn't provided
+            channelaxis = 0  # in case the param wasn't provided
     if channelaxis is None:
         channelaxis = mcuts.channelaxis
     if dtype is None:
         dtype = mcuts.samples.dtype
-    arnode = _newh5mcuts(h5group=signalgroup, name='samples', dtype=dtype,
-                         ntimesamples=mcuts.ntimesamples, fs=mcuts.fs, 
-                         origintime=mcuts.origintime, starttime=mcuts.starttime, 
-                         nchannels = mcuts.nchannels,
-                         channels=mcuts.channelnames, geometry=mcuts.geometry, 
-                         channelaxis=channelaxis, overwrite=overwrite, 
-                         extensible=extensible, expectedrows=expectedrows, 
-                         complib=complib, complevel=complevel, chunkshape=chunkshape,
-                         attrs=attrs)
+    arnode = _newh5mcuts(h5group=h5group, dtype=dtype,
+                         ntimesamples=mcuts.ntimesamples, fs=mcuts.fs,
+                         origintime=mcuts.origintime,
+                         starttime=mcuts.starttime,
+                         nchannels=mcuts.nchannels,
+                         channels=mcuts.channelnames, geometry=mcuts.geometry,
+                         channelaxis=channelaxis, overwrite=overwrite,
+                         extensible=extensible, expectedrows=expectedrows,
+                         complib=complib, complevel=complevel,
+                         chunkshape=chunkshape,
+                         attrs=mcuts.attrs)
 
     # loop over big chunks of first axis
-    chunksize = 8*1024*1024 # 8 Mb
+    chunksize = 8 * 1024 * 1024  # 8 Mb
     if channelaxis == 0:
-        channelsize = (mcuts.ntimesamples*mcuts.dtype.itemsize)
-        nchannelsperchunk = int(chunksize//float(channelsize))
-        nchannelsperchunk = max(nchannelsperchunk,1)
-        nchunks, remainder = divmod(mcuts.nchannels,nchannelsperchunk)
+        channelsize = (mcuts.ntimesamples * mcuts.dtype.itemsize)
+        nchannelsperchunk = int(chunksize // float(channelsize))
+        nchannelsperchunk = max(nchannelsperchunk, 1)
+        nchunks, remainder = divmod(mcuts.nchannels, nchannelsperchunk)
         start = 0
         for i in range(nchunks):
-            arnode[start:start+nchannelsperchunk,:] =\
-                  mcuts[:,start:start+nchannelsperchunk].samples.transpose(['channel','time']).get(copy=False)
+            arnode[start:start + nchannelsperchunk, :] = \
+                mcuts[:, start:start + nchannelsperchunk].samples.transpose(
+                    ['channel', 'time'],
+                    ignore_missingaxes=True).get(copy=False)
             start = start + nchannelsperchunk
         if remainder > 0:
-            arnode[start:start+remainder,:] =\
-                  mcuts[:,start:start+remainder].samples.transpose(['channel','time']).get(copy=False)
-    else: # channelaxis == 1
-        timesize = (mcuts.nchannels*mcuts.dtype.itemsize)
-        ntimesperchunk = int(chunksize//float(timesize))
-        ntimesperchunk = max(ntimesperchunk,1)
-        nchunks, remainder = divmod(mcuts.ntimesamples,ntimesperchunk)
+            arnode[start:start + remainder, :] = \
+                mcuts[:, start:start + remainder].samples.transpose(
+                    ['channel', 'time'],
+                    ignore_missingaxes=True).get(copy=False)
+    else:  # channelaxis == 1
+        timesize = (mcuts.nchannels * mcuts.dtype.itemsize)
+        ntimesperchunk = int(chunksize // float(timesize))
+        ntimesperchunk = max(ntimesperchunk, 1)
+        nchunks, remainder = divmod(mcuts.ntimesamples, ntimesperchunk)
         start = 0
         for i in range(nchunks):
-            arnode[start:start+ntimesperchunk,:] =\
-                  mcuts[start:start+ntimesperchunk].samples.transpose(['time','channel']).get(copy=False)
+            arnode[start:start + ntimesperchunk, :] = \
+                mcuts[start:start + ntimesperchunk].samples.transpose(
+                    ['time', 'channel']).get(copy=False)
             start = start + ntimesperchunk
         if remainder > 0:
-            arnode[start:start+remainder,:] =\
-                  mcuts[start:start+remainder,:].samples.transpose(['time','channel']).get(copy=False)
+            arnode[start:start + remainder, :] = \
+                mcuts[start:start + remainder, :].samples.transpose(
+                    ['time', 'channel']).get(copy=False)
 
     arnode.flush()
     dtype = arnode.dtype
-    return mcuts._instantiatefromself(samples=arnode, channelaxis=channelaxis, 
-                                     dtype=dtype, copy=False)
+    return mcuts._instantiatefromself(samples=arnode, channelaxis=channelaxis,
+                                      dtype=dtype, copy=False)
 
-def _save_euts(euts, h5group, name, epochaxis=None,attrs={}, overwrite=False,
-               extensible=False, expectedrows=None, dtype=None, 
+def _save_euts(euts, h5group, epochaxis=None, overwrite=False,
+               extensible=False, expectedrows=None, dtype=None,
                complib='zlib', complevel=5, chunkshape=None):
     '''
     Saves the signal array in a hdf5 file.
@@ -708,56 +797,63 @@ def _save_euts(euts, h5group, name, epochaxis=None,attrs={}, overwrite=False,
     the h5 arraynode in which the array is saved
 
     '''
-    signalgroup = _create_signalgroup(h5group=h5group, name=name, overwrite=overwrite)
     if dtype is None:
         dtype = euts.dtype
     if epochaxis is None:
         epochaxis = euts.epochaxis
-    arnode = _newh5euts(h5group=signalgroup, name='samples', dtype=dtype, 
-                        ntimesamples=euts.ntimesamples, fs=euts.fs, 
-                        origintime=euts.origintime, starttime=euts.starttime, 
-                        epochaxis=epochaxis, epochs=euts.epochs, 
-                        overwrite=overwrite, extensible=False, 
-                        expectedrows=None, complib=complib, complevel=complevel,
-                        chunkshape=None, attrs=attrs)
-    epochs = arnode._v_parent._f_getChild("samples_epochs")
+    arnode = _newh5euts(h5group=h5group, dtype=dtype,
+                        ntimesamples=euts.ntimesamples, fs=euts.fs,
+                        origintime=euts.origintime, starttime=euts.starttime,
+                        epochaxis=epochaxis, epochs=euts.epochs,
+                        overwrite=overwrite, extensible=False,
+                        expectedrows=None, complib=complib,
+                        complevel=complevel,
+                        chunkshape=None, attrs=euts.attrs)
+    epochs = h5group._f_get_child(EPOCHTABLENAME)
 
     # loop over big chunks of first axis
-    chunksize = 8*1024*1024 # 8 Mb
+    chunksize = 8 * 1024 * 1024  # 8 Mb
     if epochaxis == 0:
-        epochsize = (euts.ntimesamples*euts.dtype.itemsize)
-        nepochsperchunk = int(chunksize//float(epochsize))
-        nepochsperchunk = max(nepochsperchunk,1)
-        nchunks, remainder = divmod(euts.nepochs,nepochsperchunk)
+        epochsize = (euts.ntimesamples * euts.dtype.itemsize)
+        nepochsperchunk = int(chunksize // float(epochsize))
+        nepochsperchunk = max(nepochsperchunk, 1)
+        nchunks, remainder = divmod(euts.nepochs, nepochsperchunk)
         start = 0
         for i in range(nchunks):
-            arnode[start:start+nepochsperchunk,:] =\
-                  euts[:,start:start+nepochsperchunk].samples.transpose(['epoch','time']).get(copy=False)
+            arnode[start:start + nepochsperchunk, :] = \
+                euts[:, start:start + nepochsperchunk].samples.transpose(
+                    ['epoch', 'time']).get(copy=False)
             start = start + nepochsperchunk
         if remainder > 0:
-            arnode[start:start+remainder,:] =\
-                  euts[:,start:start+remainder].samples.transpose(['epoch','time']).get(copy=False)
-    else: # epochaxis == 1
-        timesize = (euts.nepochs*euts.dtype.itemsize)
-        ntimesperchunk = int(chunksize//float(timesize))
-        ntimesperchunk = max(ntimesperchunk,1)
-        nchunks, remainder = divmod(euts.ntimesamples,ntimesperchunk)
+            arnode[start:start + remainder, :] = \
+                euts[:, start:start + remainder].samples.transpose(
+                    ['epoch', 'time']).get(copy=False)
+    else:  # epochaxis == 1
+        timesize = (euts.nepochs * euts.dtype.itemsize)
+        ntimesperchunk = int(chunksize // float(timesize))
+        ntimesperchunk = max(ntimesperchunk, 1)
+        nchunks, remainder = divmod(euts.ntimesamples, ntimesperchunk)
         start = 0
         for i in range(nchunks):
-            arnode[start:start+ntimesperchunk,:] =\
-                  euts[start:start+ntimesperchunk].samples.transpose(['time','epoch']).get(copy=False)
+            arnode[start:start + ntimesperchunk, :] = \
+                euts[start:start + ntimesperchunk].samples.transpose(
+                    ['time', 'epoch']).get(copy=False)
             start = start + ntimesperchunk
         if remainder > 0:
-            arnode[start:start+remainder,:] =\
-                  euts[start:start+remainder,:].samples.transpose(['time','epoch']).get(copy=False)
+            arnode[start:start + remainder, :] = \
+                euts[start:start + remainder, :].samples.transpose(
+                    ['time', 'epoch']).get(copy=False)
     arnode.flush()
     dtype = arnode.dtype
-    return euts._instantiatefromself(samples=arnode, dtype=dtype, epochs=epochs,
+    return euts._instantiatefromself(samples=arnode, dtype=dtype,
+                                     epochs=epochs,
                                      epochaxis=epochaxis, copy=False)
 
-def _save_emcuts(emcuts, h5group, name, attrs={}, overwrite=False,
-        extensible=False, expectedrows=None, dtype=None, epochaxis=None, 
-        channelaxis=None, complib='zlib', complevel=5, chunkshape=None):
+def _save_emcuts(emcuts, h5group, overwrite=False,
+                 extensible=False, expectedrows=None, dtype=None,
+                 epochaxis=None,
+                 channelaxis=None, complib='zlib', complevel=5,
+                 chunkshape=None):
     '''
     Saves the signal array in a hdf5 file.
    
@@ -777,109 +873,126 @@ def _save_emcuts(emcuts, h5group, name, attrs={}, overwrite=False,
     underlying hdf5 object only allows to append along dimension 0.
    
     '''
-    signalgroup = _create_signalgroup(h5group=h5group, name=name, overwrite=overwrite)
     if channelaxis is None:
         channelaxis = emcuts.channelaxis
     if epochaxis is None:
         epochaxis = emcuts.epochaxis
     if dtype is None:
         dtype = emcuts.samples.dtype
-    arnode = _newh5emcuts(h5group=signalgroup, name='samples', dtype=dtype,
-                          ntimesamples=emcuts.ntimesamples, fs=emcuts.fs, 
-                          origintime=emcuts.origintime, starttime=emcuts.starttime, 
-                          nchannels = emcuts.nchannels, epochaxis=epochaxis, 
-                          epochs=emcuts.epochs, channels=emcuts.channelnames, 
-                          geometry=emcuts.geometry, channelaxis=channelaxis, 
-                          overwrite=overwrite, extensible=extensible, 
-                          expectedrows=expectedrows, complib=complib, complevel=complevel, 
-                          chunkshape=chunkshape, attrs=attrs)
-    
-    epochs = arnode._v_parent._f_getChild("samples_epochs")
-   
+    arnode = _newh5emcuts(h5group=h5group, dtype=dtype,
+                          ntimesamples=emcuts.ntimesamples, fs=emcuts.fs,
+                          origintime=emcuts.origintime,
+                          starttime=emcuts.starttime,
+                          nchannels=emcuts.nchannels, epochaxis=epochaxis,
+                          epochs=emcuts.epochs, channels=emcuts.channelnames,
+                          geometry=emcuts.geometry, channelaxis=channelaxis,
+                          overwrite=overwrite, extensible=extensible,
+                          expectedrows=expectedrows, complib=complib,
+                          complevel=complevel,
+                          chunkshape=chunkshape, attrs=emcuts.attrs)
+
+    epochs = h5group._f_get_child(EPOCHTABLENAME)
+
     # loop over big chunks of first axis
-    chunksize = 8*1024*1024 # 8 Mb
+    chunksize = 8 * 1024 * 1024  # 8 Mb
     if epochaxis == 0:
-        epochsize = (emcuts.ntimesamples*emcuts.nchannels*emcuts.dtype.itemsize)
-        nepochsperchunk = int(chunksize//float(epochsize))
-        nepochsperchunk = max(nepochsperchunk,1)
-        nchunks, remainder = divmod(emcuts.nepochs,nepochsperchunk)
+        epochsize = (
+        emcuts.ntimesamples * emcuts.nchannels * emcuts.dtype.itemsize)
+        nepochsperchunk = int(chunksize // float(epochsize))
+        nepochsperchunk = max(nepochsperchunk, 1)
+        nchunks, remainder = divmod(emcuts.nepochs, nepochsperchunk)
         start = 0
         if channelaxis == 1:
-            trans = ['epoch','channel','time']
-        else: # channelaxis == 2
-            trans = ['epoch','time','channel']
+            trans = ['epoch', 'channel', 'time']
+        else:  # channelaxis == 2
+            trans = ['epoch', 'time', 'channel']
         for i in range(nchunks):
-            arnode[start:start+nepochsperchunk,:] =\
-                  emcuts[:,:,start:start+nepochsperchunk].samples.transpose(trans).get(copy=False)
+            arnode[start:start + nepochsperchunk, :] = \
+                emcuts[:, :, start:start + nepochsperchunk].samples.transpose(
+                    trans).get(copy=False)
             start = start + nepochsperchunk
         if remainder > 0:
-            arnode[start:start+remainder,:] =\
-                  emcuts[:,:,start:start+remainder].samples.transpose(trans).get(copy=False)
+            arnode[start:start + remainder, :] = \
+                emcuts[:, :, start:start + remainder].samples.transpose(
+                    trans).get(copy=False)
     elif channelaxis == 0:
-        channelsize = (emcuts.ntimesamples*emcuts.nepochs*emcuts.dtype.itemsize)
-        nchannelsperchunk = int(chunksize//float(channelsize))
-        nchannelsperchunk = max(nchannelsperchunk,1)
-        nchunks, remainder = divmod(emcuts.nchannels,nchannelsperchunk)
+        channelsize = (
+        emcuts.ntimesamples * emcuts.nepochs * emcuts.dtype.itemsize)
+        nchannelsperchunk = int(chunksize // float(channelsize))
+        nchannelsperchunk = max(nchannelsperchunk, 1)
+        nchunks, remainder = divmod(emcuts.nchannels, nchannelsperchunk)
         start = 0
         if epochaxis == 1:
-            trans = ['channel','epoch','time']
-        else: # epochaxis == 2
-            trans = ['channel','time','epoch']
+            trans = ['channel', 'epoch', 'time']
+        else:  # epochaxis == 2
+            trans = ['channel', 'time', 'epoch']
         for i in range(nchunks):
-            arnode[start:start+nchannelsperchunk,:,:] =\
-                  emcuts[:,start:start+nchannelsperchunk].samples.transpose(trans).get(copy=False)
+            arnode[start:start + nchannelsperchunk, :, :] = \
+                emcuts[:, start:start + nchannelsperchunk].samples.transpose(
+                    trans).get(copy=False)
             start = start + nchannelsperchunk
         if remainder > 0:
-            arnode[start:start+remainder,:,:] =\
-                  emcuts[:,start:start+remainder].samples.transpose(trans).get(copy=False)
-    else: # timeaxis == 0
-        timesize = (emcuts.nchannels*emcuts.nepochs*emcuts.dtype.itemsize)
-        ntimesperchunk = int(chunksize//float(timesize))
-        ntimesperchunk = max(ntimesperchunk,1)
-        nchunks, remainder = divmod(emcuts.ntimesamples,ntimesperchunk)
+            arnode[start:start + remainder, :, :] = \
+                emcuts[:, start:start + remainder].samples.transpose(
+                    trans).get(copy=False)
+    else:  # timeaxis == 0
+        timesize = (emcuts.nchannels * emcuts.nepochs * emcuts.dtype.itemsize)
+        ntimesperchunk = int(chunksize // float(timesize))
+        ntimesperchunk = max(ntimesperchunk, 1)
+        nchunks, remainder = divmod(emcuts.ntimesamples, ntimesperchunk)
         start = 0
         if epochaxis == 1:
-            trans = ['time','epoch','channel']
-        else: # epochaxis == 2
-            trans = ['time','channel','epoch']
+            trans = ['time', 'epoch', 'channel']
+        else:  # epochaxis == 2
+            trans = ['time', 'channel', 'epoch']
         for i in range(nchunks):
-            arnode[start:start+ntimesperchunk,:,:] =\
-                  emcuts[start:start+ntimesperchunk].samples.transpose(trans).get(copy=False)
+            arnode[start:start + ntimesperchunk, :, :] = \
+                emcuts[start:start + ntimesperchunk].samples.transpose(
+                    trans).get(copy=False)
             start = start + ntimesperchunk
         if remainder > 0:
-            arnode[start:start+remainder,:,:] =\
-                  emcuts[start:start+remainder].samples.transpose(trans).get(copy=False)
+            arnode[start:start + remainder, :, :] = \
+                emcuts[start:start + remainder].samples.transpose(trans).get(
+                    copy=False)
     arnode.flush()
     dtype = arnode.dtype
-    return emcuts._instantiatefromself(samples=arnode, epochaxis=epochaxis, epochs=epochs,
-                                     dtype=dtype, channelaxis=channelaxis, copy=False)
+    return emcuts._instantiatefromself(samples=arnode, epochaxis=epochaxis,
+                                       epochs=epochs,
+                                       dtype=dtype, channelaxis=channelaxis,
+                                       copy=False)
 
 def _save_epoched(epoched, h5group, name, overwrite=False, attrs={}):
     h5file = h5group._v_file
-    if overwrite:
-        if h5group._v_children.has_key(name):
-            h5group._v_children[name]._f_remove()
-            h5file.flush()
-    table = h5file.createTable(where=h5group, name=name, 
-                               description=epoched.epochs)
+    if overwrite and (name in h5group):
+        h5group._v_children[name]._f_remove()
+        h5file.flush()
+    table = h5file.create_table(where=h5group, name=name,
+                                description=epoched.epochs)
     attrs['origintime'] = epoched.origintime
-    attrs['duration'] =  epoched.duration
+    attrs['duration'] = epoched.duration
     for attrname, value in attrs.items():
-        table._f_setAttr(attrname, value)
+        table.set_attr(attrname, value)
         table.flush()
     return table
 
-#FIXME!
+def geometry_to_h5attr(node, geometry):
+    """
+    This does not include the pointnames array
+    """
+    if not isinstance(geometry, Geometry):
+        raise TypeError("geometry argument is not a Geometry instance")
+    node.set_attr('geometry', geometry.instantiationcode())
+    node._v_file.flush()
+
 def _save_multichannel(multichannel, h5group, name, overwrite=False, attrs={}):
     h5file = h5group._v_file
-    if overwrite:
-        if h5group._v_children.has_key(name):
-            h5group._v_children[name]._f_remove()
-            h5file.flush()
-    table = h5file.createTable(where=h5group, name=name, 
-                               description=multichannel.channels)
+    if overwrite and (name in h5group):
+        h5group._v_children[name]._f_remove()
+        h5file.flush()
+    table = h5file.create_table(where=h5group, name=name,
+                                description=multichannel.channels)
     for attrname, value in attrs.items():
-        table._f_setAttr(attrname, value)
-    multichannel.geometry.saveh5(table)
+        table.set_attr(attrname, value)
+    geometry_to_h5attr(table, multichannel.geometry)
     table.flush()
     return table

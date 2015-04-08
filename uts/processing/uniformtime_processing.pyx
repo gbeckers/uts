@@ -6,7 +6,7 @@ The processing module holds functions that operate on time sampled signals.
 
 
 """
-
+from __future__ import print_function
 ##FIXME make convolve so that it iterates automatically and has an 'out' parameter
 
 import sys
@@ -25,8 +25,8 @@ from uts import UniformTimeSeries, \
 from uts.core.epoched import Epoched
 from uts.core.geometry import RectangularLattice
 from uts.io.hdf5 import h5attr_to_geometry
-from frequencysampled import FrequencySampled, Spectrum
-from timefrequencysampled import Spectrogram
+from uts.core.uniformfrequency import FrequencySampled, Spectrum, PowerSpectrum, MultiChannelPowerSpectrum
+from uts.core.uniformtimefrequency import Spectrogram
 from helper import convadjusttime, unsqueeze
 from uts.core.check_arg import check_arg, check_int, check_floatarray, check_float, check_bool
 from uts import isuts, iseuts, ismcuts, isemcuts
@@ -35,13 +35,11 @@ from uts.processing.stats import mean, std
 from uts.processing.elementwise_math import add
 from ifdv import cifdv
 from cstft import strft
-#from geometry import RectangularLattice
 from uts.helper.progressbar import ProgressBar
 from stats import mad
 from windows import windows
 import time
 import warnings
-
 
 #FIXME signal should be uts
 
@@ -191,7 +189,7 @@ def crosscorrelatetime(s1, s2, normalized=True):
         
     return s
 
-def crosscorrelatetime_betweenchannels(s, lag, normalized=True):
+def crosscorrelatetime_betweenchannels(s, lag, normalized=True, reportprogress=True):
     """
     If time is positive it means that the first channel is leading.
     """
@@ -206,10 +204,49 @@ def crosscorrelatetime_betweenchannels(s, lag, normalized=True):
     channelnames = []
     for i,channeli in enumerate(s.channelnames):
         for j,channelj in enumerate(s.channelnames):
+            if reportprogress:
+                print('<%d,%d>'%(i,j), sep='', end='')
+                sys.stdout.flush()
             samples[k,:] = crosscorrelatetime(s1=s[:,i], s2=s[nlag:-nlag,j], 
                 normalized=normalized).samples.get(False)
             channelnames.append('cc_%s_%s'%(channeli,channelj))
             k += 1
+    g = RectangularLattice(s.nchannels,s.nchannels,channelnames)
+    return MultiChannelUniformTimeSeries(samples=samples, fs=s.fs, geometry=g, 
+        channels=channelnames, channelaxis=0, origintime=corrlen/(s.fs*2.0))
+
+
+def _cct(args):
+        s, i, j, nlag, normalized, reportprogress = args
+        if reportprogress:
+            print('<%d,%d>'%(i,j), sep='', end='')
+            sys.stdout.flush()
+        return crosscorrelatetime(s1=s[:,i], s2=s[nlag:-nlag,j], 
+                normalized=normalized).samples.get(False)
+
+def crosscorrelatetime_betweenchannels_p(s, lag, normalized=True, reportprogress=True, nprocesses=2):
+    """
+    If time is positive it means that the first channel is leading.
+
+    """
+    from multiprocessing import Pool
+    pool = Pool(processes=nprocesses)
+    
+    lag = check_arg(lag, 'duration')
+    nlag = int(np.round(lag*s.fs))
+    corrlen = nlag*2+1
+    if not ismcuts(s):
+        raise TypeError(
+            "this function works only with MultiChannelUniformTimeSeries")
+    # samples = np.empty((s.nchannels*s.nchannels,corrlen), s.dtype)
+    channelnames = []
+    args = []
+    for i,channeli in enumerate(s.channelnames):
+        for j,channelj in enumerate(s.channelnames):
+            args.append([s, i , j, nlag, normalized, reportprogress])
+            channelnames.append('cc_%s_%s'%(channeli,channelj))
+    results = pool.map(_cct, args)
+    samples = np.array(results, dtype=s.dtype)
     g = RectangularLattice(s.nchannels,s.nchannels,channelnames)
     return MultiChannelUniformTimeSeries(samples=samples, fs=s.fs, geometry=g, 
         channels=channelnames, channelaxis=0, origintime=corrlen/(s.fs*2.0))
@@ -246,12 +283,12 @@ def convolve(uts, kernel, mode='same'):#, out=None):
     timeshift = convadjusttime(fs=uts.fs, kernelsize=kernel.size, mode=mode)
     args = {}
     if isinstance(uts, Epoched):
-        if uts.records is None:
-            args['records'] = None
+        if uts.epochs is None:
+            args['epochs'] = None
         else:
-            records = uts.records.copy()
-            records['starttime'] = uts.starttimes + timeshift
-            args['records'] = records
+            epochs = uts.epochs.copy()
+            epochs['starttime'] = uts.starttimes + timeshift
+            args['epochs'] = epochs
     else:
         args['starttime'] = uts.starttime + timeshift
     args['origintime'] = uts.origintime - timeshift
@@ -262,7 +299,7 @@ def convolve(uts, kernel, mode='same'):#, out=None):
     return uts._instantiatefromself(samples=samples, dtype=samples.dtype, **args)
 
 def iter_convolve(uts, kernel, mode='same', chunksize=1024*64,
-                  reportprogress=False, channels=None):
+                  reportprogress=False, channels=None, dtype=None):
     '''
     Convolves uts with kernel in chunks instead of the whole signal at
     once. This may be necessary if the signal is too long to fit in memory.
@@ -297,7 +334,6 @@ def iter_convolve(uts, kernel, mode='same', chunksize=1024*64,
     # 'same'  always returns a sequence of length len(signal)
     # 'valid' always returns a sequence of length len(signal) - len(kernel) + 1
 
-
     assert mode in ('valid', 'same', 'full')
     chunksize = check_int(chunksize, negative=False, zero=False)
     kernel = np.asarray(kernel)
@@ -314,7 +350,7 @@ def iter_convolve(uts, kernel, mode='same', chunksize=1024*64,
     else:
         lastframei = nframes - 1
     if reportprogress:
-        p = ProgressBar(minValue = 0, maxValue = nframes, totalWidth=40)
+        p = ProgressBar(nframes)
     if channels is None:
         gen = enumerate(uts.iter_frames(framesize=chunksize,
                                         stepsize=stepsize,
@@ -330,9 +366,7 @@ def iter_convolve(uts, kernel, mode='same', chunksize=1024*64,
         #t1 = time.time()
         # print i, ss, ss.samples[:]
         if reportprogress:
-            p.updateAmount(i)
-            print p, "\r",
-            sys.stdout.flush()
+            p.animate(i)
 
         if (i == 0) and (mode != 'valid'):
             if mode == 'same':
@@ -363,7 +397,10 @@ def iter_convolve(uts, kernel, mode='same', chunksize=1024*64,
             result = convolve(ss, kernel, mode='valid')
         #t2 = time.time()
         #print 'ic %d in %.3f s.' % (i,t2-t1)
-        yield result
+        if dtype is None:
+            yield result
+        else:
+            yield result.astype(dtype)
 
 # FIXME chunks/frames choose one term
 def iter_convolve_info(uts, kernel, mode='same', chunksize=1024*64):
@@ -456,6 +493,45 @@ def iter_convolve_info(uts, kernel, mode='same', chunksize=1024*64):
     info['starttime'] = uts.starttime + timeshift
     info['origintime'] = uts.origintime - timeshift
     return info
+
+def iter_decimate(uts, q, trunc='tail', chunksize=1024*64,
+                  reportprogress=False, dtype=None):
+    assert_signal(uts)
+    if not trunc in ('tail','head'):
+        raise ValueError("trunc parameter can only be 'tail' or 'head'")
+    q = check_int(q, negative=False, zero=False)
+    starttime = uts.starttime
+    origintime = uts.origintime
+    chunksize = check_int(chunksize, negative=False, zero=False) * q
+    stepsize = chunksize
+    nframes, newsize, remainder = fit_frames(
+        uts.ntimesamples, chunksize, stepsize=stepsize)
+    # print "nframes", "newsize", "remainder", nframes, newsize, remainder
+    if (remainder > 0):
+        if trunc == 'tail':
+            start = 0
+            stop = newsize
+        else:
+            start = remainder
+            stop = remainder + newsize
+    else:
+        start = 0
+        stop = newsize
+    if reportprogress:
+        p = ProgressBar(nframes)
+    
+    gen = enumerate(uts.iter_frames(framesize=chunksize,
+                                        stepsize=stepsize,
+                                        include_remainder=True))
+    #print "chunksize, stepsize", chunksize, stepsize
+    for i, frame in gen:
+        if reportprogress:
+            p.animate(i)
+        if dtype is None:
+            yield decimate(frame, q=q)
+        else:
+            yield decimate(frame, q=q).astype(dtype)
+
         
 def decimate(uts, q, trunc='tail'):
     """
@@ -536,12 +612,16 @@ def resample(uts, factor, window=None):
     if samples.dtype != uts.dtype:
         samples = samples.astype(uts.dtype)
     fs = factor * uts.fs
-    return uts._instantiatefromself(samples=samples, fs=fs, copy=False)
+    origintime = 0.5/fs - 0.5/uts.fs # this seems to be necessary to get everything aligned
+    return uts._instantiatefromself(samples=samples, fs=fs, origintime=origintime, copy=False)
 
-def remove_nan(tss, axis='epoch'):
-    assert_signal(tss)
-    if not axis in tss.axes.keys():
-        raise ValueError('axis %s does not exist')
+
+
+
+# def remove_nan(tss, axis='epoch'):
+#     assert_signal(tss)
+#     if not axis in tss.axes.keys():
+#         raise ValueError('axis %s does not exist')
     
 
 ## do we need this?
@@ -600,12 +680,138 @@ def stft(tss, windowtype='gaussian', windowduration=None, fftduration=None,
                             windowtype=windowtype, fftsize=fftsize,
                             symmetric=symmetric, real=False)
     fs = 1./stepduration
-    startfrequency = 0.0 - 0.5*tss.fs/fftsize
+    startfrequency = 0.0 - 0.5*tss.fs/float(fftsize)
     starttime = 0.0 #FIXME
     origintime = 0.0 #FIXME
     return Spectrogram(samples=stft, fs=fs, bandwidth=tss.fs,
                        startfrequency=startfrequency, frequencyaxis=1,
                        starttime=starttime, origintime=origintime, copy=False)
+
+
+def specgram(tss, windowtype='gaussian', windowduration=None, fftduration=None,
+         stepduration=None, symmetric=False):
+    
+    """
+    Transform is energy-corrected, *after* windowing.
+    
+    """
+
+    assert_signal(tss, (UniformTimeSeries,))
+
+    # check parameters
+    if windowtype not in windows.keys():
+        raise ValueError("unsupported window type")
+    if windowduration is None:
+        windowduration = 512 / tss.fs
+    check_arg(windowduration, 'windowduration')
+    windowsize = int(np.round(windowduration * tss.fs))
+    
+    if fftduration is None:
+        fftduration = windowduration
+    check_arg(fftduration, 'fftduration')
+    fftsize = int(np.round(fftduration * tss.fs))
+
+    if stepduration is None:
+        stepduration = 0.25 * windowduration
+    check_arg(stepduration, 'stepduration')
+    stepsize = int(np.round(stepduration * tss.fs))
+  
+    if not (symmetric in (True, False)):
+        raise ValueError("symmetric must be either True or False")
+   
+    
+    S,firstsamplecenter = signalprocessing.specgram(s=tss.samples.get(copy=False), 
+                            windowsize=windowsize, stepsize=stepsize, 
+                            windowtype=windowtype, fftsize=fftsize,
+                            symmetric=symmetric)
+    fs = 1./stepduration
+    samplingfrequencies = np.arange(S.shape[-1]) * (tss.fs/fftsize)
+    starttime = 0.0 # FIXME
+    origintime = 0.0 # FIXME
+    bandwidth = tss.fs / 2.0
+    return Spectrogram(samples=S, fs=fs, bandwidth=bandwidth, samplingfrequencies=samplingfrequencies,
+                       frequencyaxis=1, starttime=starttime, origintime=origintime, 
+                       copy=False)
+
+def welch(tss, windowtype='gaussian', windowduration=None, fftduration=None,
+         stepduration=None, detrend='constant'):
+
+    from scipy.signal import welch
+    assert_signal(tss, (UniformTimeSeries,MultiChannelUniformTimeSeries))
+
+    # check parameters
+    if windowtype not in windows.keys():
+        raise ValueError("unsupported window type")
+    if windowduration is None:
+        windowduration = 512 / tss.fs
+    check_arg(windowduration, 'windowduration')
+    windowsize = int(np.round(windowduration * tss.fs))
+    
+    if fftduration is None:
+        fftduration = windowduration
+    check_arg(fftduration, 'fftduration')
+    fftsize = int(np.round(fftduration * tss.fs))
+
+    if stepduration is None:
+        stepduration = 0.25 * windowduration
+    check_arg(stepduration, 'stepduration')
+    stepsize = int(np.round(stepduration * tss.fs))
+    window = windows[windowtype](windowsize)
+    noverlap = windowsize - stepsize
+    if ismcuts(tss):
+        samples = tss.samples.transpose(['channel','time']).get(False)
+    else:
+        samples = tss.samples.get(False)
+    f, Pxx = welch(samples, fs=tss.fs, window=window, nperseg=windowsize, 
+          noverlap=noverlap, nfft=fftsize, detrend=detrend)
+    samplingfrequencies = np.arange(Pxx.shape[-1]) * (tss.fs/fftsize)
+    bandwidth = tss.fs / 2.0
+    if ismcuts(tss):
+        return MultiChannelPowerSpectrum(samples=Pxx, bandwidth=bandwidth,
+                    samplingfrequencies=samplingfrequencies, copy=False, channelaxis=0, 
+                    channels=tss.channels, geometry=tss.geometry)
+    else:
+        return PowerSpectrum(samples=Pxx, bandwidth=bandwidth,
+                    samplingfrequencies=samplingfrequencies, copy=False)
+
+def periodogram(tss, windowtype='boxcar', fftduration=None, normalize=True):
+
+    assert_signal(tss, (UniformTimeSeries, MultiChannelUniformTimeSeries))
+
+    # check parameters
+    if windowtype not in windows.keys():
+        raise ValueError("unsupported window type")
+    
+    windowsize = tss.ntimesamples
+    window = windows[windowtype](windowsize)
+    
+    if fftduration is None:
+        fftsize = tss.ntimesamples
+    else:
+        check_arg(fftduration, 'fftduration')
+        fftsize = int(np.round(fftduration * tss.fs))
+
+    if fftsize < windowsize:
+        warnings.warn("fftsize smaller than signal. Truncating signal to %d samples." % fftsize)
+        windowsize = fftsize
+
+    if ismcuts(tss):
+        samples = tss[:windowsize].samples.transpose(['channel','time']).get(False)
+    else:
+        samples = tss[:windowsize].samples.get(False)
+    if windowtype != 'boxcar':
+        samples  = samples * window 
+    samplingfrequencies, Pxx = signalprocessing.periodogram(samples, fs=tss.fs, Sk=None,
+                                fftsize=fftsize, sides='onesided', normalize=normalize)
+    bandwidth = tss.fs / 2.0
+    if ismcuts(tss):
+        return MultiChannelPowerSpectrum(samples=Pxx, bandwidth=bandwidth,
+                    samplingfrequencies=samplingfrequencies, copy=False, channelaxis=0, 
+                    channels=tss.channels, geometry=tss.geometry)
+    else:
+        return PowerSpectrum(samples=Pxx, bandwidth=bandwidth,
+                    samplingfrequencies=samplingfrequencies, copy=False)
+
 
 
 def stmtt(tss, BW=None, windowduration=None, stepduration=None, 
@@ -751,7 +957,7 @@ def ifdv_to_image(a,b, nyquistfreq, startfreq=0.0, endfreq=None, tbins=None, fbi
     elif powerresolution == 32:
         return im.astype('L') # unsiged int
     else:
-        print >> sys.stderr, "unknown resolution for sonogram; returning float64"
+        print("unknown resolution for sonogram; returning float64", file=sys.stderr)
         return im
 
 
@@ -843,49 +1049,62 @@ class ICA(object):
         f.flush()
         return n
 
-def load_ICAfromh5(h5array):
-    if not ((h5array.shape[0] % 2)==0):
-        raise IOError("dimension 0 of h5array is not an even number")
-    nics = h5array.shape[0] // 2
-    projmat = h5array[:nics]
-    recmat = h5array[nics:]
-    geometry = h5attr_to_geometry(h5array.attrs.geometry)
-    channelnames = h5array.attrs.channelnames
-    return ICA(projmat=projmat, recmat=recmat, geometry=geometry, 
-               channelnames=channelnames)
+# def load_ICAfromh5(h5array):
+#     if not ((h5array.shape[0] % 2)==0):
+#         raise IOError("dimension 0 of h5array is not an even number")
+#     nics = h5array.shape[0] // 2
+#     projmat = h5array[:nics]
+#     recmat = h5array[nics:]
+#     geometry = h5attr_to_geometry(h5array.attrs.geometry)
+#     channelnames = h5array.attrs.channelnames
+#     return ICA(projmat=projmat, recmat=recmat, geometry=geometry, 
+#                channelnames=channelnames)
 
-def lp(uts, freq=300., width=50., ntaps=257, window="kaiser"):
+def lp(uts, freq=300., width=50., ntaps=257, window="kaiser", mode='same'):
     """low-pass filter"""
     filterkernel = signalprocessing.lpfirkernel(N=ntaps, cutoff=freq, fs=uts.fs,
                                       width=width, window=window)
-    return convolve(uts,filterkernel, mode='same')
+    return convolve(uts,filterkernel, mode=mode)
 
 
-def ilp(uts, freq, width, ntaps=257, chunksize=1024*64, reportprogress=True,
-        channels=None, window="kaiser"):
+def ilp(uts, freq=300., width=50., ntaps=257, chunksize=1024*64, reportprogress=True,
+        channels=None, window="kaiser", dtype=None, mode='same'):
     """iter low-pass filter"""
     filterkernel = signalprocessing.lpfirkernel(N=ntaps, cutoff=freq, fs=uts.fs,
                                       width=width, window=window)
-    return iter_convolve(uts, filterkernel, mode='same', chunksize=chunksize,
-                                reportprogress=reportprogress,channels=channels)
+    return iter_convolve(uts, filterkernel, mode=mode, chunksize=chunksize,
+                            reportprogress=reportprogress, channels=channels, dtype=dtype)
 
-def hp(uts, freq=300., width=50., ntaps=257, window="kaiser"):
+def hp(uts, freq=450., width=50., ntaps=513, window="kaiser", mode='same'):
     """high-pass filter"""
     filterkernel = signalprocessing.hpfirkernel(N=ntaps, cutoff=freq, fs=uts.fs,
                                       width=width, window=window)
-    return convolve(uts,filterkernel, mode='same')
+    return convolve(uts, filterkernel, mode=mode)
 
-def ihp(uts, freq, width, ntaps=257, chunksize=1024*64, reportprogress=True,
-        channels=None, window="kaiser"):
+def ihp(uts, freq=450., width=50., ntaps=513, chunksize=1024*64, reportprogress=True,
+        channels=None, window="kaiser", dtype=None, mode='same'):
     """iter high-pass filter"""
     filterkernel = signalprocessing.hpfirkernel(N=ntaps, cutoff=freq, fs=uts.fs,
                                       width=width, window=window)
-    return iter_convolve(uts, filterkernel, mode='same', chunksize=chunksize,
-                                reportprogress=reportprogress,channels=channels)
+    return iter_convolve(uts, filterkernel, mode=mode, chunksize=chunksize,
+                                reportprogress=reportprogress, channels=channels, dtype=dtype)
+
+def bp(uts, freqs=(400.,6000.), width=300., ntaps=257, window="kaiser", mode='same'):
+    """high-pass filter"""
+    filterkernel = signalprocessing.bpfirkernel(N=ntaps, freqs=freqs, fs=uts.fs,
+                                      width=width, window=window)
+    return convolve(uts, filterkernel, mode=mode)
+
+def ibp(uts, freqs=(400.,6000.), width=300., ntaps=257, chunksize=1024*64, reportprogress=True,
+        channels=None, window="kaiser", dtype=None, mode='same'):
+    """iter high-pass filter"""
+    filterkernel = signalprocessing.bpfirkernel(N=ntaps, freqs=freqs, fs=uts.fs,
+                                      width=width, window=window)
+    return iter_convolve(uts, filterkernel, mode=mode, chunksize=chunksize,
+                                reportprogress=reportprogress, channels=channels, dtype=dtype)
 
 
-
-def bp(uts, lfreq=500, hfreq=6000, transband=200, ntaps=256):
+def bp_old(uts, lfreq=500., hfreq=6000., transband=200, ntaps=257):
     '''
     defaults are good for action potentials
     '''
@@ -894,15 +1113,16 @@ def bp(uts, lfreq=500, hfreq=6000, transband=200, ntaps=256):
     return convolve(uts, filterkern, mode='same')
 
 
-def ibp(uts, lfreq=500, hfreq=6000, transband=200, ntaps=256,
-                  chunksize=1024*64, reportprogress=True, channels=None):
+def ibp_old(uts, lfreq=500., hfreq=6000., transband=200, ntaps=257,
+                  chunksize=1024*64, reportprogress=True, channels=None, 
+                  dtype=None):
     t1 = time.time()
     filterkern = signalprocessing.design_bp_filter(ntaps=ntaps, lfreq=lfreq, hfreq=hfreq,
                                     fs=uts.fs, transband=transband)
     t2 = time.time()
     #print 'ibp in %.3f s.' % (t2-t1)
     return iter_convolve(uts, filterkern, mode='same', chunksize=chunksize,
-                                reportprogress=reportprogress, channels=channels)
+                                reportprogress=reportprogress, channels=channels, dtype=dtype)
 
 
 def fftconvolve(signal, kernellist, mode='same'):

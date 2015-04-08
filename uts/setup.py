@@ -12,6 +12,7 @@ def configuration(parent_package='',top_path=None):
     config.add_subpackage('display')
     config.add_subpackage('config')
     config.add_subpackage('helper')
+    config.add_subpackage('progressbar')
     config.add_data_dir('tests')
     config.add_data_dir('example_data')
     config.add_data_dir('fonts')

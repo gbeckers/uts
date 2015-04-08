@@ -16,13 +16,13 @@ def create_h5arrays(testf):
                '3D':np.array([[[1,2,3],[4,5,6]],[[1,2,3],[4,5,6]]],dtype=dtype)}
         for key, ar in ars.items():
             # Array
-            testf.createArray(testf.root, dtype.__name__ + '_' + key + '_Array', ar)
+            testf.create_array(testf.root, dtype.__name__ + '_' + key + '_Array', ar)
             # EArray
             filters = tables.Filters(complevel=0)
             atom = tables.Atom.from_dtype(dtype=np.dtype(ar.dtype))
             shape = list(ar.shape[:-1])
             shape.append(0)
-            arnode = testf.createEArray(where=testf.root,
+            arnode = testf.create_earray(where=testf.root,
                                         name=dtype.__name__ + '_' + key + '_EArray',
                                         atom=atom,
                                         shape=shape,
