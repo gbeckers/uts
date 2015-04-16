@@ -20,8 +20,8 @@ from numpy import array, any, float32, float64, floating, integer, isnan, \
     isinf, issubdtype, ndarray, uint8, int8, uint16, int16, uint32, int32, \
     uint64, int64
 
-from defs import defined_integers
-from defs import defined_floats
+from .defs import defined_integers
+from .defs import defined_floats
 
 
 class DimensionError(Exception): pass

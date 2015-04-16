@@ -567,7 +567,7 @@ class test_UniformTimeSeries(TestCase):
                 assert ns.sampletype == np.ndarray
 
     def test__to_samplesslice(self):
-        "UniformTimeSeries: _to_samplesslice "
+        "UniformTimeSeries: _to_timeslice "
         ## partly redundant with test_slicing_ndarray above
 
         ts = UniformTimeSeries(samples=[1, 2, 3], fs=1.0)

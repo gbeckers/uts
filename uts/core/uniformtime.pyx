@@ -16,13 +16,13 @@ __all__ = ['UniformTime', 'UniformTimeSeries',
 
 import numpy as np
 import warnings
-from uts.core.multichannel import MultiChannel
-from uts.core.epoched import Epoched
+from .multichannel import MultiChannel
+from .epoched import Epoched
 
-from uts.core.defs import defined_integers
-from uts.core.utils import fit_frames
-from uts.core.samplesource import assamples
-from uts.core.check_arg import check_arg, check_argarray, check_int, \
+from .defs import defined_integers
+from .utils import fit_frames
+from .samplesource import assamples
+from .check_arg import check_arg, check_argarray, check_int, \
     check_intarray
 
 
@@ -561,10 +561,15 @@ class UniformTimeSeries(UniformTime):
 
     __repr__ = __str__
 
+    def _get_index(self, index):
+        sslice, starttime, origintime = self._to_timeslice(
+            timeindex=index)
+        return sslice
+
     def __getitem__(self, index):
 
-        sslice, starttime, origintime = self._to_samplesslice(
-            sampleindex=index)
+        sslice, starttime, origintime = self._to_timeslice(
+            timeindex=index)
 
         return UniformTimeSeries(samples=self.samples[sslice], fs=self.fs,
                                  starttime=starttime, copy=False,
@@ -609,7 +614,7 @@ class UniformTimeSeries(UniformTime):
         return assamples(samples, axes={'time': 0}, dtype=dtype, copy=copy,
                          readonly=readonly)
 
-    def _to_samplesslice(self, sampleindex):
+    def _to_timeslice(self, timeindex):
         """
         There is only one slicing dimension. Samples can only be indexed by an
         int or slice, with the latter having the restriction that step can
@@ -619,24 +624,24 @@ class UniformTimeSeries(UniformTime):
         time.
         """
         ## check that the index is proper
-        if isinstance(sampleindex, defined_integers):
-            start, stop = sampleindex, sampleindex + type(sampleindex)(1)
-            sampleindex = slice(start, stop)
-        elif isinstance(sampleindex, slice):
-            start = sampleindex.start
+        if isinstance(timeindex, defined_integers):
+            start, stop = timeindex, timeindex + type(timeindex)(1)
+            timeindex = slice(start, stop)
+        elif isinstance(timeindex, slice):
+            start = timeindex.start
             if start is None:
                 start = 0
             # if index is not int, it should indicate a time; convert
 
             if not isinstance(start, defined_integers):
                 start = self.time_to_index(start)
-            stop = sampleindex.stop
+            stop = timeindex.stop
             if stop is None:
                 stop = self.ntimesamples
             # if index is not int, it should indicate a time; convert
             if not isinstance(stop, defined_integers):
                 stop = self.time_to_index(stop)
-            if not sampleindex.step is None:
+            if not timeindex.step is None:
                 raise IndexError("sample dimension cannot have a step index")
         else:
             raise IndexError(
@@ -743,6 +748,10 @@ class UniformTimeSeries(UniformTime):
             p.configure_traits()
             return p
 
+    def plot(self, ax=None, **kwargs):
+        from ..viz.plots import plot_uts
+        return plot_uts(self, ax=ax, **kwargs)
+
     def append(self, signal):
         """
         note that append can be very inefficient, depending on the type of
@@ -822,7 +831,8 @@ class EpochedUniformTimeSeries(Epoched, UniformTimeSeries):
         result &= np.all(self.epochs == other.epochs)
         return result
 
-    def __getitem__(self, index):
+
+    def _get_index(self, index):
 
         index = np.index_exp[index]
         if not len(index) <= 2:
@@ -836,13 +846,26 @@ class EpochedUniformTimeSeries(Epoched, UniformTimeSeries):
 
         # the first part refers to samples
         samplesindex, starttime, origintime = \
-            super(self.__class__, self)._to_samplesslice(index[0])
+            super(self.__class__, self)._to_timeslice(index[0])
 
         if self.__epochaxis == 0:
-            samples = self.samples[epochindex, samplesindex]
+            return (epochindex, samplesindex)
         else:
-            samples = self.samples[samplesindex, epochindex]
+            return (samplesindex, epochindex)
 
+
+    def __getitem__(self, index):
+
+        index = np.index_exp[index]
+        samplesindex, starttime, origintime = \
+             super(self.__class__, self)._to_timeslice(index[0])
+
+        if len(index) == 2:
+            epochindex = self._to_epochsindex(index[1])
+        else:
+            epochindex = slice(None, None, None)
+
+        samples = self.samples[self._get_index(index)]
         if isinstance(epochindex, defined_integers):
             return UniformTimeSeries(samples=samples,
                                      fs=self.fs,
@@ -1054,6 +1077,25 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
         result &= (self.geometry == other.geometry)
         return result
 
+
+    def _get_index(self, index):
+        index = np.index_exp[index]
+        if not len(index) <= 2:
+            raise IndexError(
+                "index can maximally have two dimensions [sampledim,channeldim]")
+        # if there are two parts to index, the second one refers to channels
+        if len(index) == 2:
+            channelindex = self._to_channelsslice(index[1])
+        else:
+            channelindex = slice(None, None, None)
+        channels = self.channels[channelindex]
+        # the first part refers to samples
+        timeindex, starttime, origintime = \
+            super(self.__class__, self)._to_timeslice(index[0])
+        return tuple([{'channel': channelindex, 'time': timeindex}[axis]
+            for axis in self.samples.axisorder])
+
+
     def __getitem__(self, index):
         """
         There are maximally two slicing dimensions, the first one for samples
@@ -1066,60 +1108,34 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
         Returns a new MultiChannelUniformTimeSeries object. Sampling rate,
         starttime and orgintime are recalculated if necessary.
         """
-        index = np.index_exp[index]
-        if not len(index) <= 2:
-            raise IndexError(
-                "index can maximally have two dimensions [sampledim,channeldim]")
-
-        # if there are two parts to index, the second one refers to channels
-        if len(index) == 2:
-            channelindex = self._to_channelsslice(index[1])
-        else:
-            # channelindex = np.arange(self.nchannels, dtype=np.int)
-            channelindex = slice(None, None, None)
-        channels = self.channels[channelindex]
-
-        # the first part refers to samples
+        fullindex =  self._get_index(index)
+        axisslices = dict(zip(self.samples.axisorder ,fullindex))
         samplesindex, starttime, origintime = \
-            super(self.__class__, self)._to_samplesslice(index[0])
-        # print self.samples.sampletype, samplesindex, channelindex
-        #t1 = time.time()
-        if self.__channelaxis == 0:
-            samples = self.samples[channelindex, samplesindex]
-        else:
-            samples = self.samples[samplesindex, channelindex]
-        #t2 = time.time()
-        #print 'h5get in %.3f s.' % (t2-t1), samples.shape
-
-
-        #if samples.size == max(samples.shape): # one channel only
+             super(self.__class__, self)._to_timeslice(axisslices['time'])
+        channelnames = np.array(self.channelnames[axisslices['channel']],ndmin=1)
+        nselchannels = len(channelnames)
+        samples = self.samples[fullindex]
         #FIXME can it be optimized to test for int type only?
-        nselchannels = np.arange(self.nchannels)[channelindex].size
+        if nselchannels == self.nchannels:
+            geometry = self.geometry
+        else:
+            geometry = None
         if nselchannels == 1:  # one channel only
             return UniformTimeSeries(samples=samples.flatten(), fs=self.fs,
                                      copy=False, starttime=starttime,
                                      origintime=origintime,
                                      attrs=self.attrs)
         else:
-            if samples.shape[self.__channelaxis] == self.nchannels:
-                return MultiChannelUniformTimeSeries(samples=samples,
-                                                     channels=channels,
-                                                     fs=self.fs,
-                                                     starttime=starttime,
-                                                     copy=False,
-                                                     origintime=origintime,
-                                                     channelaxis=self.__channelaxis,
-                                                     geometry=self.geometry,
-                                                     attrs=self.attrs)
-            else:  # geometry is left out
-                return MultiChannelUniformTimeSeries(samples=samples,
-                                                     channels=channels,
-                                                     fs=self.fs,
-                                                     starttime=starttime,
-                                                     copy=False,
-                                                     origintime=origintime,
-                                                     channelaxis=self.__channelaxis,
-                                                     attrs=self.attrs)
+            return MultiChannelUniformTimeSeries(samples=samples,
+                                                 channels=channelnames,
+                                                 fs=self.fs,
+                                                 starttime=starttime,
+                                                 copy=False,
+                                                 origintime=origintime,
+                                                 channelaxis=self.__channelaxis,
+                                                 geometry=geometry,
+                                                 attrs=self.attrs)
+
 
 
     ###########################
@@ -1291,6 +1307,10 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
             p2 = None
         return p1, p2
 
+    def plot(self, ga=None, **kwargs):
+        from ..viz.plots import plot_mcuts
+        return plot_mcuts(self, ga=ga, **kwargs)
+
     def append(self, signal):
         if not isinstance(signal, MultiChannelUniformTimeSeries):
             raise TypeError(
@@ -1435,6 +1455,32 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
         # result &= (self.duration == other.duration)
         return result
 
+    def _get_index(self, index):
+        index = np.index_exp[index]
+        # index is now a tuple of max 3 with possibly slices, ints, lists, tuples arrays
+        if not len(index) <= 3:
+            raise IndexError(
+                "index can maximally have three dimensions [time,channel,epoch]")
+        # create indices
+        if len(index) == 3:
+            timeindex, starttime, origintime = self._to_timeslice(
+                index[0])
+            channelindex = self._to_channelsslice(index[1])
+            epochindex = self._to_epochsindex(index[2])
+        elif len(index) == 2:
+            timeindex, starttime, origintime = self._to_timeslice(
+                index[0])
+            channelindex = self._to_channelsslice(index[1])
+            epochindex = slice(None, None, None)
+        else:
+            timeindex, starttime, origintime = self._to_timeslice(
+                index[0])
+            channelindex = slice(None, None, None)
+            epochindex = slice(None, None, None)
+        return tuple([{'channel': channelindex, 'time': timeindex, 'epoch': epochindex}[axis]
+            for axis in self.samples.axisorder])
+
+
     def __getitem__(self, index):
         """
         This object can be indexed in three dimensions, in the order: time, channel, epoch.
@@ -1442,72 +1488,27 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
 
         ## FIXME look if this can be optimized; indexing now works per axis at the time
         ## which ones should be first? Can it be done at once?
-        index = np.index_exp[index]
-        # index is now a tuple of max 3 with possibly slices, ints, lists, tuples arrays
-        if not len(index) <= 3:
-            raise IndexError(
-                "index can maximally have three dimensions [timedim,channeldim,epochdim]")
-        # create indices
-        if len(index) == 3:
-            samplesindex, starttime, origintime = self._to_samplesslice(
-                index[0])
-            channelindex = self._to_channelsslice(index[1])
-            epochsindex = self._to_epochsindex(index[2])
-        elif len(index) == 2:
-            samplesindex, starttime, origintime = self._to_samplesslice(
-                index[0])
-            channelindex = self._to_channelsslice(index[1])
-            epochsindex = slice(None, None, None)
-        else:
-            samplesindex, starttime, origintime = self._to_samplesslice(
-                index[0])
-            channelindex = slice(None, None, None)
-            epochsindex = slice(None, None, None)
-        # determine parameters for new object
-        channels = self.channels[channelindex]
-
-        nselchannels = np.arange(self.nchannels)[channelindex].size
+        fullindex =  self._get_index(index)
+        axisslices = dict(zip(self.samples.axisorder, fullindex))
+        samplesindex, starttime, origintime = \
+             super(self.__class__, self)._to_timeslice(axisslices['time'])
+        # channels = self.channelnames[axisslices['channel']]
+        epochs = self.epochs[axisslices['epoch']]
+        samples = self.samples[fullindex]
+        channelnames = np.array(self.channelnames[axisslices['channel']], ndmin=1)
+        nselchannels = len(channelnames)
         if nselchannels == self.nchannels:
             geometry = self.geometry
         else:
             geometry = None
-        # print epochsindex
-        epochs = self.epochs[epochsindex]
-        # index one by one and figure out which dimensions disappear after 
-        # indexing
-        samples = self.samples
-        axes = self.samples.axes.copy()
-        remaining_axes = ['time', 'channel', 'epoch']
-        ##FIXME this doesn't work with [:,0,0] index
-        corraxisindex = 0
-        for j, (axisname, axisindex) in enumerate(
-                zip(('time', 'channel', 'epoch'),
-                    (samplesindex, channelindex, epochsindex))):
-            #print j, axisname, axisindex
-            index = [slice(None, None, None)] * len(remaining_axes)
-            axisno = axes[axisname]
-            #print axisno
-            index[axisno] = axisindex
-            olddim = len(samples.shape)
-            #print samples.shape
-            #print index
-            samples = samples[tuple(index)]
-            newdim = len(samples.shape)
-            if newdim != olddim:
-                del remaining_axes[j - corraxisindex]
-                corraxisindex = 1
-                del axes[axisname]
-                for key, value in axes.items():
-                    if value > axisno:
-                        axes[key] = value - 1
 
-        if remaining_axes == ['time']:
+        if (nselchannels==1) and (len(epochs)==1):
             if starttime is None: starttime = 0.0
             res = UniformTimeSeries(samples=samples, fs=self.fs,
                                     starttime=starttime, origintime=origintime,
                                     copy=False,
                                     attrs=self.attrs)
-        elif remaining_axes == ['time', 'channel']:
+        elif len(epochs)==1:
             if self.channelaxis > self.timeaxis:
                 channelaxis = 1
             else:
@@ -1515,11 +1516,11 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
             res = MultiChannelUniformTimeSeries(samples=samples, fs=self.fs,
                                                 starttime=starttime,
                                                 origintime=origintime,
-                                                channels=channels,
+                                                channels=channelnames,
                                                 copy=False, geometry=geometry,
                                                 channelaxis=channelaxis,
                                                 attrs=self.attrs)
-        elif remaining_axes == ['time', 'epoch']:
+        elif nselchannels==1:
             if self.epochaxis > self.timeaxis:
                 epochaxis = 1
             else:
@@ -1532,7 +1533,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
         else:  # remaining_axes == ['time','channel,'epoch']
             res = EpochedMultiChannelUniformTimeSeries(samples=samples,
                                                        fs=self.fs,
-                                                       channels=channels,
+                                                       channels=channelnames,
                                                        origintime=origintime,
                                                        dtype=None, copy=False,
                                                        epochs=epochs,

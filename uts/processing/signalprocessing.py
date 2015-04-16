@@ -431,78 +431,78 @@ def iminterpolate(im, newxsize, newysize, xyvalranges, newxyvalranges):
         im =  scipy.ndimage.map_coordinates(im, coords)
     return im
     
-def periodogram(s, fs=2 * np.pi, Sk=None, fftsize=None,
-                sides='default', normalize=True):
-
-    """Takes an N-point periodogram estimate of the PSD function. The
-    number of points N, or a precomputed FFT Sk may be provided. By default,
-    the PSD function returned is normalized so that the integral of the PSD
-    is equal to the mean squared amplitude (mean energy) of s (see Notes).
-
-    Parameters
-    ----------
-    s : ndarray
-    Signal(s) for which to estimate the PSD, time dimension in the last
-    axis
-
-    Fs : float (optional)
-    The sampling rate. Defaults to 2*pi
-
-    Sk : ndarray (optional)
-    Precomputed FFT of s
-
-    N : int (optional)
-    Indicates an N-point FFT where N != s.shape[-1]
-
-    sides : str (optional) [ 'default' | 'onesided' | 'twosided' ]
-    This determines which sides of the spectrum to return.
-    For complex-valued inputs, the default is two-sided, for real-valued
-    inputs, default is one-sided Indicates whether to return a one-sided
-    or two-sided
-
-    PSD normalize : boolean (optional, default=True) Normalizes the PSD
-
-    Returns
-    -------
-    (f, psd) : tuple
-    f: The central frequencies for the frequency bands
-    PSD estimate for each row of s
-
-    The code for this function has been copied from the nitime package.
-   
-
-    """
-    if Sk is not None:
-        fftsize = Sk.shape[-1]
-    else:
-        fftsize = s.shape[-1] if not fftsize else fftsize
-        Sk = scipy.fftpack.fft(s, n=fftsize)
-    pshape = list(Sk.shape)
-
-    # if the time series is a complex vector, a one sided PSD is invalid:
-    if (sides == 'default' and np.iscomplexobj(s)) or sides == 'twosided':
-        sides = 'twosided'
-    elif sides in ('default', 'onesided'):
-        sides = 'onesided'
-
-    if sides == 'onesided':
-        # putative Nyquist freq
-        Fn = fftsize / 2 + 1
-        # last duplicate freq
-        Fl = (fftsize + 1) / 2
-        pshape[-1] = Fn
-        P = np.zeros(pshape, 'd')
-        freqs = np.linspace(0, fs / 2, Fn)
-        P[..., 0] = (Sk[..., 0] * Sk[..., 0].conj()).real
-        P[..., 1:Fl] = 2 * (Sk[..., 1:Fl] * Sk[..., 1:Fl].conj()).real
-        if Fn > Fl:
-            P[..., Fn - 1] = (Sk[..., Fn - 1] * Sk[..., Fn - 1].conj()).real
-    else:
-        P = (Sk * Sk.conj()).real
-        freqs = np.linspace(0, fs, fftsize, endpoint=False)
-    if normalize:
-        P /= (fs * s.shape[-1])
-    return freqs, P
+# def periodogram(s, fs=2 * np.pi, Sk=None, fftsize=None,
+#                 sides='default', normalize=True):
+#
+#     """Takes an N-point periodogram estimate of the PSD function. The
+#     number of points N, or a precomputed FFT Sk may be provided. By default,
+#     the PSD function returned is normalized so that the integral of the PSD
+#     is equal to the mean squared amplitude (mean energy) of s (see Notes).
+#
+#     Parameters
+#     ----------
+#     s : ndarray
+#     Signal(s) for which to estimate the PSD, time dimension in the last
+#     axis
+#
+#     Fs : float (optional)
+#     The sampling rate. Defaults to 2*pi
+#
+#     Sk : ndarray (optional)
+#     Precomputed FFT of s
+#
+#     N : int (optional)
+#     Indicates an N-point FFT where N != s.shape[-1]
+#
+#     sides : str (optional) [ 'default' | 'onesided' | 'twosided' ]
+#     This determines which sides of the spectrum to return.
+#     For complex-valued inputs, the default is two-sided, for real-valued
+#     inputs, default is one-sided Indicates whether to return a one-sided
+#     or two-sided
+#
+#     PSD normalize : boolean (optional, default=True) Normalizes the PSD
+#
+#     Returns
+#     -------
+#     (f, psd) : tuple
+#     f: The central frequencies for the frequency bands
+#     PSD estimate for each row of s
+#
+#     The code for this function has been copied from the nitime package.
+#
+#
+#     """
+#     if Sk is not None:
+#         fftsize = Sk.shape[-1]
+#     else:
+#         fftsize = s.shape[-1] if not fftsize else fftsize
+#         Sk = scipy.fftpack.fft(s, n=fftsize)
+#     pshape = list(Sk.shape)
+#
+#     # if the time series is a complex vector, a one sided PSD is invalid:
+#     if (sides == 'default' and np.iscomplexobj(s)) or sides == 'twosided':
+#         sides = 'twosided'
+#     elif sides in ('default', 'onesided'):
+#         sides = 'onesided'
+#
+#     if sides == 'onesided':
+#         # putative Nyquist freq
+#         Fn = fftsize / 2 + 1
+#         # last duplicate freq
+#         Fl = (fftsize + 1) / 2
+#         pshape[-1] = Fn
+#         P = np.zeros(pshape, 'd')
+#         freqs = np.linspace(0, fs / 2, Fn)
+#         P[..., 0] = (Sk[..., 0] * Sk[..., 0].conj()).real
+#         P[..., 1:Fl] = 2 * (Sk[..., 1:Fl] * Sk[..., 1:Fl].conj()).real
+#         if Fn > Fl:
+#             P[..., Fn - 1] = (Sk[..., Fn - 1] * Sk[..., Fn - 1].conj()).real
+#     else:
+#         P = (Sk * Sk.conj()).real
+#         freqs = np.linspace(0, fs, fftsize, endpoint=False)
+#     if normalize:
+#         P /= (fs * s.shape[-1])
+#     return freqs, P
 
 def nDPSS(fs, N, BW):
     """

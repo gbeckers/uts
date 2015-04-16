@@ -1,6 +1,6 @@
 import numpy as np
 
-from uts.core.check_arg import check_int, check_float
+from .check_arg import check_int, check_float
 
 ## FIXME missing points
 

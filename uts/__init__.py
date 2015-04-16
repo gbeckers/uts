@@ -19,6 +19,7 @@ except Exception as e:  # pragma: no cover
 from uts.version import version as __version__
 from uts.info import __doc__
 from uts.core.uniformtime import *
+from uts.core.uniformfrequency import *
 from uts.core.utils import *
 from uts.io.hdf5 import *
 from uts.io.audio import *

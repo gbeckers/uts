@@ -4,14 +4,15 @@ import numpy as np
 import tables as tb
 from contextlib import contextmanager
 from numpy import fromfile
-from uts.core.uniformtime import UniformTimeSeries, EpochedUniformTimeSeries, \
+from ..core.uniformtime import UniformTimeSeries, EpochedUniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
     isuts, iseuts, ismcuts, isemcuts
-from uts.core.multichannel import MultiChannel
-from uts.core.geometry import Geometry
-from uts.core.epoched import Epoched
-from uts.core.check_arg import check_arg, check_int
-from uts.core.utils import fit_frames
+from ..core.multichannel import MultiChannel
+from ..core.geometry import Geometry
+from ..core.epoched import Epoched
+from ..core.check_arg import check_arg, check_int
+from ..core.utils import fit_frames
+from ..core.utils import timeparams
 
 
 # uts, euts, mcuts and emcuts signals are saved as a h5 *Group*. The name/path of that 
@@ -19,7 +20,8 @@ from uts.core.utils import fit_frames
 # should contain at least one array named 'samples', but may also contain the tables
 # 'epochs' or 'channels'
 
-__all__ = ['open', 'save', 'load', 'cache', 'remove']
+__all__ = ['open', 'save', 'load', 'cache', 'remove', 'h5fillnew',
+           'h5filllike', 'save_itered', 'cache_itered']
 
 SAMPLEARRAYNAME = 'samples'
 EPOCHTABLENAME = 'epochs'
@@ -66,8 +68,8 @@ def remove(filename, signalname):
         _remove(h5fileobject=f, h5path=signalname)
 
 @contextmanager
-def _create_h5savepoint(filename, h5path='/', overwrite=False):
-    with tb.open_file(filename, 'a') as f:
+def _create_h5savepoint(filename, h5path='/', overwrite=False, mode='a'):
+    with tb.open_file(filename, mode=mode) as f:
         if h5path in f and overwrite:
             _remove(h5fileobject=f, h5path=h5path)
         grouppath = h5path.split('/')
@@ -164,28 +166,101 @@ def _save(s, h5group, channelaxis=None, epochaxis=None,
         raise TypeError(
             "signal is not a sampled signal, or generator (%s)" % type(s))
 
+def save_itered(smodel, gen, name='/', filename=None, ntimesamples=None,
+                fs=None, value=0.0, dtype=None, channelaxis=None,
+                epochaxis=None, overwrite=False, extensible=False,
+                expectedrows=None, filters=None, chunkshape=None, complib=None,
+                complevel=None, attrs=None):
+    if attrs is None:
+        attrs = smodel.attrs
+    else:
+        attrs.update(smodel.attrs)
+    with h5filllike(smodel, name=name, filename=filename,
+                    ntimesamples=ntimesamples, fs=fs, value=value, dtype=dtype,
+                    channelaxis=channelaxis,
+                    epochaxis=epochaxis, overwrite=overwrite,
+                    extensible=extensible,
+                    complevel=complevel, attrs=attrs) as newh5s:
+        start = 0
+        for frame in gen:
+            end = start + frame.ntimesamples
+            index = newh5s._get_index(slice(start, end))
+            newh5s.samples.h5array[index] = frame.samples.transpose(
+                newh5s.samples.axisorder).get(False)
+            start += frame.ntimesamples
+
 @contextmanager
 def cache(s, channelaxis=None, epochaxis=None,
           extensible=False, expectedrows=None, dtype=None, complib='blosc',
           complevel=5, chunkshape=None, path=None, report=False,
-          warn=True):
+          signalname='/cached', filename='cached.h5', warn=True):
     from tempfile import mkdtemp, gettempdir
     from shutil import rmtree
 
     if path is None:
         path = gettempdir()
     tempdirname = mkdtemp(dir=path)
-    filename = os.path.join(tempdirname, 'cached.h5')
+    filename = os.path.join(tempdirname, filename)
     if report:
         print 'created cache file {}'.format(filename)
     try:
-        save(s, signalname='/cached', filename=filename,
+        save(s, signalname=signalname, filename=filename,
              channelaxis=channelaxis, epochaxis=epochaxis,
              overwrite=False, extensible=extensible, expectedrows=expectedrows,
              dtype=dtype, complib=complib, complevel=complevel,
              chunkshape=chunkshape,
              warn=warn)
-        yield load(signalname='/cached', filename=filename)
+        s = load(signalname=signalname, filename=filename)
+        s.path = tempdirname
+        s.filename = filename
+        yield s
+    except:
+        raise
+    finally:
+        rmtree(tempdirname)
+        if report:
+            print 'removed cache file {}'.format(filename)
+
+@contextmanager
+def cache_itered(smodel, gen, ntimesamples=None, fs=None, channelaxis=None,
+                 epochaxis=None,
+                 extensible=False, expectedrows=None, dtype=None,
+                 complib='blosc',
+                 complevel=5, chunkshape=None, path=None, report=False,
+                 signalname='/cached', filename='cached.h5', attrs=None,
+                 mode='a'):
+    from tempfile import mkdtemp, gettempdir
+    from shutil import rmtree
+
+    if path is None:
+        path = gettempdir()
+    tempdirname = mkdtemp(dir=path)
+    filename = os.path.join(tempdirname, filename)
+    if report:
+        print 'created cache file {}'.format(filename)
+    if attrs is None:
+        attrs = smodel.attrs
+    else:
+        attrs.update(smodel.attrs)
+    try:
+        with h5filllike(smodel, name=signalname, filename=filename,
+                        ntimesamples=ntimesamples, fs=fs, value=0.0,
+                        dtype=dtype, channelaxis=channelaxis,
+                        epochaxis=epochaxis, extensible=extensible,
+                        expectedrows=expectedrows, chunkshape=chunkshape,
+                        complib=complib,
+                        complevel=complevel, attrs=attrs) as newh5s:
+            start = 0
+            for frame in gen:
+                end = start + frame.ntimesamples
+                index = newh5s._get_index(slice(start, end))
+                newh5s.samples.h5array[index] = frame.samples.transpose(
+                    newh5s.samples.axisorder).get(False)
+                start += frame.ntimesamples
+        with open(signalname=signalname, filename=filename, mode=mode) as s:
+            s.path = tempdirname
+            s.filename = filename
+            yield s
     except:
         raise
     finally:
@@ -743,7 +818,7 @@ def _save_mcuts(mcuts, h5group, overwrite=False, channelaxis=None,
                          attrs=mcuts.attrs)
 
     # loop over big chunks of first axis
-    chunksize = 8 * 1024 * 1024  # 8 Mb
+    chunksize = 1 * 1024 * 1024  # 8 Mb
     if channelaxis == 0:
         channelsize = (mcuts.ntimesamples * mcuts.dtype.itemsize)
         nchannelsperchunk = int(chunksize // float(channelsize))
@@ -812,7 +887,7 @@ def _save_euts(euts, h5group, epochaxis=None, overwrite=False,
     epochs = h5group._f_get_child(EPOCHTABLENAME)
 
     # loop over big chunks of first axis
-    chunksize = 8 * 1024 * 1024  # 8 Mb
+    chunksize = 4 * 1024 * 1024  # 8 Mb
     if epochaxis == 0:
         epochsize = (euts.ntimesamples * euts.dtype.itemsize)
         nepochsperchunk = int(chunksize // float(epochsize))
@@ -894,10 +969,10 @@ def _save_emcuts(emcuts, h5group, overwrite=False,
     epochs = h5group._f_get_child(EPOCHTABLENAME)
 
     # loop over big chunks of first axis
-    chunksize = 8 * 1024 * 1024  # 8 Mb
+    chunksize = 1 * 1024 * 1024  # 8 Mb
     if epochaxis == 0:
         epochsize = (
-        emcuts.ntimesamples * emcuts.nchannels * emcuts.dtype.itemsize)
+            emcuts.ntimesamples * emcuts.nchannels * emcuts.dtype.itemsize)
         nepochsperchunk = int(chunksize // float(epochsize))
         nepochsperchunk = max(nepochsperchunk, 1)
         nchunks, remainder = divmod(emcuts.nepochs, nepochsperchunk)
@@ -917,7 +992,7 @@ def _save_emcuts(emcuts, h5group, overwrite=False,
                     trans).get(copy=False)
     elif channelaxis == 0:
         channelsize = (
-        emcuts.ntimesamples * emcuts.nepochs * emcuts.dtype.itemsize)
+            emcuts.ntimesamples * emcuts.nepochs * emcuts.dtype.itemsize)
         nchannelsperchunk = int(chunksize // float(channelsize))
         nchannelsperchunk = max(nchannelsperchunk, 1)
         nchunks, remainder = divmod(emcuts.nchannels, nchannelsperchunk)
@@ -996,3 +1071,384 @@ def _save_multichannel(multichannel, h5group, name, overwrite=False, attrs={}):
     geometry_to_h5attr(table, multichannel.geometry)
     table.flush()
     return table
+
+@contextmanager
+def h5fillnew(signalname, filename=None, value=0.0, ntimesamples=None,
+              fs=None, duration=None, nchannels=None,
+              nepochs=None, starttime=0.0, origintime=0.0, channelaxis=None,
+              epochaxis=None, channels=None, epochs=None, dtype=np.float64,
+              readonly=False, geometry=None, attrs={},
+              overwrite=False, extensible=False, expectedrows=None,
+              complib='zlib', chunkshape=None, complevel=5):
+    """
+    Creates a uniform time series object filled with a number.
+
+    Parameters
+    ----------
+    value : numeric, optional
+        Fill value.
+    ntimesamples : {None, int}, optional
+    fs : {None, float}, optional
+    duration : {None, float}, optional
+    nchannels : {None, int }, optional
+    nepochs : {None, int }, optional
+    starttime : float, optional
+    origintime : float, optional
+    channelaxis : {None, int}, optional
+    epochaxis: {None, int}, optional
+    channels : {None, sequence of strings, structured array with 'channelname' column}, optional
+    epochs : {None, structured array}, optional
+        Array must have 'starttime' field of floats.
+    dtype : data-type, optional
+    readonly : {True, False}, optional
+    geometry : geometry object, optional
+    name: {None, string}, optional
+    h5group: {None, pytables group}, optional
+    attrs: dict, optional
+    overwrite : {True, False}, optional
+    extensible : {True, False}, optional
+    expectedrows : {None, int}, optional
+    filters : {None, pytables filters}, optional
+    chunkshape : {None, sequence of ints}, optional
+
+    """
+    ## check time params
+    (ntimesamples, fs, duration) = timeparams(ntimesamples=ntimesamples, fs=fs,
+                                              duration=duration)
+    if not (nepochs is None):
+        if epochs is None:
+            epochs = np.empty(nepochs, dtype=[('starttime', np.float64)])
+            epochs['starttime'] = np.arange(nepochs, dtype=np.float64)
+        if not nepochs == epochs.size:
+            raise ValueError("epochs size does not correspond to nepochs")
+
+    # check if everything is correct
+    if not (duration == ntimesamples / fs):
+        raise ValueError(
+            "duration, ntimesamples, and fs parameters do not match")
+    ## now see which signal type we need
+    with _create_h5savepoint(filename=filename, h5path=signalname,
+                             overwrite=overwrite) as h5group:
+        if nchannels is None:
+            if epochs is None:  # uts
+                samples = _newh5uts(h5group=h5group, dtype=dtype,
+                                    ntimesamples=ntimesamples, fs=fs,
+                                    origintime=origintime, starttime=starttime,
+                                    dflt=value,
+                                    overwrite=overwrite, extensible=extensible,
+                                    expectedrows=expectedrows, complib=complib,
+                                    complevel=complevel, chunkshape=chunkshape,
+                                    attrs=attrs)
+                s = UniformTimeSeries(samples=samples, fs=fs,
+                                      origintime=origintime,
+                                      starttime=starttime, dtype=None,
+                                      copy=False,
+                                      readonly=readonly)
+            else:  # euts
+                nepochs = epochs.size
+                if epochaxis is None:
+                    epochaxis = 1
+                epochaxis = check_arg(epochaxis, 'epochaxis')
+                samples = _newh5euts(h5group=h5group, dtype=dtype,
+                                     ntimesamples=ntimesamples, epochs=epochs,
+                                     epochaxis=epochaxis, fs=fs,
+                                     origintime=origintime,
+                                     starttime=starttime, dflt=value,
+                                     overwrite=overwrite,
+                                     extensible=extensible,
+                                     expectedrows=expectedrows,
+                                     complib=complib,
+                                     complevel=complevel,
+                                     chunkshape=chunkshape, attrs=attrs)
+                s = EpochedUniformTimeSeries(samples=samples, fs=fs,
+                                             origintime=origintime,
+                                             epochs=epochs,
+                                             epochaxis=epochaxis, dtype=None,
+                                             copy=False,
+                                             readonly=readonly)
+        else:  # multichannel
+            nchannels = check_arg(nchannels, 'nchannels')
+            if epochs is None:  # mcuts
+                if channelaxis is None:
+                    channelaxis = 1
+                channelaxis = check_arg(channelaxis, 'channelaxis')
+                samples = _newh5mcuts(h5group=h5group, dtype=dtype,
+                                      ntimesamples=ntimesamples,
+                                      nchannels=nchannels,
+                                      geometry=geometry, channels=channels,
+                                      channelaxis=channelaxis, fs=fs,
+                                      origintime=origintime,
+                                      starttime=starttime, dflt=value,
+                                      overwrite=overwrite,
+                                      extensible=extensible,
+                                      expectedrows=expectedrows,
+                                      complib=complib,
+                                      complevel=complevel,
+                                      chunkshape=chunkshape, attrs=attrs)
+                s = MultiChannelUniformTimeSeries(samples=samples, fs=fs,
+                                                  origintime=origintime,
+                                                  starttime=starttime,
+                                                  channelaxis=channelaxis,
+                                                  channels=channels,
+                                                  dtype=None, copy=False,
+                                                  readonly=readonly,
+                                                  geometry=geometry)
+            else:  # epoched multichannel
+                nepochs = epochs.size
+                if epochaxis is None:
+                    if channelaxis != 2:
+                        epochaxis = 2
+                    else:
+                        epochaxis = 1
+                epochaxis = check_arg(epochaxis, 'epochaxis')
+                if channelaxis is None:
+                    if epochaxis != 1:
+                        channelaxis = 1
+                    else:
+                        channelaxis = 2
+                channelaxis = check_arg(channelaxis, 'channelaxis')
+                if not channelaxis in (0, 1, 2):
+                    raise IndexError("channelaxis should be 0, 1, 2")
+                if not epochaxis in (0, 1, 2):
+                    raise IndexError("epochaxis should be 0, 1, 2")
+                if channelaxis == epochaxis:
+                    raise IndexError(
+                        "epochs and channels cannot be on the same axis")
+                if epochaxis == 0:
+                    if channelaxis == 1:
+                        timeaxis = 2
+                    else:  # channelaxis == 2
+                        timeaxis = 1
+                elif epochaxis == 1:
+                    if channelaxis == 0:
+                        timeaxis = 2
+                    else:  # channelaxis == 2
+                        timeaxis = 0
+                else:  # epochaxis == 2
+                    if channelaxis == 1:
+                        timeaxis = 0
+                    else:  # channelaxis == 0
+                        timeaxis = 1
+                samples = _newh5emcuts(h5group=h5group,
+                                       dtype=dtype, ntimesamples=ntimesamples,
+                                       epochs=epochs, epochaxis=epochaxis,
+                                       fs=fs,
+                                       nchannels=nchannels, geometry=geometry,
+                                       channels=channels,
+                                       channelaxis=channelaxis,
+                                       origintime=origintime,
+                                       starttime=starttime, dflt=value,
+                                       overwrite=overwrite,
+                                       extensible=extensible,
+                                       expectedrows=expectedrows,
+                                       complib=complib,
+                                       complevel=complevel,
+                                       chunkshape=chunkshape, attrs=attrs)
+                s = EpochedMultiChannelUniformTimeSeries(samples=samples,
+                                                         fs=fs,
+                                                         origintime=origintime,
+                                                         channelaxis=channelaxis,
+                                                         channels=channels,
+                                                         epochaxis=epochaxis,
+                                                         epochs=epochs,
+                                                         dtype=None,
+                                                         copy=False,
+                                                         readonly=readonly,
+                                                         geometry=geometry)
+        yield s
+
+@contextmanager
+def h5filllike(s, name='/', filename=None, value=0.0, ntimesamples=None,
+               fs=None, dtype=None, channelaxis=None,
+               epochaxis=None, overwrite=False, extensible=False,
+               expectedrows=None, filters=None, chunkshape=None, complib=None,
+               complevel=None, attrs=None):
+    if not hasattr(s.samples, 'h5array'):
+        if complib is None:
+            complib = 'zlib'
+        if complevel is None:
+            complevel = 5
+    if attrs is None:
+        attrs = s.attrs
+    with _create_h5savepoint(filename=filename, h5path=name,
+                             overwrite=overwrite) as h5group:
+        if isuts(s):
+            yield _uts_fill_like(s, value=value, h5group=h5group, dtype=dtype,
+                                 ntimesamples=ntimesamples, fs=fs,
+                                 overwrite=overwrite, extensible=extensible,
+                                 expectedrows=expectedrows,
+                                 chunkshape=chunkshape, complib=complib,
+                                 complevel=complevel, attrs=attrs)
+        elif ismcuts(s):
+            yield _mcuts_fill_like(s, value=value, h5group=h5group,
+                                   dtype=dtype, ntimesamples=ntimesamples,
+                                   fs=fs, channelaxis=channelaxis,
+                                   overwrite=overwrite, extensible=extensible,
+                                   expectedrows=expectedrows,
+                                   chunkshape=chunkshape, complib=complib,
+                                   complevel=complevel, attrs=attrs)
+        elif iseuts(s):
+            yield _euts_fill_like(s, value=value, h5group=h5group, dtype=dtype,
+                                  ntimesamples=ntimesamples, fs=fs,
+                                  epochaxis=epochaxis,
+                                  overwrite=overwrite, extensible=extensible,
+                                  expectedrows=expectedrows,
+                                  chunkshape=chunkshape, complib=complib,
+                                  complevel=complevel, attrs=attrs)
+        elif isemcuts(s):
+            yield _emcuts_fill_like(s, value=value, h5group=h5group,
+                                    dtype=dtype, ntimesamples=ntimesamples,
+                                    fs=fs, channelaxis=channelaxis,
+                                    epochaxis=epochaxis, overwrite=overwrite,
+                                    extensible=extensible,
+                                    expectedrows=expectedrows,
+                                    chunkshape=chunkshape, complib=complib,
+                                    complevel=complevel, attrs=attrs)
+
+def _uts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
+                   dtype=None,
+                   overwrite=False, extensible=False, expectedrows=None,
+                   chunkshape=None, complib=None, complevel=None, attrs={}):
+    if ntimesamples is None:
+        ntimesamples = s.ntimesamples
+    if fs is None:
+        fs = s.fs
+    if dtype is None:
+        dtype = s.dtype
+    else:
+        dtype = np.dtype(dtype)
+    params = {'dtype': dtype}
+    if hasattr(s.samples, 'h5array'):
+        if chunkshape is None:
+            chunkshape = s.samples.h5array.chunkshape
+        if complib is None:
+            complib = s.samples.h5array.filters.complib
+        if complevel is None:
+            complevel = s.samples.h5array.filters.complevel
+    samples = _newh5uts(h5group=h5group, dtype=dtype,
+                        ntimesamples=ntimesamples, fs=fs,
+                        origintime=s.origintime, starttime=s.starttime,
+                        dflt=value,
+                        overwrite=overwrite, extensible=extensible,
+                        expectedrows=expectedrows, complib=complib,
+                        complevel=complevel,
+                        chunkshape=chunkshape, attrs=attrs)
+    if 'channelaxis' in samples.attrs:
+        params['channelaxis'] = samples.attrs.channelaxis
+    if 'epochaxis' in samples.attrs:
+        params['epochaxis'] = samples.attrs.epochaxis
+    return s._instantiatefromself(samples=samples, copy=False,
+                                  dtype=samples.atom.dtype, fs=fs, **params)
+
+#euts
+def _euts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
+                    dtype=None, epochaxis=None,
+                    overwrite=False, extensible=False, expectedrows=None,
+                    chunkshape=None, complib=None,
+                    complevel=None, attrs={}):
+    if ntimesamples is None:
+        ntimesamples = s.ntimesamples
+    if epochaxis is None:
+        epochaxis = s.epochaxis
+    if fs is None:
+        fs = s.fs
+    if dtype is None:
+        dtype = s.samples.dtype
+    if hasattr(s.samples, 'h5array'):
+        if chunkshape is None:
+            chunkshape = s.samples.h5array.chunkshape
+        if complib is None:
+            complib = s.samples.h5array.filters.complib
+        if complevel is None:
+            complevel = s.samples.h5array.filters.complevel
+    samples = _newh5euts(h5group=h5group, dtype=dtype,
+                         ntimesamples=ntimesamples, fs=fs,
+                         origintime=s.origintime, starttime=s.starttime,
+                         epochs=s.epochs, epochaxis=epochaxis, dflt=value,
+                         overwrite=overwrite, extensible=extensible,
+                         expectedrows=expectedrows, complib=complib,
+                         complevel=complevel,
+                         chunkshape=chunkshape, attrs=attrs)
+
+    return s._instantiatefromself(samples=samples, copy=False,
+                                  epochaxis=epochaxis,
+                                  dtype=samples.atom.dtype, fs=fs)
+
+
+#mcuts
+def _mcuts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
+                     dtype=None, channelaxis=None,
+                     overwrite=False, extensible=False, expectedrows=None,
+                     chunkshape=None, complib=None,
+                     complevel=None, attrs={}):
+    if ntimesamples is None:
+        ntimesamples = s.ntimesamples
+    if channelaxis is None:
+        channelaxis = s.channelaxis
+    if fs is None:
+        fs = s.fs
+    if dtype is None:
+        dtype = s.samples.dtype
+    if channelaxis is None:
+        channelaxis = s.channelaxis
+    if hasattr(s.samples, 'h5array'):
+        if chunkshape is None:
+            chunkshape = s.samples.h5array.chunkshape
+        if complib is None:
+            complib = s.samples.h5array.filters.complib
+        if complevel is None:
+            complevel = s.samples.h5array.filters.complevel
+    samples = _newh5mcuts(h5group=h5group, dtype=dtype,
+                          ntimesamples=ntimesamples, fs=fs,
+                          origintime=s.origintime, starttime=s.starttime,
+                          nchannels=s.nchannels, channels=s.channels,
+                          geometry=s.geometry, channelaxis=channelaxis,
+                          dflt=value,
+                          overwrite=overwrite, extensible=extensible,
+                          expectedrows=expectedrows, complib=complib,
+                          complevel=complevel,
+                          chunkshape=chunkshape, attrs=attrs)
+
+    return s._instantiatefromself(samples=samples, copy=False,
+                                  channelaxis=channelaxis, fs=fs,
+                                  dtype=samples.atom.dtype)
+
+#emcuts
+def _emcuts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
+                      dtype=None, channelaxis=None,
+                      epochaxis=None, overwrite=False, extensible=False,
+                      expectedrows=None, chunkshape=None, complib=None,
+                      complevel=None, attrs={}):
+    if ntimesamples is None:
+        ntimesamples = s.ntimesamples
+    if channelaxis is None:
+        channelaxis = s.channelaxis
+    if epochaxis is None:
+        epochaxis = s.epochaxis
+    timeaxis, channelaxis, epochaxis = s._check_axes(channelaxis, epochaxis)
+    if fs is None:
+        fs = s.fs
+    if dtype is None:
+        dtype = s.samples.dtype
+    if hasattr(s.samples, 'h5array'):
+        if chunkshape is None:
+            chunkshape = s.samples.h5array.chunkshape
+        if complib is None:
+            complib = s.samples.h5array.filters.complib
+        if complevel is None:
+            complevel = s.samples.h5array.filters.complevel
+    samples = _newh5emcuts(h5group=h5group, dtype=dtype,
+                           ntimesamples=ntimesamples, fs=fs,
+                           origintime=s.origintime, starttime=s.starttime,
+                           nchannels=s.nchannels, epochaxis=epochaxis,
+                           epochs=s.epochs, channels=s.channels,
+                           geometry=s.geometry, channelaxis=channelaxis,
+                           dflt=value,
+                           overwrite=overwrite, extensible=extensible,
+                           expectedrows=expectedrows, complib=complib,
+                           complevel=complevel,
+                           chunkshape=chunkshape, attrs=attrs)
+
+    return s._instantiatefromself(samples=samples, copy=False,
+                                  channelaxis=channelaxis, fs=fs,
+                                  dtype=samples.atom.dtype)

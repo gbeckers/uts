@@ -7,8 +7,7 @@ import os
 from matplotlib import cm
 
 
-__all__ = ['create_movie_hmultipanel', 'FramesTimeAligned',
-           'create_testmovie']
+__all__ = ['create_movie_hmultipanel', 'create_testmovie', 'ffmpegcodecs', 'FramesTimeAligned', 'interpolations']
 
 interpolations = ["nearest", "bilinear", "bicubic", "spline16",
                   "spline36", "hanning", "hamming", "hermite",
@@ -271,11 +270,11 @@ def create_movie_hmultipanel(frames, basefilename, extension='.mp4', path='.',
                              interpolation='nearest',
                              vextraargs=['-vcodec', 'libx264', '-crf', '5'],
                              savepng=False, pngnostart=0, fontcolor='white',
-                             fontsize=12, ):
+                             fontsize=12, overwrite=False):
     # for compatibility with mac use ['-pix_fmt','yuv420p'] as vextraargs
     import matplotlib
 
-    matplotlib.use('Agg')  # needed to run on wakari
+    #matplotlib.use('Agg')  # needed to run on wakari
     import matplotlib.animation as animation
     from matplotlib.pylab import plt, tight_layout
     import matplotlib.gridspec as gridspec
@@ -298,6 +297,11 @@ def create_movie_hmultipanel(frames, basefilename, extension='.mp4', path='.',
                 **savefig_kwargs)
 
     fullpath = os.path.join(path, basefilename + extension)
+    if os.path.exists(fullpath):
+        if overwrite:
+            os.remove(fullpath)
+        else:
+            raise IOError("File '{}' exists, use overwrite parameter to overwrite".format(fullpath))
 
     if savepng:
         pngfullpath = os.path.join(path, '%s_pngs' % basefilename)

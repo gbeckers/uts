@@ -1,11 +1,12 @@
 import warnings
 import numpy as np
-from uts.core.uniformtime import UniformTimeSeries, MultiChannelUniformTimeSeries, isuts, ismcuts
-from uts.core.utils import fit_frames
-from uts.core.check_arg import check_arg
-from uts.processing.stats import extremes
-from uts.processing.signalprocessing import segment_axis
 from contextlib import contextmanager, closing
+from ..core.uniformtime import UniformTimeSeries, MultiChannelUniformTimeSeries, isuts, ismcuts
+from ..core.utils import fit_frames
+from ..core.check_arg import check_arg
+from ..processing.stats import extremes
+from ..processing.signalprocessing import segment_axis
+
 
 
 __all__ = ['load_audiofile', 'iter_load_audiofile', 'save_audiofile', 'save_wav', 'load_wav']

@@ -11,35 +11,29 @@ from __future__ import print_function
 
 import sys
 import numpy as np
-from scipy.stats import nanmean, nanstd
 import scipy.signal
-import signalprocessing 
-from uts.core.samplesource import NumpyArraySamples, h5ArraySamples
-from signalprocessing import segment_axis, fit_frames, ica, \
-     multi_taper_psd, iminterpolate
-from uts.core.utils import round_nearesteven, round_nextradix2, allodd, alleven, isodd, iseven
+import signalprocessing
+from signalprocessing import segment_axis, fit_frames, multi_taper_psd, iminterpolate
+from uts.core.utils import round_nearesteven, round_nextradix2
 from uts import UniformTimeSeries, \
-     MultiChannelUniformTimeSeries, EpochedUniformTimeSeries, \
-     EpochedMultiChannelUniformTimeSeries, isuts, iseuts, ismcuts, isemcuts,\
+     MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
     assert_signal
 from uts.core.epoched import Epoched
 from uts.core.geometry import RectangularLattice
-from uts.io.hdf5 import h5attr_to_geometry
-from uts.core.uniformfrequency import FrequencySampled, Spectrum, PowerSpectrum, MultiChannelPowerSpectrum
+from uts.core.uniformfrequency import Spectrum, PowerSpectrum, MultiChannelPowerSpectrum
 from uts.core.uniformtimefrequency import Spectrogram
-from helper import convadjusttime, unsqueeze
-from uts.core.check_arg import check_arg, check_int, check_floatarray, check_float, check_bool
+from helper import convadjusttime
+from uts.core.check_arg import check_arg, check_int, check_float, check_bool
 from uts import isuts, iseuts, ismcuts, isemcuts
 #FIXME
-from uts.processing.stats import mean, std
-from uts.processing.elementwise_math import add
+
 from ifdv import cifdv
-from cstft import strft
 from uts.helper.progressbar import ProgressBar
-from stats import mad
 from windows import windows
 import time
 import warnings
+from .parallel import foreach
+from ..signalfactory.factory import fromchannels
 
 #FIXME signal should be uts
 
@@ -252,7 +246,7 @@ def crosscorrelatetime_betweenchannels_p(s, lag, normalized=True, reportprogress
         channels=channelnames, channelaxis=0, origintime=corrlen/(s.fs*2.0))
 
 
-def convolve(uts, kernel, mode='same'):#, out=None):
+def convolve(uts, kernel, mode='same', threads=None, dtype=None):#, out=None):
     """
     Convolves self with a kernel.
 
@@ -273,10 +267,18 @@ def convolve(uts, kernel, mode='same'):#, out=None):
 
     """
     assert_signal(uts)
-    kernel = np.array(kernel, copy=False)
+    if dtype is None:
+        dtype = uts.dtype
+    else:
+        uts = uts.astype(dtype)
+        dtype = uts.dtype
+    kernel = np.array(kernel, copy=False, dtype=dtype)
     ## is the following necessary?? We want to be flexible and upcast
     #if kernel.dtype != uts.dtype:
     #    kernel = kernel.astype(uts.dtype)
+
+    if ismcuts(uts) and (not threads is None):
+        return pmcconvolve2(uts, kernel=kernel, mode=mode, threads=threads)
 
     samples = np.apply_along_axis(np.convolve, uts.samples.axes['time'],
                                   uts.samples.get(copy=False), kernel, mode)
@@ -298,8 +300,38 @@ def convolve(uts, kernel, mode='same'):#, out=None):
     # else:
     return uts._instantiatefromself(samples=samples, dtype=samples.dtype, **args)
 
+
+def pmcconvolve(mcuts, kernel, mode='same', threads=4):
+
+    return fromchannels(foreach(convolve, mcuts.iter_channels(),
+                                threads=threads, return_=True,
+                                args=[kernel, mode]),
+                        channelnames=mcuts.channelnames,
+                        geometry=mcuts.geometry)
+
+def pmcconvolve2(mcuts, kernel, mode='same', threads=4):
+
+    if mcuts.channelaxis == 1:
+        ars = [mcuts.samples.get(False)[:,i] for i in xrange(mcuts.nchannels)]
+    else:
+        ars = [mcuts.samples.get(False)[i,:] for i in xrange(mcuts.nchannels)]
+
+    ars = foreach(np.convolve, ars, threads=threads, return_=True, args=[kernel, mode])
+    ars = np.array(ars, dtype=mcuts.dtype)
+    if mcuts.channelaxis == 1:
+        ars = ars.T
+    timeshift = convadjusttime(fs=mcuts.fs, kernelsize=kernel.size, mode=mode)
+    kwargs ={}
+
+    kwargs['origintime'] = mcuts.origintime - timeshift
+    kwargs['copy'] = False
+
+    return mcuts._instantiatefromself(samples=ars, **kwargs)
+
+
 def iter_convolve(uts, kernel, mode='same', chunksize=1024*64,
-                  reportprogress=False, channels=None, dtype=None):
+                  reportprogress=False, channels=None, dtype=None,
+                  threads=None):
     '''
     Convolves uts with kernel in chunks instead of the whole signal at
     once. This may be necessary if the signal is too long to fit in memory.
@@ -376,31 +408,29 @@ def iter_convolve(uts, kernel, mode='same', chunksize=1024*64,
                 else:
                     tail = -(kernel.size - 1) // 2
                 if tail == 0: tail = None
-                result =  convolve(ss, kernel, mode='full')[slice(head,tail,None)]
+                result =  convolve(ss, kernel, mode='full', threads=threads, dtype=dtype)[slice(head,tail,None)]
             else: # mode == 'full'
                 #tail = -(min(ss.ntimesamples, kernel.size) - 1)
                 tail = -min(ss.ntimesamples, kernel.size) + 1 ##IS THIS CORRECT?
                 if tail == 0: tail = None
-                result =  convolve(ss, kernel, mode='full')[slice(None,tail,None)]
+                result =  convolve(ss, kernel, mode='full', threads=threads, dtype=dtype)[slice(None,tail,None)]
         elif (i == lastframei) and (mode != 'valid'):
             if mode == 'same':
                 #print "I am at lastframei"
                 head = kernel.size - 1
                 tail = -(kernel.size - 1) // 2
                 if tail == 0: tail = None
-                result =  convolve(ss, kernel, mode='full')[slice(head,tail,None)]
+                result =  convolve(ss, kernel, mode='full', threads=threads, dtype=dtype)[slice(head,tail,None)]
                 #print 'head, tail, ss', head, tail, ss
             else: # mode == 'full'
                 head = min(ss.ntimesamples, kernel.size) - 1
-                result =  convolve(ss, kernel, mode='full')[slice(head,None,None)]
+                result =  convolve(ss, kernel, mode='full', threads=threads, dtype=dtype)[slice(head,None,None)]
         else:
-            result = convolve(ss, kernel, mode='valid')
+            result = convolve(ss, kernel, mode='valid', threads=threads, dtype=dtype)
         #t2 = time.time()
         #print 'ic %d in %.3f s.' % (i,t2-t1)
-        if dtype is None:
-            yield result
-        else:
-            yield result.astype(dtype)
+        yield result
+
 
 # FIXME chunks/frames choose one term
 def iter_convolve_info(uts, kernel, mode='same', chunksize=1024*64):
@@ -630,13 +660,13 @@ def resample(uts, factor, window=None):
 #    return self.__class__(samples=samples, fs=self.fs, starttime=self.starttime,
 #                          copy=False, origintime=self.origintime)
 
-def fft(tss):
+def fft(tss, n=None):
     assert_signal(tss, (UniformTimeSeries,))
 
-    samples = np.fft.fft(tss.samples.get(copy=False)) / float(tss.ntimesamples)**0.5
-    startfrequency = 0.0 - 0.5 * tss.fs/tss.ntimesamples
-    return Spectrum(samples=samples, bandwidth=tss.fs,
-                    startfrequency=startfrequency, copy=False)
+    samples = scipy.fftpack.fftshift(np.fft.fft(tss.samples.get(copy=False), n=n) / float(tss.ntimesamples)**0.5)
+    samplingfrequencies = scipy.fftpack.fftshift(scipy.fftpack.fftfreq(samples.size, d=tss.dt))
+    return Spectrum(samples=samples,
+                    samplingfrequencies=samplingfrequencies, copy=False)
 
 
 def stft(tss, windowtype='gaussian', windowduration=None, fftduration=None,
@@ -767,50 +797,50 @@ def welch(tss, windowtype='gaussian', windowduration=None, fftduration=None,
     samplingfrequencies = np.arange(Pxx.shape[-1]) * (tss.fs/fftsize)
     bandwidth = tss.fs / 2.0
     if ismcuts(tss):
-        return MultiChannelPowerSpectrum(samples=Pxx, bandwidth=bandwidth,
+        return MultiChannelPowerSpectrum(samples=Pxx,
                     samplingfrequencies=samplingfrequencies, copy=False, channelaxis=0, 
                     channels=tss.channels, geometry=tss.geometry)
     else:
-        return PowerSpectrum(samples=Pxx, bandwidth=bandwidth,
+        return PowerSpectrum(samples=Pxx,
                     samplingfrequencies=samplingfrequencies, copy=False)
 
-def periodogram(tss, windowtype='boxcar', fftduration=None, normalize=True):
-
-    assert_signal(tss, (UniformTimeSeries, MultiChannelUniformTimeSeries))
-
-    # check parameters
-    if windowtype not in windows.keys():
-        raise ValueError("unsupported window type")
-    
-    windowsize = tss.ntimesamples
-    window = windows[windowtype](windowsize)
-    
-    if fftduration is None:
-        fftsize = tss.ntimesamples
-    else:
-        check_arg(fftduration, 'fftduration')
-        fftsize = int(np.round(fftduration * tss.fs))
-
-    if fftsize < windowsize:
-        warnings.warn("fftsize smaller than signal. Truncating signal to %d samples." % fftsize)
-        windowsize = fftsize
-
-    if ismcuts(tss):
-        samples = tss[:windowsize].samples.transpose(['channel','time']).get(False)
-    else:
-        samples = tss[:windowsize].samples.get(False)
-    if windowtype != 'boxcar':
-        samples  = samples * window 
-    samplingfrequencies, Pxx = signalprocessing.periodogram(samples, fs=tss.fs, Sk=None,
-                                fftsize=fftsize, sides='onesided', normalize=normalize)
-    bandwidth = tss.fs / 2.0
-    if ismcuts(tss):
-        return MultiChannelPowerSpectrum(samples=Pxx, bandwidth=bandwidth,
-                    samplingfrequencies=samplingfrequencies, copy=False, channelaxis=0, 
-                    channels=tss.channels, geometry=tss.geometry)
-    else:
-        return PowerSpectrum(samples=Pxx, bandwidth=bandwidth,
-                    samplingfrequencies=samplingfrequencies, copy=False)
+# def periodogram(tss, windowtype='boxcar', fftduration=None, normalize=True):
+#
+#     assert_signal(tss, (UniformTimeSeries, MultiChannelUniformTimeSeries))
+#
+#     # check parameters
+#     if windowtype not in windows.keys():
+#         raise ValueError("unsupported window type")
+#
+#     windowsize = tss.ntimesamples
+#     window = windows[windowtype](windowsize)
+#
+#     if fftduration is None:
+#         fftsize = tss.ntimesamples
+#     else:
+#         check_arg(fftduration, 'fftduration')
+#         fftsize = int(np.round(fftduration * tss.fs))
+#
+#     if fftsize < windowsize:
+#         warnings.warn("fftsize smaller than signal. Truncating signal to %d samples." % fftsize)
+#         windowsize = fftsize
+#
+#     if ismcuts(tss):
+#         samples = tss[:windowsize].samples.transpose(['channel','time']).get(False)
+#     else:
+#         samples = tss[:windowsize].samples.get(False)
+#     if windowtype != 'boxcar':
+#         samples  = samples * window
+#     samplingfrequencies, Pxx = signalprocessing.periodogram(samples, fs=tss.fs, Sk=None,
+#                                 fftsize=fftsize, sides='onesided', normalize=normalize)
+#     bandwidth = tss.fs / 2.0
+#     if ismcuts(tss):
+#         return MultiChannelPowerSpectrum(samples=Pxx,
+#                     samplingfrequencies=samplingfrequencies, copy=False, channelaxis=0,
+#                     channels=tss.channels, geometry=tss.geometry)
+#     else:
+#         return PowerSpectrum(samples=Pxx,
+#                     samplingfrequencies=samplingfrequencies, copy=False)
 
 
 
@@ -1060,48 +1090,54 @@ class ICA(object):
 #     return ICA(projmat=projmat, recmat=recmat, geometry=geometry, 
 #                channelnames=channelnames)
 
-def lp(uts, freq=300., width=50., ntaps=257, window="kaiser", mode='same'):
+def lp(uts, freq=300., width=50., ntaps=257, window="kaiser", mode='same',
+       threads=None):
     """low-pass filter"""
     filterkernel = signalprocessing.lpfirkernel(N=ntaps, cutoff=freq, fs=uts.fs,
                                       width=width, window=window)
-    return convolve(uts,filterkernel, mode=mode)
+    return convolve(uts,filterkernel, mode=mode, threads=threads)
 
 
 def ilp(uts, freq=300., width=50., ntaps=257, chunksize=1024*64, reportprogress=True,
-        channels=None, window="kaiser", dtype=None, mode='same'):
+        channels=None, window="kaiser", dtype=None, mode='same', threads=None):
     """iter low-pass filter"""
     filterkernel = signalprocessing.lpfirkernel(N=ntaps, cutoff=freq, fs=uts.fs,
                                       width=width, window=window)
     return iter_convolve(uts, filterkernel, mode=mode, chunksize=chunksize,
-                            reportprogress=reportprogress, channels=channels, dtype=dtype)
+                            reportprogress=reportprogress, channels=channels,
+                            dtype=dtype, threads=threads)
 
-def hp(uts, freq=450., width=50., ntaps=513, window="kaiser", mode='same'):
+def hp(uts, freq=450., width=50., ntaps=513, window="kaiser", mode='same',
+       threads=None):
     """high-pass filter"""
     filterkernel = signalprocessing.hpfirkernel(N=ntaps, cutoff=freq, fs=uts.fs,
                                       width=width, window=window)
-    return convolve(uts, filterkernel, mode=mode)
+    return convolve(uts, filterkernel, mode=mode, threads=threads)
 
 def ihp(uts, freq=450., width=50., ntaps=513, chunksize=1024*64, reportprogress=True,
-        channels=None, window="kaiser", dtype=None, mode='same'):
+        channels=None, window="kaiser", dtype=None, mode='same', threads=None):
     """iter high-pass filter"""
     filterkernel = signalprocessing.hpfirkernel(N=ntaps, cutoff=freq, fs=uts.fs,
                                       width=width, window=window)
     return iter_convolve(uts, filterkernel, mode=mode, chunksize=chunksize,
-                                reportprogress=reportprogress, channels=channels, dtype=dtype)
+                                reportprogress=reportprogress, channels=channels,
+                                dtype=dtype, threads=threads)
 
-def bp(uts, freqs=(400.,6000.), width=300., ntaps=257, window="kaiser", mode='same'):
+def bp(uts, freqs=(400.,6000.), width=300., ntaps=257, window="kaiser", mode='same',
+       threads=None):
     """high-pass filter"""
     filterkernel = signalprocessing.bpfirkernel(N=ntaps, freqs=freqs, fs=uts.fs,
                                       width=width, window=window)
-    return convolve(uts, filterkernel, mode=mode)
+    return convolve(uts, filterkernel, mode=mode, threads=threads)
 
 def ibp(uts, freqs=(400.,6000.), width=300., ntaps=257, chunksize=1024*64, reportprogress=True,
-        channels=None, window="kaiser", dtype=None, mode='same'):
+        channels=None, window="kaiser", dtype=None, mode='same', threads=None):
     """iter high-pass filter"""
     filterkernel = signalprocessing.bpfirkernel(N=ntaps, freqs=freqs, fs=uts.fs,
                                       width=width, window=window)
     return iter_convolve(uts, filterkernel, mode=mode, chunksize=chunksize,
-                                reportprogress=reportprogress, channels=channels, dtype=dtype)
+                                reportprogress=reportprogress, channels=channels,
+                                dtype=dtype, threads=threads)
 
 
 def bp_old(uts, lfreq=500., hfreq=6000., transband=200, ntaps=257):

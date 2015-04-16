@@ -1,7 +1,5 @@
 import numpy as np
-import scipy
-import scipy.ndimage
-import warnings
+import os
 from contextlib import contextmanager
 from uts.core.check_arg import check_arg, check_int
 
@@ -133,3 +131,8 @@ def timeparams(ntimesamples=None, fs=None, duration=None):
                 ntimesamples = int(ntimesamples)
     return (ntimesamples, fs, duration)
 
+def make_dirs(path, existserror=False):
+    if not os.path.exists(path):
+        os.makedirs(path)
+    elif existserror:
+        raise IOError('Path "{}" already exists'.format(path))

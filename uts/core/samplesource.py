@@ -10,10 +10,9 @@ Samples.
 # FIXME set_readonly
 
 import numpy as np
-import tables
-from uts.core.check_arg import check_arg, check_int, check_argarray
-from uts.core.errors import WriteError
-from defs import defined_sampledtypes
+import tables as tb
+from .check_arg import check_arg, check_int, check_argarray
+from .defs import defined_sampledtypes
 
 
 class Samples(object):
@@ -180,8 +179,8 @@ class h5ArraySamples(Samples):
         return self.__h5array[index]
 
     def _check_h5array(self, h5array):
-        if not isinstance(h5array, (tables.carray.CArray, tables.array.Array,
-                                    tables.earray.EArray)):
+        if not isinstance(h5array, (tb.carray.CArray, tb.array.Array,
+                                    tb.earray.EArray)):
             raise TypeError("h5node should be a PyTables array node")
 
         if h5array.atom.dtype not in defined_sampledtypes:
@@ -198,7 +197,7 @@ class h5ArraySamples(Samples):
         samples: a numpy ndarray
 
         """
-        if not self.sampletype == tables.earray.EArray:
+        if not self.sampletype == tb.earray.EArray:
             raise TypeError("h5array is not extendible")
         if not (self.dtype == samples.dtype):
             raise TypeError("samples has wrong dtype")
@@ -249,7 +248,7 @@ class NumpyArraySamples(Samples):
         if not self.readonly:
             self.__array[key] = item
         else:
-            raise WriteError("the samples are read-only")
+            raise IOError("the samples are read-only")
 
     def _check_array(self, array, dtype, copy):
         # if not provided as such, try to convert samples to np array
@@ -366,11 +365,11 @@ def assamples(samples, axes, dtype=None, copy=True, readonly=True):
         samples = NumpyArraySamples(array=samples,
                                     dtype=dtype, copy=copy,
                                     axes=axes, readonly=readonly)
-    elif isinstance(samples, (tables.carray.CArray, tables.array.Array,
-                              tables.earray.EArray)):
+    elif isinstance(samples, (tb.carray.CArray, tb.array.Array,
+                              tb.earray.EArray)):
         if not copy:
             if (dtype is not None) and (dtype != samples.atom.dtype):
-                raise ValueError("dtype argument is different from h5array dtype")
+                raise ValueError("dtype argument ({}) is different from h5array dtype ({})".format(dtype,samples.atom.dtype ))
             samples = h5ArraySamples(h5array=samples, axes=axes, readonly=readonly)
         else:  # copy == True
             samples = NumpyArraySamples(array=samples[:],

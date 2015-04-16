@@ -1,6 +1,6 @@
 import numpy as np
-import tables
-from uts.core.check_arg import check_arg, check_argarray
+import tables as tb
+from .check_arg import check_arg, check_argarray
 
 class Epoched(object):
     """
@@ -60,21 +60,21 @@ class Epoched(object):
         return indices
 
     def _check_epochs(self, epochs):
-        if not isinstance(epochs, (np.ndarray, tables.table.Table)) or (epochs.dtype.fields is None):
+        if not isinstance(epochs, (np.ndarray, tb.table.Table)) or (epochs.dtype.fields is None):
             raise TypeError('epochs parameter is not a numpy structured array or h5 table')
         if not epochs.dtype.fields.has_key('starttime'):
             raise ValueError('epochs do not have a "starttime" field')
         return epochs
     
     def _check_starttimes(self, epochs):
-        if isinstance(epochs, tables.table.Table):
+        if isinstance(epochs, tb.table.Table):
             return check_argarray(epochs.cols.starttime[:], 'time')
         else:
             return check_argarray(epochs['starttime'], 'time')
     
     def _append_epochs(self, epochs):
         epochs = self._check_epochs(epochs)
-        if isinstance(self.__epochs, tables.table.Table):
+        if isinstance(self.__epochs, tb.table.Table):
             self.__epochs.append(epochs)
         else:
             self.__epochs = np.concatenate([self.epochs, epochs])

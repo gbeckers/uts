@@ -5,54 +5,54 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec
 import matplotlib.cm
 import uts
+from ..core.geometry import RectangularLattice
+from core import GridAxes
 
 
-def mcuts_subplots(mcuts, figsize=(12, 12), ylim=None, spacing=0.06,
-                   plot_params=None, yticks=((), ()), ylabel='', fig=None):
-    defaults = {'color': 'black'}
-
-    if plot_params is None:
-        plot_params = {}
+def plot_uts(s, ax=None, **kwargs):
+    defaults = {'color': (0.3,0.3,0.3)}
     for key, item in defaults.iteritems():
-        if not key in plot_params:
-            plot_params[key] = item
-    if fig is None:
-        fig = plt.figure(figsize=figsize)
-    g = mcuts.geometry
-    nx, ny = g.nx, g.ny
-    gs = matplotlib.gridspec.GridSpec(ny, nx, wspace=spacing, hspace=spacing,
-                                      left=spacing, right=1.0 - spacing,
-                                      bottom=spacing, top=1.0 - spacing)
+        if not key in kwargs:
+            kwargs[key] = item
+    if ax is None:
+        ax = plt.gca(frameon=False)
+
+    pl = ax.plot(s.samplingtimes(),
+        s.samples.get(False), **kwargs)
+    ax.tick_params(direction='out', top=False, right=False)
+    return ax
+
+
+def plot_mcuts(mcuts, ylim=None, wspace=0.06,
+                   hspace=0.06, left=None, right=None, bottom=None, top=None,
+                   ylabel=None, xlabel='Time (s)', yticks=None, xticks=None,
+                ga=None, **kwargs):
+    if ga is None:
+        ga = GridAxes(mcuts.geometry, wspace=wspace, hspace=hspace,
+                      left=left, right=right,
+                      bottom=bottom, top=top,
+                      ylabel=ylabel, xlabel=xlabel,
+                      yticks=yticks, xticks=xticks, fig=None)
+
+    defaults = {'color': (0.3,0.3,0.3)}
+    # if plot_params is None:
+    #     plot_params = {}
+    for key, item in defaults.iteritems():
+        if not key in kwargs:
+            kwargs[key] = item
     if ylim is None:
         low = np.min(uts.min(mcuts))
         high = np.max(uts.max(mcuts))
+        low -= abs(low * 0.05)
+        high += abs(high * 0.05)
     else:
         low, high = ylim
     for i, channelname in enumerate(mcuts.channelnames):
-        point = rown, coln = g[channelname]
-        ax = fig.add_subplot(gs[rown, coln], frameon=False)
-
+        ax = ga.axes[channelname]
         pl = ax.plot(mcuts.samplingtimes(),
-            mcuts[:, channelname].samples.get(False), **plot_params)
-        ax.tick_params(direction='out', top=False, right=False)
+            mcuts[:, channelname].samples.get(False), **kwargs)
         ax.set_ylim([low, high])
-        if (coln == 0) and (rown == ny - 1):
-            ax.set_ylabel(ylabel)
-            ax.set_yticks(yticks[0])
-            ax.set_yticklabels(yticks[1])
-            ax.set_xticks(())
-        elif (rown == ny - 1) and (coln == nx - 1):
-            ax.set_xlabel('Time')
-            xticks = list(mcuts.timerange)
-            if (xticks[0] < 0.0) and (xticks[1] > 0.0):
-                xticks.insert(1, 0.0)
-            ax.set_xticks(xticks)
-            ax.set_yticks(())
-        else:
-            ax.set_xticks(())
-            ax.set_yticks(())
-    fig.canvas.draw()
-    return fig
+    return ga
 
 
 def euts_image(euts, ranges=None, clip=None, zeroincenter=False,
@@ -134,7 +134,7 @@ def save_euts_image(euts, basefilename, path='.', ranges=None, clip=None,
     # def get_plot(self, labels={}, indexrange=None):
     # from uts.display.singlechannel import waveplot
     #
-    #     samples = self.samples.get(copy=False)
+    # samples = self.samples.get(copy=False)
     #     return waveplot(x=self.samplingtimes(), y=samples,
     #                     xlabel="Time (s)", ylabel="Amplitude",
     #                     title="Wave Plot", labels=labels, indexrange=indexrange)
@@ -150,3 +150,65 @@ def save_euts_image(euts, basefilename, path='.', ranges=None, clip=None,
     #        y = np.arange(self.nepochs + 1)
     #        return ImagePlot(img=samples, x=x, y=y, xlabel="time (s)",
     #                         ylabel="Epoch", title="")
+
+
+def plot_spectrum(s, xlim=None, wspace=0.06,
+                   hspace=0.1, left=None, right=None, bottom=None, top=None,
+                   yticks=None, xticks=None, ga=None, **kwargs):
+    defaults = {'color': 'black'}
+    for key, item in defaults.iteritems():
+        if not key in kwargs:
+            kwargs[key] = item
+    if ga is None:
+        g = RectangularLattice(1, 2, [['magnitude'],['phase']])
+        ga = GridAxes(g, wspace=wspace, hspace=hspace,
+                      left=left, right=right,
+                      bottom=bottom, top=top,
+                      ylabel='', xlabel='',
+                      yticks=yticks, xticks=xticks, fig=None)
+    if xlim is None:
+        xlim = s.frequencyrange
+    ax1 = ga.axes['magnitude']
+    samples = np.abs(s.samples.get(False))
+    ylim =  (samples.min(), samples.max())
+    pl1 = ax1.plot(s.samplingfrequencies, samples, **kwargs)
+    ax1.set_ylabel('Magnitude')
+    ax1.set_xlim(xlim)
+    ax1.set_ylim(ylim)
+    ax1.set_yticks(_ticks(ylim))
+    ax1.tick_params(direction='out', top=False, right=False)
+
+    ax2 = ga.axes['phase']
+    pl2 = ax2.plot(s.samplingfrequencies,
+                   np.angle(s.samples.get(False)), **kwargs)
+    ax2.set_ylabel('Phase')
+    ax2.set_xlabel('Frequency (Hz)')
+    ax2.tick_params(direction='out', top=False, right=False)
+    ax2.set_xlim(xlim)
+    ax2.set_ylim((-np.pi, np.pi))
+    ax2.set_yticks((-np.pi, 0., np.pi))
+    ax2.set_xticks(_ticks(xlim))
+
+    return ga
+
+
+def plot_powerspectrum(s, ax=None, db=True, **kwargs):
+    defaults = {'color': (0.3,0.3,0.3)}
+    for key, item in defaults.iteritems():
+        if not key in kwargs:
+            kwargs[key] = item
+    if ax is None:
+        ax = plt.gca()
+    samples = s.samples.get(False) ** 2.
+    if db:
+        samples = 10 * np.log10(samples)
+    pl = ax.plot(s.samplingfrequencies,
+                 samples, **kwargs)
+    ax.tick_params(direction='out', top=False, right=False)
+    return ax
+
+def _ticks(extremes):
+    if extremes[0] < 0. and extremes[1] > 0.:
+        return (extremes[0], 0., extremes[1])
+    else:
+        return extremes

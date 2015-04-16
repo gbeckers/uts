@@ -1,8 +1,8 @@
 import numpy as np
-from uniformtime import UniformTimeSeries
-from uniformfrequency import FrequencySampled
-from samplesource import Samples, assamples #FIXME
-from check_arg import check_arg
+from .uniformtime import UniformTimeSeries
+from .uniformfrequency import FrequencySampled
+from .samplesource import Samples, assamples #FIXME
+from .check_arg import check_arg
 
 class Spectrogram(UniformTimeSeries, FrequencySampled):
 

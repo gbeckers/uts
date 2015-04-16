@@ -8,8 +8,7 @@ import correlate
 __all__ = ['bp', 'convolve', 'crosscorrelatetime','crosscorrelatetime_betweenchannels','crosscorrelatetime_betweenchannels_p',
            'decimate', 'iter_decimate', 'fft', 'hp', 'ibp', 'ica',
            'ifdv', 'ihp', 'ilp', 'iter_convolve', 'iter_convolve_info', 'lp',
-           'overlap_and_add', 'ramp', 'resample', 'stft', 'stmtt', 'welch', 'specgram',
-           'periodogram']
+           'overlap_and_add', 'ramp', 'resample', 'stft', 'stmtt', 'welch', 'specgram']
 
 
 bp = uniformtime_processing.bp
@@ -36,7 +35,7 @@ fft = uniformtime_processing.fft
 welch = uniformtime_processing.welch
 
 specgram = uniformtime_processing.specgram
-periodogram = uniformtime_processing.periodogram
+# periodogram = uniformtime_processing.periodogram
 
 ibp = uniformtime_processing.ibp
 
