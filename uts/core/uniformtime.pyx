@@ -14,16 +14,18 @@ __all__ = ['UniformTime', 'UniformTimeSeries',
            'isuts', 'iseuts', 'ismcuts', 'isemcuts', 'concatenate',
            'assert_signal', 'istimealigned']
 
-import numpy as np
 import warnings
+
+import numpy as np
+
 from .multichannel import MultiChannel
 from .epoched import Epoched
-
 from .defs import defined_integers
 from .utils import fit_frames
 from .samplesource import assamples
 from .check_arg import check_arg, check_argarray, check_int, \
     check_intarray
+
 
 
 
@@ -737,12 +739,12 @@ class UniformTimeSeries(UniformTime):
     def show(self, zoom=False, labels={}, indexrange=None):
 
         if zoom:
-            from uts.display.sampled_zoom_plot import SampledZoomPlot
+            from old_code.sampled_zoom_plot import SampledZoomPlot
 
             return SampledZoomPlot(self.samplingtimes(), self.samples.get(),
                 labels=labels)
         else:
-            from uts.display.singlechannel import PlotView
+            from old_code.singlechannel import PlotView
 
             p = PlotView(self.get_plot(labels=labels, indexrange=indexrange))
             p.configure_traits()

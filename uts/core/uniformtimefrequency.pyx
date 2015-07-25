@@ -1,8 +1,10 @@
 import numpy as np
+
 from .uniformtime import UniformTimeSeries
 from .uniformfrequency import FrequencySampled
 from .samplesource import Samples, assamples #FIXME
 from .check_arg import check_arg
+
 
 class Spectrogram(UniformTimeSeries, FrequencySampled):
 
@@ -58,7 +60,7 @@ class Spectrogram(UniformTimeSeries, FrequencySampled):
     #FIXME klopt niet
     def get_plot(self, log=True, dynamicrange=50.):
         
-        from uts.display.singlechannel import imageplot
+        from old_code.singlechannel import imageplot
         
         samples = self.samples.get(copy=False)
         if self.timeaxis == 0:
@@ -80,7 +82,7 @@ class Spectrogram(UniformTimeSeries, FrequencySampled):
 
     def show(self, log=True, dynamicrange=50.):
 
-        from uts.display.singlechannel import PlotView
+        from old_code.singlechannel import PlotView
         
         PlotView(self.get_plot(log=log,dynamicrange=dynamicrange)).configure_traits()
 

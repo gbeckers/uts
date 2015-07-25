@@ -6,26 +6,21 @@ in the lower plot.  The selected region can be moved around by dragging,
 or resized by clicking on one of its edges and dragging.
 """
 
-import numpy
 import wx
 
 # Major library imports
-from numpy import amin, amax, arange, searchsorted, sin, pi, linspace
 
 # Traits
-from enthought.traits.api import Array, Bool, Callable, Enum, Float, HasTraits, \
-                                 Instance, Int, Trait
 # Enthought imports
 from enthought.enable.api import Window
-from enthought.util.resource import find_resource
 
 # Chaco imports
-from enthought.chaco.api import SimplePlotFrame, VPlotContainer
-from enthought.chaco.tools.api import RangeSelection, PanTool
+from enthought.chaco.api import VPlotContainer
+from enthought.chaco.tools.api import RangeSelection
 
 # Relative imports
-from grid_plot_factory import create_gridded_line_plot
-from zoom_overlay import ZoomOverlay
+from old_code.grid_plot_factory import create_gridded_line_plot
+from old_code.zoom_overlay import ZoomOverlay
 
 
 
