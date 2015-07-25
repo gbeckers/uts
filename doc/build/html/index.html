@@ -1,0 +1,844 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Welcome to uts’s documentation! &mdash; uts 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="uts 1.0 documentation" href="#" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="#">uts 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="welcome-to-uts-s-documentation">
+<h1>Welcome to uts&#8217;s documentation!<a class="headerlink" href="#welcome-to-uts-s-documentation" title="Permalink to this headline">¶</a></h1>
+<p>Contents:</p>
+<div class="toctree-wrapper compound">
+<ul class="simple">
+</ul>
+</div>
+<span class="target" id="module-uts.core.uniformtime"></span><p>MultiChannelUniformTimeSeries
+Contains classes representing uniform time.</p>
+<div class="section" id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h2>
+<p>UniformTime, UniformTimeSeries, MultiChannelUniformTimeSeries,
+EpochedUniformTimeSeries, EpochedMultiChannelUniformTimeSeries</p>
+<dl class="class">
+<dt id="uts.core.uniformtime.UniformTime">
+<em class="property">class </em><tt class="descclassname">uts.core.uniformtime.</tt><tt class="descname">UniformTime</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Represents uniform time.</p>
+<p>Mainly intended to be used as a super class for classes that represent
+time-sampled signals, but may also be useful on its own.</p>
+<dl class="docutils">
+<dt>ntimesamples: int</dt>
+<dd>Number of sampling times.</dd>
+<dt>fs: float</dt>
+<dd>Sampling rate in Herz (number of samples per second).</dd>
+<dt>starttime: float, optional</dt>
+<dd>Absolute time at which the signal starts relative to some user-known
+standard (e.g. Epoch, or start of recording). Defaults to 0.0.</dd>
+</dl>
+<p>origintime: float, optional
+Time of origin relative to beginning of the first sample. 
+Defaults to 0.0.</p>
+<dl class="docutils">
+<dt>ntimesamples: int64</dt>
+<dd>Number of samples.</dd>
+<dt>fs: float64</dt>
+<dd>Sampling rate in Herz (number of samples per second).</dd>
+<dt>dt: float64</dt>
+<dd>Sampling period in seconds.</dd>
+<dt>duration: float64</dt>
+<dd>Duration in seconds.</dd>
+<dt>starttime: float64</dt>
+<dd>Absolute time at which the signal starts relative to some user-known
+standard (e.g. Epoch, or start of recording).</dd>
+<dt>endtime: float64</dt>
+<dd>Absolute time at which the signal ends relative to some user-known
+standard (e.g. Epoch, or start of recording).</dd>
+<dt>origintime: float64</dt>
+<dd>Time of origin relative to beginning of the first sample. Defaults to
+0.0.</dd>
+<dt>timerange: (float64, float64)</dt>
+<dd>Start and end times, <em>relative to origintime</em></dd>
+</dl>
+<p>time_to_index
+index_to_time
+samplingtimes</p>
+<p>Example that explains definitions of time (all in seconds):</p>
+<blockquote>
+<div><div class="line-block">
+<div class="line">s0  |  s1  |  s2  |  s3  |  s4  |  s5  |  s6  |</div>
+</div>
+<p>^                                                ^</p>
+</div></blockquote>
+<dl class="docutils">
+<dt>absolute: starttime                                        endtime</dt>
+<dd><p class="first">(e.g. 1452.3)                       (e.g. 1452.3 + duration)</p>
+<blockquote class="last">
+<div>^</div></blockquote>
+</dd>
+<dt>relative:                origintime</dt>
+<dd>(defined as 0.0s)</dd>
+</dl>
+<p>The methods <cite>index_to_time</cite> and <cite>time_to_index</cite>, and the attribute
+<cite>timerange</cite> all use relative time. <cite>origintime</cite> does not have to coincide
+with sample boundaries or centers.</p>
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTime.dt">
+<tt class="descname">dt</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTime.dt" title="Permalink to this definition">¶</a></dt>
+<dd><p>sampling period in seconds</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTime.duration">
+<tt class="descname">duration</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTime.duration" title="Permalink to this definition">¶</a></dt>
+<dd><p>duration in seconds</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTime.endtime">
+<tt class="descname">endtime</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTime.endtime" title="Permalink to this definition">¶</a></dt>
+<dd><p>absolute end time (end of last sample) in seconds</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTime.fs">
+<tt class="descname">fs</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTime.fs" title="Permalink to this definition">¶</a></dt>
+<dd><p>sampling rate in Herz</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.UniformTime.index_to_time">
+<tt class="descname">index_to_time</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.UniformTime.index_to_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a sample index, or array of indices, to their 
+corresponding times. Note that the <em>time of sample center</em> 
+is given, not the time of the sample start.</p>
+<p>index: an integer or array of integers</p>
+<p>Center of samples define their time of occurrence</p>
+<div class="line-block">
+<div class="line">0    |    1    |    2    |    3    |    4    | ...
+^         ^         ^         ^         ^
+t0        t1        t2        t3        t4</div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.UniformTime.info">
+<tt class="descname">info</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.UniformTime.info" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.UniformTime.movingtimeframeindices">
+<tt class="descname">movingtimeframeindices</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.UniformTime.movingtimeframeindices" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>framesize: int</dt>
+<dd>Size of the frame in timesamples. Note that the last frame may be
+smaller than <cite>framesize</cite>, depending on the number of timesamples.</dd>
+<dt>stepsize: &lt;int, None&gt;</dt>
+<dd>Size of the shift in time per iteration in number of timesamples.
+Default is None, which means that <cite>stepsize</cite> equals <cite>framesize</cite>.</dd>
+<dt>startindex: &lt;int, None&gt;</dt>
+<dd>Start sample number.
+Default is None, which means to start at the beginning (sample 0)</dd>
+<dt>endindex: &lt;int, None&gt;</dt>
+<dd>End sample number.
+Default is None, which means to end at the end.</dd>
+</dl>
+<p>An iterator that yield tuples (start, end) representing the start and
+end indices of a time frame of size framesize that moves in stepsize
+steps. If include_remainder is True, it ends with a tuple representing
+the remainder, if present.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTime.nt">
+<tt class="descname">nt</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTime.nt" title="Permalink to this definition">¶</a></dt>
+<dd><p>number of time samples</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTime.ntimesamples">
+<tt class="descname">ntimesamples</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTime.ntimesamples" title="Permalink to this definition">¶</a></dt>
+<dd><p>number of time samples</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTime.origintime">
+<tt class="descname">origintime</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTime.origintime" title="Permalink to this definition">¶</a></dt>
+<dd><p>time of origin in seconds <em>relative to starttime</em></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.UniformTime.samplingboundarytimes">
+<tt class="descname">samplingboundarytimes</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.UniformTime.samplingboundarytimes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the times of <em>sample boundaries</em>, relative to origin time.</p>
+<p>Note that the size of the return array is ntimesamples + 1</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.UniformTime.samplingtimes">
+<tt class="descname">samplingtimes</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.UniformTime.samplingtimes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the times of <em>sample centers</em>, relative to origin time.</p>
+<p>To get the sampling times relative to starttime add the starttime and
+origintime to the result of this method (e.g. signal.samplingtimes +
+signal.starttime + signal.origintime). But if you do this, note that
+the samplingtimes property is a float array of 64-bit precision. If
+starttime is a large number (e.g. Epoch) you may want to upcast to
+higher-precision floats first (96- or 128-bit float) if possible on
+your platform, at least if you want to retain precision.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTime.starttime">
+<tt class="descname">starttime</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTime.starttime" title="Permalink to this definition">¶</a></dt>
+<dd><p>absolute start time (begin of first sample) in seconds</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.UniformTime.time_to_index">
+<tt class="descname">time_to_index</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.UniformTime.time_to_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a time, or array of times, to their corresponding sample
+indices. Reference time is <cite>origintime</cite>.</p>
+<p>Note that the default is to return to which <em>sample center</em> the given
+time is closest. When nearest_boundary is True, this will be to which
+<em>sample start</em> the time is closest.</p>
+<p>time: &lt;float, float sequence&gt;
+nearest_boundary: bool</p>
+<blockquote>
+<div>Determines whether or not the the sample index is given of which
+the <em>center</em> is closest to the parameter time. If True, this will
+be the closest sample <em>start</em>.</div></blockquote>
+<p>Example: if the time parameter is [t0, t1, t2],</p>
+<div class="line-block">
+<div class="line">s0    |    s1    |    s2    |    s3    |    s4    | ...
+^       ^  ^
+t0      t1 t2</div>
+</div>
+<p>then the result will be the sample of indices [s1, s1, s2] if
+nearest_boundary is False (default) or [s1, s2, s2] if nearest_boundary</p>
+<blockquote>
+<div>is True.</div></blockquote>
+<p>Note that it is possible to get an index number of ntimesamples 
+if the time is endtime.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTime.timerange">
+<tt class="descname">timerange</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTime.timerange" title="Permalink to this definition">¶</a></dt>
+<dd><p>tuple representing timerange (start, end) in seconds <em>relative to origintime</em></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="uts.core.uniformtime.UniformTimeSeries">
+<em class="property">class </em><tt class="descclassname">uts.core.uniformtime.</tt><tt class="descname">UniformTimeSeries</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#uts.core.uniformtime.UniformTime" title="uts.core.uniformtime.UniformTime"><tt class="xref py py-class docutils literal"><span class="pre">uts.core.uniformtime.UniformTime</span></tt></a></p>
+<p>Represents a single channel time sampled signal.</p>
+<dl class="docutils">
+<dt>samples: 1-D sequence of numbers (list, tuple, numpy array, pytables array)</dt>
+<dd>Sample values.</dd>
+<dt>fs: float</dt>
+<dd>Sampling rate in Herz (number of samples per second).</dd>
+<dt>starttime: float, optional</dt>
+<dd>Absolute time at which the signal starts relative to some user-known
+standard (e.g. Epoch, or start of recording). Defaults to 0.0.</dd>
+<dt>origintime: float, optional</dt>
+<dd>Time of origin relative to beginning of the first sample. Defaults to
+0.0.</dd>
+<dt>dtype: numpy dtype, optional</dt>
+<dd>The samples provided by the <cite>samples</cite> parameter will be converted to
+<cite>dtype</cite>. The defaults is to keep the dtype of <cite>samples</cite>, or to use
+numpy defaults if <cite>samples</cite> is a list or tuple.
+See the <cite>_supporteddtypes</cite> attribute of the class to see which dtypes
+are allowed.</dd>
+<dt>copy: True or False, optional</dt>
+<dd>Determines whether or not the input array <cite>samples</cite> will be copied to a
+new memory space. If False, a change in the sample values of the
+<cite>samples</cite> will lead to changes of the samples of our object because both
+object share the same array in memory. <cite>False</cite> only works if <cite>samples</cite>
+is a numpy array and the <cite>dtype</cite> parameter is None. Default is True.</dd>
+</dl>
+<dl class="docutils">
+<dt>ntimesamples: int64</dt>
+<dd>Number of samples.</dd>
+<dt>fs: float64</dt>
+<dd>Sampling rate in Herz (number of samples per second).</dd>
+<dt>dt: float64</dt>
+<dd>Sampling period in seconds.</dd>
+<dt>duration: float64</dt>
+<dd>Duration in seconds.</dd>
+<dt>starttime: float64</dt>
+<dd>Absolute time at which the signal starts relative to some user-known
+standard (e.g. Epoch, or start of recording).</dd>
+<dt>endtime: float64</dt>
+<dd>Absolute time at which the signal ends relative to some user-known
+standard (e.g. Epoch, or start of recording).</dd>
+<dt>origintime: float64</dt>
+<dd>Time of origin relative to beginning of the first sample. Defaults to
+0.0.</dd>
+<dt>timerange: (float64, float64)</dt>
+<dd>Start and end times, <em>relative to origintime</em></dd>
+<dt>dtype: numpy dtype</dt>
+<dd>The dtype of the samples</dd>
+<dt>samples: instance of Samples object (or subclass)</dt>
+<dd>Provides direct access to the samples, using indexing.</dd>
+</dl>
+<p>time_to_index
+index_to_time
+samplingtimes
+decimate
+copy</p>
+<p>Example that explains definitions of time (all in seconds):</p>
+<blockquote>
+<div><div class="line-block">
+<div class="line">s0  |  s1  |  s2  |  s3  |  s4  |  s5  |  s6  |</div>
+</div>
+<p>^                                                ^</p>
+</div></blockquote>
+<dl class="docutils">
+<dt>absolute: starttime                                        endtime</dt>
+<dd><p class="first">(e.g. 1452.3)                              (e.g. 1452.3 + duration)</p>
+<blockquote class="last">
+<div>^</div></blockquote>
+</dd>
+<dt>relative:                origintime</dt>
+<dd>(defined as 0.0s)</dd>
+</dl>
+<p>The methods <cite>index_to_time</cite> and <cite>time_to_index</cite>, and the attribute
+<cite>timerange</cite> all use relative time. <cite>origintime</cite> does not have to coincide
+with sample boundaries or centers.</p>
+<dl class="method">
+<dt id="uts.core.uniformtime.UniformTimeSeries.append">
+<tt class="descname">append</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries.append" title="Permalink to this definition">¶</a></dt>
+<dd><p>note that append can be very inefficient, depending on the type of
+sample source. h5ArraySamples can be appended efficiently, but
+NumpyArraySamples not, as each append involves copying the whole signal.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.UniformTimeSeries.astype">
+<tt class="descname">astype</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries.astype" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTimeSeries.axes">
+<tt class="descname">axes</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries.axes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTimeSeries.baseaxis">
+<tt class="descname">baseaxis</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries.baseaxis" title="Permalink to this definition">¶</a></dt>
+<dd><p>this tells functions the most likely axix along which something should be calculated</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.UniformTimeSeries.copy">
+<tt class="descname">copy</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes a copy of the UniformTimeSeries, with the option of
+resetting starttime and origintime.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTimeSeries.dtype">
+<tt class="descname">dtype</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries.dtype" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.UniformTimeSeries.get_epochs">
+<tt class="descname">get_epochs</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries.get_epochs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.UniformTimeSeries.get_plot">
+<tt class="descname">get_plot</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries.get_plot" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.UniformTimeSeries.iter_frames">
+<tt class="descname">iter_frames</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries.iter_frames" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over time axis.</p>
+<dl class="docutils">
+<dt>framesize: int</dt>
+<dd>Size of the frame in timesamples. Note that the last frame may be
+smaller than <cite>framesize</cite>, depending on the number of timesamples.</dd>
+<dt>stepsize: &lt;int, None&gt;</dt>
+<dd>Size of the shift in time per iteration in number of timesamples. 
+Default is None, which means that <cite>stepsize</cite> equals <cite>framesize</cite>.</dd>
+<dt>startindex: &lt;int, None&gt;</dt>
+<dd>Start sample number.
+Default is None, which means to start at the beginning (sample 0)</dd>
+<dt>endindex: &lt;int, None&gt;</dt>
+<dd>End sample number.
+Default is None, which means to end at the end.</dd>
+</dl>
+<p>A generator that yields time frames of self.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTimeSeries.mb">
+<tt class="descname">mb</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries.mb" title="Permalink to this definition">¶</a></dt>
+<dd><p>size in Mb</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTimeSeries.readonly">
+<tt class="descname">readonly</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries.readonly" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTimeSeries.samples">
+<tt class="descname">samples</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries.samples" title="Permalink to this definition">¶</a></dt>
+<dd><p>Samples object</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.UniformTimeSeries.sampletype">
+<tt class="descname">sampletype</tt><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries.sampletype" title="Permalink to this definition">¶</a></dt>
+<dd><p>type of samples object</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.UniformTimeSeries.show">
+<tt class="descname">show</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries.show" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.UniformTimeSeries.to_multichannel">
+<tt class="descname">to_multichannel</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.UniformTimeSeries.to_multichannel" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="uts.core.uniformtime.MultiChannelUniformTimeSeries">
+<em class="property">class </em><tt class="descclassname">uts.core.uniformtime.</tt><tt class="descname">MultiChannelUniformTimeSeries</tt><a class="headerlink" href="#uts.core.uniformtime.MultiChannelUniformTimeSeries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">uts.core.multichannel.MultiChannel</span></tt>, <a class="reference internal" href="#uts.core.uniformtime.UniformTimeSeries" title="uts.core.uniformtime.UniformTimeSeries"><tt class="xref py py-class docutils literal"><span class="pre">uts.core.uniformtime.UniformTimeSeries</span></tt></a></p>
+<p>Represents a multi-channel time sampled signal.</p>
+<dl class="docutils">
+<dt>samples: 2-D sequence of numbers (list, tuple, numpy array, pytables array)</dt>
+<dd>Sample values.</dd>
+<dt>fs: float</dt>
+<dd>Sampling rate in Herz (number of samples per second).</dd>
+<dt>channels: sequence, optional</dt>
+<dd>A sequence (list, tuple, numpy array) with the names of individual
+channels. If None, default names will be created (i.e. this object 
+must always have named channels.)</dd>
+<dt>starttime: float, optional</dt>
+<dd>Absolute time at which the signal starts relative to some user-known
+standard (e.g. Epoch, or start of recording). Defaults to 0.0.</dd>
+<dt>origintime: float, optional</dt>
+<dd>Time of origin relative to beginning of the first sample. Defaults to
+0.0.</dd>
+<dt>dtype: numpy dtype, optional</dt>
+<dd>The samples provided by the <cite>samples</cite> parameter will be converted to
+<cite>dtype</cite>. The defaults is to keep the dtype of <cite>samples</cite>, or to use
+numpy defaults if <cite>samples</cite> is a list or tuple.
+See the <cite>_supporteddtypes</cite> attribute of the class to see which dtypes
+are allowed.</dd>
+<dt>copy: True or False, optional</dt>
+<dd>Determines whether or not the input array <cite>samples</cite> will be copied to a
+new memory space. If False, a change in the sample values of the
+<cite>samples</cite> will lead to changes of the samples of our object because both
+object share the same array in memory. <cite>False</cite> only works if <cite>samples</cite>
+is a numpy array and the <cite>dtype</cite> parameter is None. Default is True.</dd>
+<dt>channelaxis: int</dt>
+<dd>default 1</dd>
+<dt>geometry:</dt>
+<dd>default None</dd>
+</dl>
+<dl class="docutils">
+<dt>samples: instance of Samples object (or subclass)</dt>
+<dd><blockquote class="first">
+<div>Provides direct access to the samples, using indexing.</div></blockquote>
+<ul class="last simple">
+<li>samples: acces to the actual samples object</li>
+<li>fs: sampling rate</li>
+<li>dt: sampling period</li>
+<li>starttime: start of the first sample re epoch (1970-01-01, 12:00:00 AM)
+in seconds, may be None.</li>
+<li>endtime: end of the last sample re epoch (1970-01-01, 12:00:00 AM)
+in seconds, may be none.</li>
+<li>duration: duration of the sound in seconds.</li>
+<li>nchannels: number of channels</li>
+<li>ntimesamples: number of samples per channel</li>
+</ul>
+</dd>
+</dl>
+<blockquote>
+<div><ul class="simple">
+<li>time_to_index(time); short form is tti(time)</li>
+<li>index_to_time(index); short form is itt(index)</li>
+<li>samplingtimes()</li>
+</ul>
+</div></blockquote>
+<p>MultiChannelUniformTimeSeriess can be sliced the following way:</p>
+<blockquote>
+<div><ul>
+<li><p class="first">slicing (e.g. sound[100:500,1]) works in principle like np array
+slicing</p>
+</li>
+<li><p class="first">indices correspond to channel numbers and sample numbers, counting
+from zero</p>
+</li>
+<li><dl class="first docutils">
+<dt>e.g.: sound[:,1] returns a sound object with only channel 1 (second channel)</dt>
+<dd><p class="first last">sound[:,[0,2,5]] returns a sound with channels 0,2, and 5
+sound[100:500,[0,1]] returns channels 0 and 1, samples 100 to 499</p>
+</dd>
+</dl>
+</li>
+<li><p class="first">slicing returns a new sound object, with the samples copied (not a
+view), and timing information adjusted.</p>
+</li>
+</ul>
+</div></blockquote>
+<dl class="method">
+<dt id="uts.core.uniformtime.MultiChannelUniformTimeSeries.append">
+<tt class="descname">append</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.MultiChannelUniformTimeSeries.append" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.MultiChannelUniformTimeSeries.channelaxis">
+<tt class="descname">channelaxis</tt><a class="headerlink" href="#uts.core.uniformtime.MultiChannelUniformTimeSeries.channelaxis" title="Permalink to this definition">¶</a></dt>
+<dd><p>the axis of the samples array that corresponds to channels</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.MultiChannelUniformTimeSeries.copy">
+<tt class="descname">copy</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.MultiChannelUniformTimeSeries.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes a copy of the UniformTimeSeries, with the option of
+resetting starttime, origintime, and channelnames.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.MultiChannelUniformTimeSeries.dot">
+<tt class="descname">dot</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.MultiChannelUniformTimeSeries.dot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Matrix multiplication m * signal. The number of new channels equals the
+size of the first axis of m. Hence the size of the second axis of m 
+should equal the number of channels of the signal.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.MultiChannelUniformTimeSeries.filtfilt">
+<tt class="descname">filtfilt</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.MultiChannelUniformTimeSeries.filtfilt" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.MultiChannelUniformTimeSeries.get_epochs">
+<tt class="descname">get_epochs</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.MultiChannelUniformTimeSeries.get_epochs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.MultiChannelUniformTimeSeries.info">
+<tt class="descname">info</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.MultiChannelUniformTimeSeries.info" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.MultiChannelUniformTimeSeries.iter_channels">
+<tt class="descname">iter_channels</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.MultiChannelUniformTimeSeries.iter_channels" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.MultiChannelUniformTimeSeries.iter_frames">
+<tt class="descname">iter_frames</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.MultiChannelUniformTimeSeries.iter_frames" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate over time axis.</p>
+<dl class="docutils">
+<dt>framesize: int</dt>
+<dd>Size of the frame in timesamples. Note that the last frame may be
+smaller than <cite>framesize</cite>, depending on the number of timesamples.</dd>
+<dt>stepsize: &lt;int, None&gt;</dt>
+<dd>Size of the shift in time per iteration in number of timesamples. 
+Default is None, which means that <cite>stepsize</cite> equals <cite>framesize</cite>.</dd>
+<dt>startindex: &lt;int, None&gt;</dt>
+<dd>Start sample number.
+Default is None, which means to start at the beginning (sample 0)</dd>
+<dt>endindex: &lt;int, None&gt;</dt>
+<dd>End sample number.
+Default is None, which means to end at the end.</dd>
+</dl>
+<p>A generator that yields time frames of self.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.MultiChannelUniformTimeSeries.show">
+<tt class="descname">show</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.MultiChannelUniformTimeSeries.show" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.MultiChannelUniformTimeSeries.timeaxis">
+<tt class="descname">timeaxis</tt><a class="headerlink" href="#uts.core.uniformtime.MultiChannelUniformTimeSeries.timeaxis" title="Permalink to this definition">¶</a></dt>
+<dd><p>the axis of the samples array that corresponds to time</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.MultiChannelUniformTimeSeries.to_epoched">
+<tt class="descname">to_epoched</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.MultiChannelUniformTimeSeries.to_epoched" title="Permalink to this definition">¶</a></dt>
+<dd><p>Divides signal in nepochs maximally and equally long epochs.</p>
+<p>The last samples will be truncated if they don&#8217;t make up a full epoch.</p>
+<p>See get_epochs() method to get arbitrary epochs.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.MultiChannelUniformTimeSeries.transpose">
+<tt class="descname">transpose</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.MultiChannelUniformTimeSeries.transpose" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="uts.core.uniformtime.EpochedUniformTimeSeries">
+<em class="property">class </em><tt class="descclassname">uts.core.uniformtime.</tt><tt class="descname">EpochedUniformTimeSeries</tt><a class="headerlink" href="#uts.core.uniformtime.EpochedUniformTimeSeries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">uts.core.epoched.Epoched</span></tt>, <a class="reference internal" href="#uts.core.uniformtime.UniformTimeSeries" title="uts.core.uniformtime.UniformTimeSeries"><tt class="xref py py-class docutils literal"><span class="pre">uts.core.uniformtime.UniformTimeSeries</span></tt></a></p>
+<dl class="method">
+<dt id="uts.core.uniformtime.EpochedUniformTimeSeries.append">
+<tt class="descname">append</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.EpochedUniformTimeSeries.append" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.EpochedUniformTimeSeries.copy">
+<tt class="descname">copy</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.EpochedUniformTimeSeries.copy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.EpochedUniformTimeSeries.epochaxis">
+<tt class="descname">epochaxis</tt><a class="headerlink" href="#uts.core.uniformtime.EpochedUniformTimeSeries.epochaxis" title="Permalink to this definition">¶</a></dt>
+<dd><p>the axis of the samples array that corresponds to epochs</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.EpochedUniformTimeSeries.get_image">
+<tt class="descname">get_image</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.EpochedUniformTimeSeries.get_image" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.EpochedUniformTimeSeries.get_plot">
+<tt class="descname">get_plot</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.EpochedUniformTimeSeries.get_plot" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.EpochedUniformTimeSeries.iter_epochs">
+<tt class="descname">iter_epochs</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.EpochedUniformTimeSeries.iter_epochs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.EpochedUniformTimeSeries.save_image">
+<tt class="descname">save_image</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.EpochedUniformTimeSeries.save_image" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>ranges: 2-item sequence or None</dt>
+<dd>The range in <em>percentiles</em>, (pmin, pmax).</dd>
+<dt>clip: 2-item sequence or None</dt>
+<dd>The values at which clipping should take place (cmin, cmax).</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.EpochedUniformTimeSeries.show">
+<tt class="descname">show</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.EpochedUniformTimeSeries.show" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.EpochedUniformTimeSeries.timeaxis">
+<tt class="descname">timeaxis</tt><a class="headerlink" href="#uts.core.uniformtime.EpochedUniformTimeSeries.timeaxis" title="Permalink to this definition">¶</a></dt>
+<dd><p>the axis of the samples array that corresponds to samples</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.EpochedUniformTimeSeries.transpose">
+<tt class="descname">transpose</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.EpochedUniformTimeSeries.transpose" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries">
+<em class="property">class </em><tt class="descclassname">uts.core.uniformtime.</tt><tt class="descname">EpochedMultiChannelUniformTimeSeries</tt><a class="headerlink" href="#uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">uts.core.epoched.Epoched</span></tt>, <a class="reference internal" href="#uts.core.uniformtime.MultiChannelUniformTimeSeries" title="uts.core.uniformtime.MultiChannelUniformTimeSeries"><tt class="xref py py-class docutils literal"><span class="pre">uts.core.uniformtime.MultiChannelUniformTimeSeries</span></tt></a></p>
+<dl class="method">
+<dt id="uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.append">
+<tt class="descname">append</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.append" title="Permalink to this definition">¶</a></dt>
+<dd><p>Append epochs</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.concatenate_epochs">
+<tt class="descname">concatenate_epochs</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.concatenate_epochs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Concatenates epochs so that the epoch dimension dispears and a 
+MultiChannelUniformTimeSeries is created.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.copy">
+<tt class="descname">copy</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes a copy of the UniformTimeSeries, with the option of
+resetting channelnames.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.dot">
+<tt class="descname">dot</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.dot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Matrix multiplication m * signal. The number of new channels equals the
+size of the first axis of m. Hence the size of the second axis of m 
+should equal the number of channels of the signal.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.epochaxis">
+<tt class="descname">epochaxis</tt><a class="headerlink" href="#uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.epochaxis" title="Permalink to this definition">¶</a></dt>
+<dd><p>the axis of the samples array that corresponds to epochs</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.iter_epochs">
+<tt class="descname">iter_epochs</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.iter_epochs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.show">
+<tt class="descname">show</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.show" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.transpose">
+<tt class="descname">transpose</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.EpochedMultiChannelUniformTimeSeries.transpose" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="uts.core.uniformtime.isuts">
+<tt class="descclassname">uts.core.uniformtime.</tt><tt class="descname">isuts</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.isuts" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="uts.core.uniformtime.iseuts">
+<tt class="descclassname">uts.core.uniformtime.</tt><tt class="descname">iseuts</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.iseuts" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="uts.core.uniformtime.ismcuts">
+<tt class="descclassname">uts.core.uniformtime.</tt><tt class="descname">ismcuts</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.ismcuts" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="uts.core.uniformtime.isemcuts">
+<tt class="descclassname">uts.core.uniformtime.</tt><tt class="descname">isemcuts</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.isemcuts" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="uts.core.uniformtime.concatenate">
+<tt class="descclassname">uts.core.uniformtime.</tt><tt class="descname">concatenate</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.concatenate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="uts.core.uniformtime.assert_signal">
+<tt class="descclassname">uts.core.uniformtime.</tt><tt class="descname">assert_signal</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.assert_signal" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="uts.core.uniformtime.is_timealigned">
+<tt class="descclassname">uts.core.uniformtime.</tt><tt class="descname">is_timealigned</tt><big>(</big><big>)</big><a class="headerlink" href="#uts.core.uniformtime.is_timealigned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><em>Index</em></a></li>
+<li><a class="reference internal" href="py-modindex.html"><em>Module Index</em></a></li>
+<li><a class="reference internal" href="search.html"><em>Search Page</em></a></li>
+</ul>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Welcome to uts&#8217;s documentation!</a><ul>
+<li><a class="reference internal" href="#classes">Classes</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/index.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="#">uts 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Gabriel Beckers.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.1.
+    </div>
+  </body>
+</html>
