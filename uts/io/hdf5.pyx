@@ -13,14 +13,14 @@ from ..core.epoched import Epoched
 from ..core.check_arg import check_arg, check_int
 from ..core.utils import fit_frames
 from ..core.utils import timeparams
-
+from .utils import tempdir
 
 # uts, euts, mcuts and emcuts signals are saved as a h5 *Group*. The name/path of that 
 # group can be determined by the user and is the 'name' of that signal. The h5 Group 
 # should contain at least one array named 'samples', but may also contain the tables
 # 'epochs' or 'channels'
 
-__all__ = ['open', 'save', 'load', 'cache', 'remove', 'h5fillnew',
+__all__ = ['open', 'save', 'load', 'cache', 'remove', 'rename', 'h5fillnew',
            'h5filllike', 'save_itered', 'cache_itered']
 
 SAMPLEARRAYNAME = 'samples'
@@ -66,6 +66,14 @@ def _remove(h5fileobject, h5path):
 def remove(filename, signalname):
     with tb.open_file(filename, 'a') as f:
         _remove(h5fileobject=f, h5path=signalname)
+
+def _rename(h5fileobject, signalname, newsignalname):
+    h5fileobject.rename_node(signalname, newsignalname, overwrite=False)
+
+def rename(filename, signalname, newsignalname):
+    with tb.open_file(filename, 'a') as f:
+        _rename(h5fileobject=f, signalname=signalname, newsignalname=newsignalname)
+
 
 @contextmanager
 def _create_h5savepoint(filename, h5path='/', overwrite=False, mode='a'):
@@ -193,17 +201,11 @@ def save_itered(smodel, gen, name='/', filename=None, ntimesamples=None,
 def cache(s, channelaxis=None, epochaxis=None,
           extensible=False, expectedrows=None, dtype=None, complib='blosc',
           complevel=5, chunkshape=None, path=None, report=False,
-          signalname='/cached', filename='cached.h5', warn=True):
-    from tempfile import mkdtemp, gettempdir
-    from shutil import rmtree
+          signalname='/cached', filename='cached.h5', warn=True, keep=False):
 
-    if path is None:
-        path = gettempdir()
-    tempdirname = mkdtemp(dir=path)
-    filename = os.path.join(tempdirname, filename)
-    if report:
-        print 'created cache file {}'.format(filename)
-    try:
+
+    with tempdir(dir=path, keep=keep, report=report) as tempdirname:
+        filename = os.path.join(tempdirname, filename)
         save(s, signalname=signalname, filename=filename,
              channelaxis=channelaxis, epochaxis=epochaxis,
              overwrite=False, extensible=extensible, expectedrows=expectedrows,
@@ -214,12 +216,6 @@ def cache(s, channelaxis=None, epochaxis=None,
         s.path = tempdirname
         s.filename = filename
         yield s
-    except:
-        raise
-    finally:
-        rmtree(tempdirname)
-        if report:
-            print 'removed cache file {}'.format(filename)
 
 @contextmanager
 def cache_itered(smodel, gen, ntimesamples=None, fs=None, channelaxis=None,
@@ -228,21 +224,13 @@ def cache_itered(smodel, gen, ntimesamples=None, fs=None, channelaxis=None,
                  complib='blosc',
                  complevel=5, chunkshape=None, path=None, report=False,
                  signalname='/cached', filename='cached.h5', attrs=None,
-                 mode='a'):
-    from tempfile import mkdtemp, gettempdir
-    from shutil import rmtree
-
-    if path is None:
-        path = gettempdir()
-    tempdirname = mkdtemp(dir=path)
-    filename = os.path.join(tempdirname, filename)
-    if report:
-        print 'created cache file {}'.format(filename)
-    if attrs is None:
-        attrs = smodel.attrs
-    else:
-        attrs.update(smodel.attrs)
-    try:
+                 mode='a', keep=False):
+    with tempdir(dir=path, keep=keep, report=report) as tempdirname:
+        filename = os.path.join(tempdirname, filename)
+        if attrs is None:
+            attrs = smodel.attrs
+        else:
+            attrs.update(smodel.attrs)
         with h5filllike(smodel, name=signalname, filename=filename,
                         ntimesamples=ntimesamples, fs=fs, value=0.0,
                         dtype=dtype, channelaxis=channelaxis,
@@ -261,12 +249,7 @@ def cache_itered(smodel, gen, ntimesamples=None, fs=None, channelaxis=None,
             s.path = tempdirname
             s.filename = filename
             yield s
-    except:
-        raise
-    finally:
-        rmtree(tempdirname)
-        if report:
-            print 'removed cache file {}'.format(filename)
+
 
 def load(signalname='/', filename=None, start=None, end=None):
     with open(signalname=signalname, filename=filename) as s:

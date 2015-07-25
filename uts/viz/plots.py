@@ -16,7 +16,6 @@ def plot_uts(s, ax=None, **kwargs):
             kwargs[key] = item
     if ax is None:
         ax = plt.gca(frameon=False)
-
     pl = ax.plot(s.samplingtimes(),
         s.samples.get(False), **kwargs)
     ax.tick_params(direction='out', top=False, right=False)
@@ -26,7 +25,7 @@ def plot_uts(s, ax=None, **kwargs):
 def plot_mcuts(mcuts, ylim=None, wspace=0.06,
                    hspace=0.06, left=None, right=None, bottom=None, top=None,
                    ylabel=None, xlabel='Time (s)', yticks=None, xticks=None,
-                ga=None, **kwargs):
+                ga=None, vline=None, **kwargs):
     if ga is None:
         ga = GridAxes(mcuts.geometry, wspace=wspace, hspace=hspace,
                       left=left, right=right,
@@ -52,6 +51,8 @@ def plot_mcuts(mcuts, ylim=None, wspace=0.06,
         pl = ax.plot(mcuts.samplingtimes(),
             mcuts[:, channelname].samples.get(False), **kwargs)
         ax.set_ylim([low, high])
+        if not vline is None:
+            ax.axvline(vline, color='k')
     return ga
 
 

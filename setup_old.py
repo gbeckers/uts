@@ -331,11 +331,11 @@ extensions = [uniformtime_ext, geometry_ext, epoched_ext,
 # if _have_setuptools:
 #     setuptools_kwargs["test_suite"] = "nose.collector"
 
-data_files = [('uts/example_data', ['uts/example_data/uts.h5',
-                                   'uts/example_data/euts.h5',
-                                   'uts/example_data/mcuts.h5',
-                                   'uts/example_data/emcuts.h5',
-                                   'uts/example_data/examples.h5',
+data_files = [('uts/exampledata', ['uts/exampledata/uts.h5',
+                                   'uts/exampledata/euts.h5',
+                                   'uts/exampledata/mcuts.h5',
+                                   'uts/exampledata/emcuts.h5',
+                                   'uts/exampledata/examples.h5',
                                    ]),
              ('uts/fonts', ['uts/fonts/Ubuntu-R.ttf',])]
 
@@ -345,7 +345,7 @@ setup(name=DISTNAME,
       maintainer=MAINTAINER,
       packages=['uts', 'uts.display', 'uts.core', 'uts.processing',
                'uts.config', 'uts.tests','uts.signalfactory', 'uts.helper', 'uts.io'],
-      # package_data={'uts/example_data' : ['*.h5',
+      # package_data={'uts/exampledata' : ['*.h5',
       #                              ],
       #               'uts/fonts' : ['*.ttf']
       #               },

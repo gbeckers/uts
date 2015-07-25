@@ -1,51 +1,53 @@
 import numpy as np
-import os
-from contextlib import contextmanager
 from uts.core.check_arg import check_arg, check_int
-
-__all__ = ['tempdir']
 
 eps = np.power(2.0, -52.0)
 
 def round_nextradix2(number):
-    return int(pow(2,np.ceil(np.log2(number))))
+    return int(pow(2, np.ceil(np.log2(number))))
+
 
 def round_nearestradix2(number):
-    return int(pow(2,np.round(np.log2(number))))
+    return int(pow(2, np.round(np.log2(number))))
+
 
 def round_nearestodd(number):
-    n = int(np.round(number)) # nearest int
-    if n % 2 == 0: # n is even
+    n = int(np.round(number))  # nearest int
+    if n % 2 == 0:  # n is even
         if n - number < 0:
             n += 1
         else:
             n -= 1
     return n
 
+
 def round_nearesteven(number):
-    n = int(np.round(number)) # nearest int
-    if n % 2 == 1: # n is odd
+    n = int(np.round(number))  # nearest int
+    if n % 2 == 1:  # n is odd
         if n - number < 0:
             n += 1
         else:
             n -= 1
     return n
+
 
 def iseven(number):
     return (number % 2.0) == 0.0
 
+
 def isodd(number):
     return (number % 2.0) == 1.0
 
+
 def alleven(numbers):
-    return np.all((np.asarray(numbers)%2.0) == 0.0)
+    return np.all((np.asarray(numbers) % 2.0) == 0.0)
+
 
 def allodd(numbers):
-    return np.all((np.asarray(numbers)%2.0) == 1.0)
+    return np.all((np.asarray(numbers) % 2.0) == 1.0)
 
 
 def fit_frames(totalsize, framesize, stepsize=None):
-
     """
     Calculates how many frames of 'framesize' fit in 'totalsize',
     given a step size of 'stepsize'.
@@ -61,12 +63,12 @@ def fit_frames(totalsize, framesize, stepsize=None):
 
     Returns a tuple (nframes, newsize, remainder)
     """
-    
+
     if ((totalsize % 1) != 0) or (totalsize < 1):
         raise ValueError("invalid totalsize (%d)" % totalsize)
     if ((framesize % 1) != 0) or (framesize < 1):
         raise ValueError("invalid framesize (%d)" % framesize)
-    
+
     if framesize > totalsize:
         return 0, 0, totalsize
 
@@ -79,60 +81,49 @@ def fit_frames(totalsize, framesize, stepsize=None):
     totalsize = int(totalsize)
     framesize = int(framesize)
     stepsize = int(stepsize)
-    
+
     nframes = ((totalsize - framesize) // stepsize) + 1
     newsize = nframes * stepsize + (framesize - stepsize)
     remainder = totalsize - newsize
-    
+
     return nframes, newsize, remainder
 
-@contextmanager
-def tempdir(dir='.'):
-
-    import tempfile
-    import shutil
-    
-    tempdirname = tempfile.mkdtemp(dir=dir)
-    yield tempdirname
-    shutil.rmtree(tempdirname)
 
 
 def epochtimetotext(epochtime):
     from time import strftime, localtime
-    return strftime('%Y/%m/%d %H:%M:%S',localtime(epochtime))
+
+    return strftime('%Y/%m/%d %H:%M:%S', localtime(epochtime))
+
 
 def timeparams(ntimesamples=None, fs=None, duration=None):
-        #  we need enough info from duration, fs and ntimesamples
+    # we need enough info from duration, fs and ntimesamples
     havents = not (ntimesamples is None)
     havefs = not (fs is None)
     havedur = not (duration is None)
-    timeparams = np.array([havents, havefs,havedur])
-    if not (timeparams.sum()>= 2):
-        raise ValueError("at least 2 values are required for duration, ntimesamples, and fs")
+    timeparams = np.array([havents, havefs, havedur])
+    if not (timeparams.sum() >= 2):
+        raise ValueError(
+            "at least 2 values are required for duration, ntimesamples, and fs")
     if havents:
         ntimesamples = check_int(ntimesamples, negative=False)
     if havefs:
         fs = check_arg(fs, 'fs')
     if havedur:
         duration = check_arg(duration, 'duration')
-    if timeparams.sum()== 2:
+    if timeparams.sum() == 2:
         #  now calculate what's missing
         if havents:
             if havefs:
                 duration = ntimesamples / fs
-            else: # have duration
+            else:  # have duration
 
                 fs = ntimesamples / duration
-        else: # have duration and have fs
+        else:  # have duration and have fs
             ntimesamples = fs * duration
-            if divmod(ntimesamples,1.0)[1] != 0.0:
-                raise ValueError("duration and fs do not correspond to integer ntimesamples")
+            if divmod(ntimesamples, 1.0)[1] != 0.0:
+                raise ValueError(
+                    "duration and fs do not correspond to integer ntimesamples")
             else:
                 ntimesamples = int(ntimesamples)
     return (ntimesamples, fs, duration)
-
-def make_dirs(path, existserror=False):
-    if not os.path.exists(path):
-        os.makedirs(path)
-    elif existserror:
-        raise IOError('Path "{}" already exists'.format(path))

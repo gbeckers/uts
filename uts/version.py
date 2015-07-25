@@ -1,1 +1,13 @@
-version = '0.2.0b'
+MAJOR = 1
+MINOR = 0
+MICRO = 2
+ISRELEASED = False
+VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
+QUALIFIER = 'b'
+
+FULLVERSION = VERSION
+if not ISRELEASED:
+    FULLVERSION += '.dev'
+else:
+    FULLVERSION += QUALIFIER
+

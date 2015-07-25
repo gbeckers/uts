@@ -7,36 +7,40 @@ The processing module holds functions that operate on time sampled signals.
 
 """
 from __future__ import print_function
-##FIXME make convolve so that it iterates automatically and has an 'out' parameter
 
 import sys
+import time
+import warnings
 import numpy as np
 import scipy.signal
 import signalprocessing
-from signalprocessing import segment_axis, fit_frames, multi_taper_psd, iminterpolate
-from uts.core.utils import round_nearesteven, round_nextradix2
-from uts import UniformTimeSeries, \
-     MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
+from signalprocessing import segment_axis, fit_frames, multi_taper_psd, \
+    iminterpolate
+from ..core.utils import round_nearesteven, round_nextradix2
+from ..core.uniformtime import UniformTimeSeries, \
+    MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
     assert_signal
-from uts.core.epoched import Epoched
-from uts.core.geometry import RectangularLattice
-from uts.core.uniformfrequency import Spectrum, PowerSpectrum, MultiChannelPowerSpectrum
-from uts.core.uniformtimefrequency import Spectrogram
-from helper import convadjusttime
-from uts.core.check_arg import check_arg, check_int, check_float, check_bool
-from uts import isuts, iseuts, ismcuts, isemcuts
-#FIXME
+from ..core.epoched import Epoched
+from ..core.geometry import RectangularLattice
+from ..core.uniformfrequency import Spectrum, PowerSpectrum, \
+    MultiChannelPowerSpectrum
+from ..core.uniformtimefrequency import Spectrogram
+from .helper import convadjusttime
+from ..core.check_arg import check_arg, check_int, check_float, check_bool
+from ..core.uniformtime import isuts, iseuts, ismcuts, isemcuts
+from .ifdv import cifdv
+from ..helper.progressbar import ProgressBar
+from .windows import windows
 
-from ifdv import cifdv
-from uts.helper.progressbar import ProgressBar
-from windows import windows
-import time
-import warnings
 from .parallel import foreach
 from ..signalfactory.factory import fromchannels
 
-#FIXME signal should be uts
-
+__all__ = ['bp', 'convolve', 'crosscorrelatetime',
+           'crosscorrelatetime_betweenchannels',
+           'crosscorrelatetime_betweenchannels_p', 'decimate', 'hp', 'ibp',
+           'ica', 'ifdv', 'ihp', 'ilp', 'iter_convolve', 'iter_convolve_info',
+           'iter_decimate', 'iter_map', 'fft', 'lp', 'overlap_and_add', 'ramp',
+           'resample', 'specgram', 'stft', 'stmtt', 'welch']
 
 def overlap_and_add(tss1, tss2, overlapdur):
     """
@@ -76,28 +80,28 @@ def overlap_and_add(tss1, tss2, overlapdur):
     if not (tss1.fs == tss2.fs):
         raise ValueError("signals do not have the same sample axes")
 
-    
-    w = window(noverlap*2+1)
+    w = window(noverlap * 2 + 1)
     w1 = w[noverlap:]
-    w2 = w[:noverlap+1]
+    w2 = w[:noverlap + 1]
     nsamples = tss1.ntimesamples + tss2.ntimesamples - len(w1)
     shape = list(tss1.samples.shape)
     shape[tss1.samples.axes['time']] = nsamples
     samples = np.zeros(shape, dtype=tss1.samples.dtype)
 
     s = tss1._instantiatefromself(samples=samples)
-    s[:tss1.ntimesamples-len(w1)].samples.array[:] = tss1[:-len(w1)].samples.array[:]
+    s[:tss1.ntimesamples - len(w1)].samples.array[:] = tss1[:-len(
+        w1)].samples.array[:]
     s[tss1.ntimesamples:].samples.array[:] = tss2[len(w1):].samples.array[:]
-    s[tss1.ntimesamples-len(w1):tss1.ntimesamples].samples.array[:] \
-     = np.apply_along_axis(np.multiply, 
-                           tss1.samples.axes['time'], 
-                           tss1[-len(w1):].samples.array[:],
-                           w1)
-    s[tss1.ntimesamples-len(w2):tss1.ntimesamples].samples.array[:] \
-     = s[tss1.ntimesamples-len(w2):tss1.ntimesamples].samples.array[:] \
-     + np.apply_along_axis(np.multiply, tss1.samples.axes['time'],
-                            tss2[:len(w2)].samples.array[:],
-                            w2)
+    s[tss1.ntimesamples - len(w1):tss1.ntimesamples].samples.array[:] \
+        = np.apply_along_axis(np.multiply,
+                              tss1.samples.axes['time'],
+                              tss1[-len(w1):].samples.array[:],
+                              w1)
+    s[tss1.ntimesamples - len(w2):tss1.ntimesamples].samples.array[:] \
+        = s[tss1.ntimesamples - len(w2):tss1.ntimesamples].samples.array[:] \
+          + np.apply_along_axis(np.multiply, tss1.samples.axes['time'],
+                                tss2[:len(w2)].samples.array[:],
+                                w2)
 
     return s
 
@@ -134,7 +138,6 @@ def apply_to_samples(tss, f, copy=True, **nargs):
     samples = f(tss.samples.get(copy=copy), **nargs)
     return tss._instantiatefromself(samples=samples, copy=False)
 
-
 def crosscorrelatetime(s1, s2, normalized=True):
     """
     Calculates the *valid* crosscorrelation values between two time signals, energy-corrected
@@ -160,93 +163,103 @@ def crosscorrelatetime(s1, s2, normalized=True):
         raise ValueError('sampling rates are different')
     corrlen = np.abs(s1.ntimesamples - s2.ntimesamples) + 1
     args = {}
-    args['origintime'] = corrlen/(s1.fs*2.0)
+    args['origintime'] = corrlen / (s1.fs * 2.0)
     args['copy'] = False
     args['dtype'] = np.float64
     if isuts(s1):
-        samples = crosscorrelate_1d(s1.samples.get(copy=False), s2.samples.get(copy=False),
-            normalized=normalized)
+        samples = crosscorrelate_1d(s1.samples.get(copy=False),
+                                    s2.samples.get(copy=False),
+                                    normalized=normalized)
         s = s1._instantiatefromself(samples=samples, **args)
     elif iseuts(s1):
-        samples = crosscorrelate_2d(a=s1.transpose(['epoch','time']).samples.get(False),
-            b=s2.transpose(['epoch','time']).samples.get(False), normalized=normalized)
+        samples = crosscorrelate_2d(
+            a=s1.transpose(['epoch', 'time']).samples.get(False),
+            b=s2.transpose(['epoch', 'time']).samples.get(False),
+            normalized=normalized)
         s = s1._instantiatefromself(samples=samples, epochaxis=0, **args)
     elif ismcuts(s1):
-        samples = crosscorrelate_2d(a=s1.transpose(['channel','time']).samples.get(False),
-            b=s2.transpose(['channel','time']).samples.get(False), normalized=normalized)
+        samples = crosscorrelate_2d(
+            a=s1.transpose(['channel', 'time']).samples.get(False),
+            b=s2.transpose(['channel', 'time']).samples.get(False),
+            normalized=normalized)
         s = s1._instantiatefromself(samples=samples, channelaxis=0, **args)
     elif isemcuts(s1):
         #samples = crosscorrelate(a=s1.transpose(['channel','epoch','time']).samples.get(False),
         #    b=s2.transpose(['channel','epoch','time']).samples.get(False), normalized=normalized)
         #s = s1._instantiatefromself(samples=samples, channelaxis=0, epochaxis=1, **args)
         raise NotImplementedError
-        
+
     return s
 
-def crosscorrelatetime_betweenchannels(s, lag, normalized=True, reportprogress=True):
+def crosscorrelatetime_betweenchannels(s, lag, normalized=True,
+                                       reportprogress=True):
     """
     If time is positive it means that the first channel is leading.
     """
     lag = check_arg(lag, 'duration')
-    nlag = int(np.round(lag*s.fs))
-    corrlen = nlag*2+1
+    nlag = int(np.round(lag * s.fs))
+    corrlen = nlag * 2 + 1
     if not ismcuts(s):
         raise TypeError(
             "this function works only with MultiChannelUniformTimeSeries")
-    samples = np.empty((s.nchannels*s.nchannels,corrlen), s.dtype)
+    samples = np.empty((s.nchannels * s.nchannels, corrlen), s.dtype)
     k = 0
     channelnames = []
-    for i,channeli in enumerate(s.channelnames):
-        for j,channelj in enumerate(s.channelnames):
+    for i, channeli in enumerate(s.channelnames):
+        for j, channelj in enumerate(s.channelnames):
             if reportprogress:
-                print('<%d,%d>'%(i,j), sep='', end='')
+                print('<%d,%d>' % (i, j), sep='', end='')
                 sys.stdout.flush()
-            samples[k,:] = crosscorrelatetime(s1=s[:,i], s2=s[nlag:-nlag,j], 
-                normalized=normalized).samples.get(False)
-            channelnames.append('cc_%s_%s'%(channeli,channelj))
+            samples[k, :] = crosscorrelatetime(s1=s[:, i], s2=s[nlag:-nlag, j],
+                                               normalized=normalized).samples.get(
+                False)
+            channelnames.append('cc_%s_%s' % (channeli, channelj))
             k += 1
-    g = RectangularLattice(s.nchannels,s.nchannels,channelnames)
-    return MultiChannelUniformTimeSeries(samples=samples, fs=s.fs, geometry=g, 
-        channels=channelnames, channelaxis=0, origintime=corrlen/(s.fs*2.0))
-
+    g = RectangularLattice(s.nchannels, s.nchannels, channelnames)
+    return MultiChannelUniformTimeSeries(samples=samples, fs=s.fs, geometry=g,
+                                         channels=channelnames, channelaxis=0,
+                                         origintime=corrlen / (s.fs * 2.0))
 
 def _cct(args):
-        s, i, j, nlag, normalized, reportprogress = args
-        if reportprogress:
-            print('<%d,%d>'%(i,j), sep='', end='')
-            sys.stdout.flush()
-        return crosscorrelatetime(s1=s[:,i], s2=s[nlag:-nlag,j], 
-                normalized=normalized).samples.get(False)
+    s, i, j, nlag, normalized, reportprogress = args
+    if reportprogress:
+        print('<%d,%d>' % (i, j), sep='', end='')
+        sys.stdout.flush()
+    return crosscorrelatetime(s1=s[:, i], s2=s[nlag:-nlag, j],
+                              normalized=normalized).samples.get(False)
 
-def crosscorrelatetime_betweenchannels_p(s, lag, normalized=True, reportprogress=True, nprocesses=2):
+def crosscorrelatetime_betweenchannels_p(s, lag, normalized=True,
+                                         reportprogress=True, nprocesses=2):
     """
     If time is positive it means that the first channel is leading.
 
     """
     from multiprocessing import Pool
+
     pool = Pool(processes=nprocesses)
-    
+
     lag = check_arg(lag, 'duration')
-    nlag = int(np.round(lag*s.fs))
-    corrlen = nlag*2+1
+    nlag = int(np.round(lag * s.fs))
+    corrlen = nlag * 2 + 1
     if not ismcuts(s):
         raise TypeError(
             "this function works only with MultiChannelUniformTimeSeries")
     # samples = np.empty((s.nchannels*s.nchannels,corrlen), s.dtype)
     channelnames = []
     args = []
-    for i,channeli in enumerate(s.channelnames):
-        for j,channelj in enumerate(s.channelnames):
-            args.append([s, i , j, nlag, normalized, reportprogress])
-            channelnames.append('cc_%s_%s'%(channeli,channelj))
+    for i, channeli in enumerate(s.channelnames):
+        for j, channelj in enumerate(s.channelnames):
+            args.append([s, i, j, nlag, normalized, reportprogress])
+            channelnames.append('cc_%s_%s' % (channeli, channelj))
     results = pool.map(_cct, args)
     samples = np.array(results, dtype=s.dtype)
-    g = RectangularLattice(s.nchannels,s.nchannels,channelnames)
-    return MultiChannelUniformTimeSeries(samples=samples, fs=s.fs, geometry=g, 
-        channels=channelnames, channelaxis=0, origintime=corrlen/(s.fs*2.0))
+    g = RectangularLattice(s.nchannels, s.nchannels, channelnames)
+    return MultiChannelUniformTimeSeries(samples=samples, fs=s.fs, geometry=g,
+                                         channels=channelnames, channelaxis=0,
+                                         origintime=corrlen / (s.fs * 2.0))
 
-
-def convolve(uts, kernel, mode='same', threads=None, dtype=None):#, out=None):
+def convolve(uts, kernel, mode='same', threads=None,
+             dtype=None):  #, out=None):
     """
     Convolves self with a kernel.
 
@@ -273,6 +286,7 @@ def convolve(uts, kernel, mode='same', threads=None, dtype=None):#, out=None):
         uts = uts.astype(dtype)
         dtype = uts.dtype
     kernel = np.array(kernel, copy=False, dtype=dtype)
+    #print(uts.dtype, kernel.dtype)
     ## is the following necessary?? We want to be flexible and upcast
     #if kernel.dtype != uts.dtype:
     #    kernel = kernel.astype(uts.dtype)
@@ -298,11 +312,10 @@ def convolve(uts, kernel, mode='same', threads=None, dtype=None):#, out=None):
     # if not (out is None):
     #     return out
     # else:
-    return uts._instantiatefromself(samples=samples, dtype=samples.dtype, **args)
-
+    return uts._instantiatefromself(samples=samples, dtype=samples.dtype,
+                                    **args)
 
 def pmcconvolve(mcuts, kernel, mode='same', threads=4):
-
     return fromchannels(foreach(convolve, mcuts.iter_channels(),
                                 threads=threads, return_=True,
                                 args=[kernel, mode]),
@@ -310,26 +323,25 @@ def pmcconvolve(mcuts, kernel, mode='same', threads=4):
                         geometry=mcuts.geometry)
 
 def pmcconvolve2(mcuts, kernel, mode='same', threads=4):
-
     if mcuts.channelaxis == 1:
-        ars = [mcuts.samples.get(False)[:,i] for i in xrange(mcuts.nchannels)]
+        ars = [mcuts.samples.get(False)[:, i] for i in xrange(mcuts.nchannels)]
     else:
-        ars = [mcuts.samples.get(False)[i,:] for i in xrange(mcuts.nchannels)]
+        ars = [mcuts.samples.get(False)[i, :] for i in xrange(mcuts.nchannels)]
 
-    ars = foreach(np.convolve, ars, threads=threads, return_=True, args=[kernel, mode])
+    ars = foreach(np.convolve, ars, threads=threads, return_=True,
+                  args=[kernel, mode])
     ars = np.array(ars, dtype=mcuts.dtype)
     if mcuts.channelaxis == 1:
         ars = ars.T
     timeshift = convadjusttime(fs=mcuts.fs, kernelsize=kernel.size, mode=mode)
-    kwargs ={}
+    kwargs = {}
 
     kwargs['origintime'] = mcuts.origintime - timeshift
     kwargs['copy'] = False
 
     return mcuts._instantiatefromself(samples=ars, **kwargs)
 
-
-def iter_convolve(uts, kernel, mode='same', chunksize=1024*64,
+def iter_convolve(uts, kernel, mode='same', chunksize=1024 * 64,
                   reportprogress=False, channels=None, dtype=None,
                   threads=None):
     '''
@@ -371,7 +383,8 @@ def iter_convolve(uts, kernel, mode='same', chunksize=1024*64,
     kernel = np.asarray(kernel)
     if not (chunksize > kernel.size):
         chunksize = kernel.size + 1
-        warnings.warn("Chunksize not larger than kernel size. Setting it to %d" % chunksize)
+        warnings.warn(
+            "Chunksize not larger than kernel size. Setting it to %d" % chunksize)
     validntimesamples = len(kernel) - 1
     stepsize = chunksize - validntimesamples
     nframes, newsize, remainder = fit_frames(
@@ -408,32 +421,38 @@ def iter_convolve(uts, kernel, mode='same', chunksize=1024*64,
                 else:
                     tail = -(kernel.size - 1) // 2
                 if tail == 0: tail = None
-                result =  convolve(ss, kernel, mode='full', threads=threads, dtype=dtype)[slice(head,tail,None)]
-            else: # mode == 'full'
+                result = convolve(ss, kernel, mode='full', threads=threads,
+                                  dtype=dtype)[slice(head, tail, None)]
+            else:  # mode == 'full'
                 #tail = -(min(ss.ntimesamples, kernel.size) - 1)
-                tail = -min(ss.ntimesamples, kernel.size) + 1 ##IS THIS CORRECT?
+                tail = -min(ss.ntimesamples,
+                            kernel.size) + 1  ##IS THIS CORRECT?
                 if tail == 0: tail = None
-                result =  convolve(ss, kernel, mode='full', threads=threads, dtype=dtype)[slice(None,tail,None)]
+                result = convolve(ss, kernel, mode='full', threads=threads,
+                                  dtype=dtype)[slice(None, tail, None)]
         elif (i == lastframei) and (mode != 'valid'):
             if mode == 'same':
                 #print "I am at lastframei"
                 head = kernel.size - 1
                 tail = -(kernel.size - 1) // 2
                 if tail == 0: tail = None
-                result =  convolve(ss, kernel, mode='full', threads=threads, dtype=dtype)[slice(head,tail,None)]
+                result = convolve(ss, kernel, mode='full', threads=threads,
+                                  dtype=dtype)[slice(head, tail, None)]
                 #print 'head, tail, ss', head, tail, ss
-            else: # mode == 'full'
+            else:  # mode == 'full'
                 head = min(ss.ntimesamples, kernel.size) - 1
-                result =  convolve(ss, kernel, mode='full', threads=threads, dtype=dtype)[slice(head,None,None)]
+                result = convolve(ss, kernel, mode='full', threads=threads,
+                                  dtype=dtype)[slice(head, None, None)]
         else:
-            result = convolve(ss, kernel, mode='valid', threads=threads, dtype=dtype)
+            result = convolve(ss, kernel, mode='valid', threads=threads,
+                              dtype=dtype)
         #t2 = time.time()
         #print 'ic %d in %.3f s.' % (i,t2-t1)
         yield result
 
 
 # FIXME chunks/frames choose one term
-def iter_convolve_info(uts, kernel, mode='same', chunksize=1024*64):
+def iter_convolve_info(uts, kernel, mode='same', chunksize=1024 * 64):
     '''
     Provides data about how iter_convolve will segment uts and return chunks.
 
@@ -474,15 +493,17 @@ def iter_convolve_info(uts, kernel, mode='same', chunksize=1024*64):
     kernel = np.asarray(kernel)
     if not (chunksize > kernel.size):
         chunksize = kernel.size + 1
-        warnings.warn("Chunksize not larger than kernel size. Setting is to %d" % chunksize)
+        warnings.warn(
+            "Chunksize not larger than kernel size. Setting is to %d" % chunksize)
     validntimesamples = len(kernel) - 1
     stepsize = chunksize - validntimesamples
-    nframes, newsize, remainder = fit_frames(uts.ntimesamples, chunksize, stepsize=stepsize)
+    nframes, newsize, remainder = fit_frames(uts.ntimesamples, chunksize,
+                                             stepsize=stepsize)
     #print "nframes", "newsize", "remainder", nframes, newsize, remainder
     info = {}
     if remainder > 0:
         lastframei = nframes
-        info['nmidframes'] = nframes - 1 # minus last frame
+        info['nmidframes'] = nframes - 1  # minus last frame
     else:
         lastframei = nframes
         info['nmidframes'] = nframes - 2
@@ -497,7 +518,7 @@ def iter_convolve_info(uts, kernel, mode='same', chunksize=1024*64):
         else:
             tail = -(kernel.size - 1) // 2
         info['firstchunksize'] = chunksize + kernel.size - 1 + tail - head
-    else: # mode == 'full'
+    else:  # mode == 'full'
         tail = min(chunksize, kernel.size) - 1
         info['firstchunksize'] = chunksize + validntimesamples - tail
 
@@ -511,23 +532,23 @@ def iter_convolve_info(uts, kernel, mode='same', chunksize=1024*64):
     elif mode == 'same':
         head = kernel.size - 1
         tail = -(kernel.size - 1) // 2
-        info['lastchunksize'] =  lastchunksize + kernel.size - 1 - head + tail
-    else: # mode == 'full'
+        info['lastchunksize'] = lastchunksize + kernel.size - 1 - head + tail
+    else:  # mode == 'full'
         head = min(lastchunksize, kernel.size) - 1
         info['lastchunksize'] = lastchunksize + kernel.size - 1 - head
 
     info['chunksize'] = chunksize - validntimesamples
     info['ntimesamples'] = info['nmidframes'] * info['chunksize'] \
-        + info['firstchunksize'] + info['lastchunksize']
+                           + info['firstchunksize'] + info['lastchunksize']
     timeshift = convadjusttime(fs=uts.fs, kernelsize=kernel.size, mode=mode)
     info['starttime'] = uts.starttime + timeshift
     info['origintime'] = uts.origintime - timeshift
     return info
 
-def iter_decimate(uts, q, trunc='tail', chunksize=1024*64,
+def iter_decimate(uts, q, trunc='tail', chunksize=1024 * 64,
                   reportprogress=False, dtype=None):
     assert_signal(uts)
-    if not trunc in ('tail','head'):
+    if not trunc in ('tail', 'head'):
         raise ValueError("trunc parameter can only be 'tail' or 'head'")
     q = check_int(q, negative=False, zero=False)
     starttime = uts.starttime
@@ -549,10 +570,10 @@ def iter_decimate(uts, q, trunc='tail', chunksize=1024*64,
         stop = newsize
     if reportprogress:
         p = ProgressBar(nframes)
-    
+
     gen = enumerate(uts.iter_frames(framesize=chunksize,
-                                        stepsize=stepsize,
-                                        include_remainder=True))
+                                    stepsize=stepsize,
+                                    include_remainder=True))
     #print "chunksize, stepsize", chunksize, stepsize
     for i, frame in gen:
         if reportprogress:
@@ -562,7 +583,6 @@ def iter_decimate(uts, q, trunc='tail', chunksize=1024*64,
         else:
             yield decimate(frame, q=q).astype(dtype)
 
-        
 def decimate(uts, q, trunc='tail'):
     """
     Decimates the signal by an integer factor q, by averaging consecutive
@@ -594,7 +614,7 @@ def decimate(uts, q, trunc='tail'):
 
     """
     assert_signal(uts)
-    if not trunc in ('tail','head'):
+    if not trunc in ('tail', 'head'):
         raise ValueError("trunc parameter can only be 'tail' or 'head'")
     q = check_int(q, negative=False, zero=False)
     nframes, remainder = divmod(uts.ntimesamples, q)
@@ -602,9 +622,10 @@ def decimate(uts, q, trunc='tail'):
     origintime = uts.origintime
     if remainder > 0:
         if trunc == 'tail':
-            samples = uts[slice(None,-remainder,None)].samples.get(copy=False)
-        else: # trunc == 'head'
-            samples = uts[slice(remainder,None,None)].samples.get(copy=False)
+            samples = uts[slice(None, -remainder, None)].samples.get(
+                copy=False)
+        else:  # trunc == 'head'
+            samples = uts[slice(remainder, None, None)].samples.get(copy=False)
             remaindertime = remainder / uts.fs
             origintime -= remaindertime
             starttime += remaindertime
@@ -612,12 +633,15 @@ def decimate(uts, q, trunc='tail'):
         samples = uts.samples.get(copy=False)
     timeaxis = uts.samples.axes['time']
     samples = segment_axis(a=samples, length=q, overlap=0,
-                        axis=timeaxis, end='cut').mean(axis=timeaxis+1)
+                           axis=timeaxis, end='cut').mean(axis=timeaxis + 1)
     if uts.dtype != samples.dtype:
         samples = samples.astype(uts.dtype)
     fs = uts.fs / float(q)
     return uts._instantiatefromself(samples=samples, fs=fs, copy=False)
-        
+
+def iter_map(f, gen, *args, **kwargs):
+    for frame in gen:
+        yield f(frame, *args, **kwargs)
 
 def resample(uts, factor, window=None):
     """
@@ -638,40 +662,28 @@ def resample(uts, factor, window=None):
     num = int(np.round(factor * uts.ntimesamples))
     timeaxis = uts.samples.axes['time']
     samples = scipy.signal.resample(x=uts.samples.get(copy=True),
-                            num=num, t=None, axis=timeaxis, window=window)
+                                    num=num, t=None, axis=timeaxis,
+                                    window=window)
     if samples.dtype != uts.dtype:
         samples = samples.astype(uts.dtype)
     fs = factor * uts.fs
-    origintime = 0.5/fs - 0.5/uts.fs # this seems to be necessary to get everything aligned
-    return uts._instantiatefromself(samples=samples, fs=fs, origintime=origintime, copy=False)
-
-
-
-
-# def remove_nan(tss, axis='epoch'):
-#     assert_signal(tss)
-#     if not axis in tss.axes.keys():
-#         raise ValueError('axis %s does not exist')
-    
-
-## do we need this?
-#def filtfilt(self, b, a):
-#    samples = filtfilt(b=b,a=a,x=self.samples.get(copy=False))
-#    return self.__class__(samples=samples, fs=self.fs, starttime=self.starttime,
-#                          copy=False, origintime=self.origintime)
+    origintime = 0.5 / fs - 0.5 / uts.fs  # this seems to be necessary to get everything aligned
+    return uts._instantiatefromself(samples=samples, fs=fs,
+                                    origintime=origintime, copy=False)
 
 def fft(tss, n=None):
     assert_signal(tss, (UniformTimeSeries,))
 
-    samples = scipy.fftpack.fftshift(np.fft.fft(tss.samples.get(copy=False), n=n) / float(tss.ntimesamples)**0.5)
-    samplingfrequencies = scipy.fftpack.fftshift(scipy.fftpack.fftfreq(samples.size, d=tss.dt))
+    samples = scipy.fftpack.fftshift(
+        np.fft.fft(tss.samples.get(copy=False), n=n) / float(
+            tss.ntimesamples) ** 0.5)
+    samplingfrequencies = scipy.fftpack.fftshift(
+        scipy.fftpack.fftfreq(samples.size, d=tss.dt))
     return Spectrum(samples=samples,
                     samplingfrequencies=samplingfrequencies, copy=False)
 
-
 def stft(tss, windowtype='gaussian', windowduration=None, fftduration=None,
          stepduration=None, symmetric=True):
-    
     """
     Transform is energy-corrected, *after* windowing.
     
@@ -686,7 +698,7 @@ def stft(tss, windowtype='gaussian', windowduration=None, fftduration=None,
         windowduration = 512 / tss.fs
     check_arg(windowduration, 'windowduration')
     windowsize = int(np.round(windowduration * tss.fs))
-    
+
     if fftduration is None:
         fftduration = windowduration
     check_arg(fftduration, 'fftduration')
@@ -696,31 +708,30 @@ def stft(tss, windowtype='gaussian', windowduration=None, fftduration=None,
         stepduration = 0.25 * windowduration
     check_arg(stepduration, 'stepduration')
     stepsize = int(np.round(stepduration * tss.fs))
-  
+
     if not (symmetric in (True, False)):
         raise ValueError("symmetric must be either True or False")
-   
-    
 
-    #stft = strft(a=tss.samples.get(copy=False), windowsize=windowsize, 
-                    #stepsize=stepsize, windowtype=windowtype, fftsize=fftsize,
-                    #symmetric=symmetric, power=False)
-    stft,firstsamplecenter = signalprocessing.stft(s=tss.samples.get(copy=False), 
-                            windowsize=windowsize, stepsize=stepsize, 
-                            windowtype=windowtype, fftsize=fftsize,
-                            symmetric=symmetric, real=False)
-    fs = 1./stepduration
-    startfrequency = 0.0 - 0.5*tss.fs/float(fftsize)
-    starttime = 0.0 #FIXME
-    origintime = 0.0 #FIXME
+
+
+        #stft = strft(a=tss.samples.get(copy=False), windowsize=windowsize,
+        #stepsize=stepsize, windowtype=windowtype, fftsize=fftsize,
+        #symmetric=symmetric, power=False)
+    stft, firstsamplecenter = signalprocessing.stft(
+        s=tss.samples.get(copy=False),
+        windowsize=windowsize, stepsize=stepsize,
+        windowtype=windowtype, fftsize=fftsize,
+        symmetric=symmetric, real=False)
+    fs = 1. / stepduration
+    startfrequency = 0.0 - 0.5 * tss.fs / float(fftsize)
+    starttime = 0.0  #FIXME
+    origintime = 0.0  #FIXME
     return Spectrogram(samples=stft, fs=fs, bandwidth=tss.fs,
                        startfrequency=startfrequency, frequencyaxis=1,
                        starttime=starttime, origintime=origintime, copy=False)
 
-
 def specgram(tss, windowtype='gaussian', windowduration=None, fftduration=None,
-         stepduration=None, symmetric=False):
-    
+             stepduration=None, symmetric=False):
     """
     Transform is energy-corrected, *after* windowing.
     
@@ -735,7 +746,7 @@ def specgram(tss, windowtype='gaussian', windowduration=None, fftduration=None,
         windowduration = 512 / tss.fs
     check_arg(windowduration, 'windowduration')
     windowsize = int(np.round(windowduration * tss.fs))
-    
+
     if fftduration is None:
         fftduration = windowduration
     check_arg(fftduration, 'fftduration')
@@ -745,29 +756,31 @@ def specgram(tss, windowtype='gaussian', windowduration=None, fftduration=None,
         stepduration = 0.25 * windowduration
     check_arg(stepduration, 'stepduration')
     stepsize = int(np.round(stepduration * tss.fs))
-  
+
     if not (symmetric in (True, False)):
         raise ValueError("symmetric must be either True or False")
-   
-    
-    S,firstsamplecenter = signalprocessing.specgram(s=tss.samples.get(copy=False), 
-                            windowsize=windowsize, stepsize=stepsize, 
-                            windowtype=windowtype, fftsize=fftsize,
-                            symmetric=symmetric)
-    fs = 1./stepduration
-    samplingfrequencies = np.arange(S.shape[-1]) * (tss.fs/fftsize)
-    starttime = 0.0 # FIXME
-    origintime = 0.0 # FIXME
+
+    S, firstsamplecenter = signalprocessing.specgram(
+        s=tss.samples.get(copy=False),
+        windowsize=windowsize, stepsize=stepsize,
+        windowtype=windowtype, fftsize=fftsize,
+        symmetric=symmetric)
+    fs = 1. / stepduration
+    samplingfrequencies = np.arange(S.shape[-1]) * (tss.fs / fftsize)
+    starttime = 0.0  # FIXME
+    origintime = 0.0  # FIXME
     bandwidth = tss.fs / 2.0
-    return Spectrogram(samples=S, fs=fs, bandwidth=bandwidth, samplingfrequencies=samplingfrequencies,
-                       frequencyaxis=1, starttime=starttime, origintime=origintime, 
+    return Spectrogram(samples=S, fs=fs, bandwidth=bandwidth,
+                       samplingfrequencies=samplingfrequencies,
+                       frequencyaxis=1, starttime=starttime,
+                       origintime=origintime,
                        copy=False)
 
 def welch(tss, windowtype='gaussian', windowduration=None, fftduration=None,
-         stepduration=None, detrend='constant'):
-
+          stepduration=None, detrend='constant'):
     from scipy.signal import welch
-    assert_signal(tss, (UniformTimeSeries,MultiChannelUniformTimeSeries))
+
+    assert_signal(tss, (UniformTimeSeries, MultiChannelUniformTimeSeries))
 
     # check parameters
     if windowtype not in windows.keys():
@@ -776,7 +789,7 @@ def welch(tss, windowtype='gaussian', windowduration=None, fftduration=None,
         windowduration = 512 / tss.fs
     check_arg(windowduration, 'windowduration')
     windowsize = int(np.round(windowduration * tss.fs))
-    
+
     if fftduration is None:
         fftduration = windowduration
     check_arg(fftduration, 'fftduration')
@@ -789,20 +802,23 @@ def welch(tss, windowtype='gaussian', windowduration=None, fftduration=None,
     window = windows[windowtype](windowsize)
     noverlap = windowsize - stepsize
     if ismcuts(tss):
-        samples = tss.samples.transpose(['channel','time']).get(False)
+        samples = tss.samples.transpose(['channel', 'time']).get(False)
     else:
         samples = tss.samples.get(False)
-    f, Pxx = welch(samples, fs=tss.fs, window=window, nperseg=windowsize, 
-          noverlap=noverlap, nfft=fftsize, detrend=detrend)
-    samplingfrequencies = np.arange(Pxx.shape[-1]) * (tss.fs/fftsize)
+    f, Pxx = welch(samples, fs=tss.fs, window=window, nperseg=windowsize,
+                   noverlap=noverlap, nfft=fftsize, detrend=detrend)
+    samplingfrequencies = np.arange(Pxx.shape[-1]) * (tss.fs / fftsize)
     bandwidth = tss.fs / 2.0
     if ismcuts(tss):
         return MultiChannelPowerSpectrum(samples=Pxx,
-                    samplingfrequencies=samplingfrequencies, copy=False, channelaxis=0, 
-                    channels=tss.channels, geometry=tss.geometry)
+                                         samplingfrequencies=samplingfrequencies,
+                                         copy=False, channelaxis=0,
+                                         channels=tss.channels,
+                                         geometry=tss.geometry)
     else:
         return PowerSpectrum(samples=Pxx,
-                    samplingfrequencies=samplingfrequencies, copy=False)
+                             samplingfrequencies=samplingfrequencies,
+                             copy=False)
 
 # def periodogram(tss, windowtype='boxcar', fftduration=None, normalize=True):
 #
@@ -844,9 +860,8 @@ def welch(tss, windowtype='gaussian', windowduration=None, fftduration=None,
 
 
 
-def stmtt(tss, BW=None, windowduration=None, stepduration=None, 
+def stmtt(tss, BW=None, windowduration=None, stepduration=None,
           symmetric=True):
-
     assert_signal(tss, (UniformTimeSeries,))
 
     # check parameters
@@ -867,25 +882,22 @@ def stmtt(tss, BW=None, windowduration=None, stepduration=None,
     else:
         startbin = 0
     overlap = windowsize - stepsize
-    s = segment_axis(a=tss.samples.get()[startbin:newsize], 
-                                      length=windowsize, overlap=overlap, axis=None, end='cut', 
-                                      endvalue=0)
-    freqs, psd_est = multi_taper_psd(s=s, BW=BW, 
-                                                      fs=tss.fs, sides='twosided')
-    fs = 1./stepduration
-    startfrequency = 0.0 - 0.5*tss.fs/windowsize
-    starttime = 0.0 #FIXME
-    origintime = 0.0 #FIXME
+    s = segment_axis(a=tss.samples.get()[startbin:newsize],
+                     length=windowsize, overlap=overlap, axis=None, end='cut',
+                     endvalue=0)
+    freqs, psd_est = multi_taper_psd(s=s, BW=BW,
+                                     fs=tss.fs, sides='twosided')
+    fs = 1. / stepduration
+    startfrequency = 0.0 - 0.5 * tss.fs / windowsize
+    starttime = 0.0  #FIXME
+    origintime = 0.0  #FIXME
     return Spectrogram(samples=psd_est, fs=fs, bandwidth=tss.fs,
                        startfrequency=startfrequency, frequencyaxis=1,
                        starttime=starttime, origintime=origintime, copy=False)
 
-
-
-def ifdv(tss, windowduration=None, stepduration=None, 
+def ifdv(tss, windowduration=None, stepduration=None,
          sigma=2.0, zoomt=1, zoomf=3, tl=5, fl=5, symmetric=True,
-         consensus=False, sigmarange=np.arange(0.5,3.6,0.1)):
-
+         consensus=False, sigmarange=np.arange(0.5, 3.6, 0.1)):
     assert_signal(tss, (UniformTimeSeries,))
 
     if windowduration is None:
@@ -895,20 +907,23 @@ def ifdv(tss, windowduration=None, stepduration=None,
     windowsize = int(np.round(windowduration * tss.fs))
     stepsize = int(np.round(stepduration * tss.fs))
     fftduration = round_nextradix2(windowduration * tss.fs) / tss.fs
-    fftsize = int(np.round(fftduration * tss.fs))    
+    fftsize = int(np.round(fftduration * tss.fs))
     noverlap = fftsize - stepsize
-    
+
     if not consensus:
-        a,b = cifdv(tss.samples.get(copy=False), SAMPLING=tss.fs, N=fftsize, 
-                    OVERLAP=noverlap, sigma=sigma, ZOOMT=zoomt, ZOOMF=zoomf,TL=tl, FL=fl, 
-                    symmetric=symmetric)
+        a, b = cifdv(tss.samples.get(copy=False), SAMPLING=tss.fs, N=fftsize,
+                     OVERLAP=noverlap, sigma=sigma, ZOOMT=zoomt, ZOOMF=zoomf,
+                     TL=tl, FL=fl,
+                     symmetric=symmetric)
     else:
         mid = sigmarange.size // 2
         ifdgrams = []
-        for i,sigma in enumerate(sigmarange):
-            a,b = cifdv(tss.samples.get(copy=False), SAMPLING=tss.fs, N=fftsize, 
-                    OVERLAP=noverlap, sigma=sigma, ZOOMT=zoomt, ZOOMF=zoomf,TL=tl, FL=fl, 
-                    symmetric=symmetric)
+        for i, sigma in enumerate(sigmarange):
+            a, b = cifdv(tss.samples.get(copy=False), SAMPLING=tss.fs,
+                         N=fftsize,
+                         OVERLAP=noverlap, sigma=sigma, ZOOMT=zoomt,
+                         ZOOMF=zoomf, TL=tl, FL=fl,
+                         symmetric=symmetric)
             ifdgrams.append(a)
             if i == mid:
                 sonogram = b.copy()
@@ -916,16 +931,16 @@ def ifdv(tss, windowduration=None, stepduration=None,
                 sumifdgram = np.zeros_like(ifdgrams[0])
             elif len(ifdgrams) == 3:
                 sumifdgram += ifdgrams[0] * ifdgrams[1] * ifdgrams[2]
-                del ifdgrams[0]    
-        a,b = sumifdgram,sonogram
+                del ifdgrams[0]
+        a, b = sumifdgram, sonogram
 
     # FIXME Return spectrogram object
-    return a,b
+    return a, b
 
-def ifdv_to_image(a,b, nyquistfreq, startfreq=0.0, endfreq=None, tbins=None, fbins=None, 
-                  maxpow=None, dynamicrange=50, powerresolution=8, 
+def ifdv_to_image(a, b, nyquistfreq, startfreq=0.0, endfreq=None, tbins=None,
+                  fbins=None,
+                  maxpow=None, dynamicrange=50, powerresolution=8,
                   sonolog=0.05, ifdlog=0.5):
-
     if tbins is None:
         tbins = b.shape[1]
     if fbins is None:
@@ -940,73 +955,74 @@ def ifdv_to_image(a,b, nyquistfreq, startfreq=0.0, endfreq=None, tbins=None, fbi
     ## we skip the negative frequencies because we deal with 
     ## real signals, so power spectrum is symmetric
 
-    ifdgram = 10 * np.log10(a+ifdlog)
+    ifdgram = 10 * np.log10(a + ifdlog)
     ifdgram = iminterpolate(ifdgram, tbins, fbins,
-                                             (0., 1., 0., nyquistfreq), (0., 1., startfreq, endfreq))
+                            (0., 1., 0., nyquistfreq),
+                            (0., 1., startfreq, endfreq))
 
     #sonogram = 10*numpy.log10(self.sonograms[:,startfbin:endfbin+1]+sonolog)
-    sonogram = 10*np.log10(b+sonolog)
+    sonogram = 10 * np.log10(b + sonolog)
 
-    sonogram = iminterpolate(sonogram, tbins, fbins, 
-                                              (0., 1., 0., nyquistfreq), (0., 1., startfreq, endfreq))
+    sonogram = iminterpolate(sonogram, tbins, fbins,
+                             (0., 1., 0., nyquistfreq),
+                             (0., 1., startfreq, endfreq))
 
-    x,y = tbins, fbins
+    x, y = tbins, fbins
 
     chan0 = ifdgram
-    chan0 -= chan0.min() 
+    chan0 -= chan0.min()
     chan0 /= chan0.max()
     chan2 = sonogram
-    chan2 -= chan2.min() 
-    chan2 /= chan2.max() 
+    chan2 -= chan2.min()
+    chan2 /= chan2.max()
 
-
-    index = chan0>0
-    chan2[index] *= (1-chan0[index])
+    index = chan0 > 0
+    chan2[index] *= (1 - chan0[index])
     #chan1 = chan2.copy()
     #chan1[index] += chan0[index]
 
-    im = np.empty([x,y,3])        
+    im = np.empty([x, y, 3])
 
-    im[...,1] = chan2
-    im[...,2] = chan0
-    im[...,0] = chan2
+    im[..., 1] = chan2
+    im[..., 2] = chan0
+    im[..., 0] = chan2
 
-    im[im>0.75] = 0.75
-    im *= 1/0.75
+    im[im > 0.75] = 0.75
+    im *= 1 / 0.75
 
     #if self.nchannels == 1:
-        #im = im.reshape(x,y,3)
+    #im = im.reshape(x,y,3)
 
     dynamicrange = 1.0
-    scaling_factor = (pow(2, powerresolution) - 1) / (dynamicrange) 
+    scaling_factor = (pow(2, powerresolution) - 1) / (dynamicrange)
     im *= scaling_factor
     if powerresolution == 8:
-        return im.astype('B') # unsiged byte
+        return im.astype('B')  # unsiged byte
     elif powerresolution == 16:
-        return im.astype('H') # unsiged short
+        return im.astype('H')  # unsiged short
     elif powerresolution == 32:
-        return im.astype('L') # unsiged int
+        return im.astype('L')  # unsiged int
     else:
-        print("unknown resolution for sonogram; returning float64", file=sys.stderr)
+        print("unknown resolution for sonogram; returning float64",
+              file=sys.stderr)
         return im
 
-
 def ica(tss, **kwargs):
-    assert_signal(tss, (MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries))
+    assert_signal(tss, (
+        MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries))
     if isinstance(tss, EpochedMultiChannelUniformTimeSeries):
-        samples = tss.samples.transpose(('epoch','time','channel')).get()
-        samples = samples.reshape(-1, tss.nchannels )
+        samples = tss.samples.transpose(('epoch', 'time', 'channel')).get()
+        samples = samples.reshape(-1, tss.nchannels)
     elif isinstance(tss, MultiChannelUniformTimeSeries):
         if tss.channelaxis == 0:
-            samples = tss.samples.transpose(('time','channel')).get()
+            samples = tss.samples.transpose(('time', 'channel')).get()
         else:
             samples = tss.samples.get()
-    projmat,recmat = signalprocessing.ica(samples, return_node=True, **kwargs)
-    return ICA(projmat=projmat.T, recmat=recmat.T, geometry=tss.geometry, 
+    projmat, recmat = signalprocessing.ica(samples, return_node=True, **kwargs)
+    return ICA(projmat=projmat.T, recmat=recmat.T, geometry=tss.geometry,
                channelnames=tss.channelnames)
 
 class ICA(object):
-
     def __init__(self, projmat, recmat, geometry, channelnames):
 
         """
@@ -1035,25 +1051,26 @@ class ICA(object):
         s = 'IC%%.%dd' % int(np.ceil(np.log10(self.nics)))
         self.icnames = [s % i for i in range(self.nics)]
 
-
     def compgeom(self):
         im = np.empty([self.nics, self.geometry.ny,
                        self.geometry.nx], dtype=self.recmat.dtype)
-        for j,compvec in enumerate(self.recmat.T):
+        for j, compvec in enumerate(self.recmat.T):
             im[j] = self.geometry.mapfrom1Dto2D(compvec, self.channelnames)
         return im
 
     def show_compgeom(self, ncols=4, **figargs):
-        import pylab        
-        nrows = np.ceil(self.nics/float(ncols))
+        import pylab
+
+        nrows = np.ceil(self.nics / float(ncols))
         ims = self.compgeom()
         fig = pylab.figure(**figargs)
         pylab.ioff()
         row = 1
         col = 1
-        for i,im in enumerate(ims):
-            pylab.subplot(nrows,ncols,i+1)
-            pylab.imshow(im,aspect='auto',interpolation='nearest', cmap=pylab.cm.gray)
+        for i, im in enumerate(ims):
+            pylab.subplot(nrows, ncols, i + 1)
+            pylab.imshow(im, aspect='auto', interpolation='nearest',
+                         cmap=pylab.cm.gray)
             pylab.title(self.icnames[i])
             col += 1
             if col > ncols:
@@ -1064,102 +1081,107 @@ class ICA(object):
         return fig
 
     def saveh5(self, h5group, name):
+        from ..io.hdf5 import geometry_to_h5attr
         f = h5group._v_file
         # the matrices are stored in one big array
-        ar = np.empty([self.nics*2,len(self.channelnames)],dtype= self.projmat.dtype)
-        ar[:self.nics,:] = self.projmat # first nics have projmat
-        ar[self.nics:,:] = self.recmat.T # rest has transposed recmat
+        ar = np.empty([self.nics * 2, len(self.channelnames)],
+                      dtype=self.projmat.dtype)
+        ar[:self.nics, :] = self.projmat  # first nics have projmat
+        ar[self.nics:, :] = self.recmat.T  # rest has transposed recmat
         n = f.createArray(h5group, name, ar)
         n._f_setAttr('dstype', 'ICA')
-        self.geometry.saveh5(n)
+        geometry_to_h5attr(n, self.geometry)
         n._f_setAttr('channelnames', self.channelnames)
-        doc = "The first %d items of this array ([:%d,:])contain the projection matrix; " % (self.nics,self.nics)
-        doc += "the following %s ([%d:,:]) contain the transposed recording matrix." % (self.nics,self.nics)
+        doc = "The first %d items of this array ([:%d,:])contain the projection matrix; " % (
+            self.nics, self.nics)
+        doc += "the following %s ([%d:,:]) contain the transposed recording matrix." % (
+            self.nics, self.nics)
         n._f_setAttr('doc', doc)
         f.flush()
         return n
 
-# def load_ICAfromh5(h5array):
-#     if not ((h5array.shape[0] % 2)==0):
-#         raise IOError("dimension 0 of h5array is not an even number")
-#     nics = h5array.shape[0] // 2
-#     projmat = h5array[:nics]
-#     recmat = h5array[nics:]
-#     geometry = h5attr_to_geometry(h5array.attrs.geometry)
-#     channelnames = h5array.attrs.channelnames
-#     return ICA(projmat=projmat, recmat=recmat, geometry=geometry, 
-#                channelnames=channelnames)
 
 def lp(uts, freq=300., width=50., ntaps=257, window="kaiser", mode='same',
-       threads=None):
+       threads=None, dtype=None):
     """low-pass filter"""
-    filterkernel = signalprocessing.lpfirkernel(N=ntaps, cutoff=freq, fs=uts.fs,
-                                      width=width, window=window)
-    return convolve(uts,filterkernel, mode=mode, threads=threads)
+    filterkernel = signalprocessing.lpfirkernel(N=ntaps, cutoff=freq,
+                                                fs=uts.fs,
+                                                width=width, window=window)
+    return convolve(uts, filterkernel, mode=mode, threads=threads, dtype=dtype)
 
-
-def ilp(uts, freq=300., width=50., ntaps=257, chunksize=1024*64, reportprogress=True,
+def ilp(uts, freq=300., width=50., ntaps=257, chunksize=1024 * 64,
+        reportprogress=True,
         channels=None, window="kaiser", dtype=None, mode='same', threads=None):
     """iter low-pass filter"""
-    filterkernel = signalprocessing.lpfirkernel(N=ntaps, cutoff=freq, fs=uts.fs,
-                                      width=width, window=window)
+    filterkernel = signalprocessing.lpfirkernel(N=ntaps, cutoff=freq,
+                                                fs=uts.fs,
+                                                width=width, window=window)
     return iter_convolve(uts, filterkernel, mode=mode, chunksize=chunksize,
-                            reportprogress=reportprogress, channels=channels,
-                            dtype=dtype, threads=threads)
+                         reportprogress=reportprogress, channels=channels,
+                         dtype=dtype, threads=threads)
 
 def hp(uts, freq=450., width=50., ntaps=513, window="kaiser", mode='same',
-       threads=None):
+       threads=None, dtype=None):
     """high-pass filter"""
-    filterkernel = signalprocessing.hpfirkernel(N=ntaps, cutoff=freq, fs=uts.fs,
-                                      width=width, window=window)
-    return convolve(uts, filterkernel, mode=mode, threads=threads)
+    filterkernel = signalprocessing.hpfirkernel(N=ntaps, cutoff=freq,
+                                                fs=uts.fs,
+                                                width=width, window=window)
+    return convolve(uts, filterkernel, mode=mode, threads=threads, dtype=dtype)
 
-def ihp(uts, freq=450., width=50., ntaps=513, chunksize=1024*64, reportprogress=True,
+def ihp(uts, freq=450., width=50., ntaps=513, chunksize=1024 * 64,
+        reportprogress=True,
         channels=None, window="kaiser", dtype=None, mode='same', threads=None):
     """iter high-pass filter"""
-    filterkernel = signalprocessing.hpfirkernel(N=ntaps, cutoff=freq, fs=uts.fs,
-                                      width=width, window=window)
+    filterkernel = signalprocessing.hpfirkernel(N=ntaps, cutoff=freq,
+                                                fs=uts.fs,
+                                                width=width, window=window)
     return iter_convolve(uts, filterkernel, mode=mode, chunksize=chunksize,
-                                reportprogress=reportprogress, channels=channels,
-                                dtype=dtype, threads=threads)
+                         reportprogress=reportprogress, channels=channels,
+                         dtype=dtype, threads=threads)
 
-def bp(uts, freqs=(400.,6000.), width=300., ntaps=257, window="kaiser", mode='same',
+def bp(uts, freqs=(400., 6000.), width=300., ntaps=257, window="kaiser",
+       mode='same',
        threads=None):
     """high-pass filter"""
-    filterkernel = signalprocessing.bpfirkernel(N=ntaps, freqs=freqs, fs=uts.fs,
-                                      width=width, window=window)
+    filterkernel = signalprocessing.bpfirkernel(N=ntaps, freqs=freqs,
+                                                fs=uts.fs,
+                                                width=width, window=window)
     return convolve(uts, filterkernel, mode=mode, threads=threads)
 
-def ibp(uts, freqs=(400.,6000.), width=300., ntaps=257, chunksize=1024*64, reportprogress=True,
+def ibp(uts, freqs=(400., 6000.), width=300., ntaps=257, chunksize=1024 * 64,
+        reportprogress=True,
         channels=None, window="kaiser", dtype=None, mode='same', threads=None):
     """iter high-pass filter"""
-    filterkernel = signalprocessing.bpfirkernel(N=ntaps, freqs=freqs, fs=uts.fs,
-                                      width=width, window=window)
+    filterkernel = signalprocessing.bpfirkernel(N=ntaps, freqs=freqs,
+                                                fs=uts.fs,
+                                                width=width, window=window)
     return iter_convolve(uts, filterkernel, mode=mode, chunksize=chunksize,
-                                reportprogress=reportprogress, channels=channels,
-                                dtype=dtype, threads=threads)
-
+                         reportprogress=reportprogress, channels=channels,
+                         dtype=dtype, threads=threads)
 
 def bp_old(uts, lfreq=500., hfreq=6000., transband=200, ntaps=257):
     '''
     defaults are good for action potentials
     '''
-    filterkern = signalprocessing.design_bp_filter(ntaps=ntaps, lfreq=lfreq, hfreq=hfreq,
-                                    fs=uts.fs, transband=transband)
+    filterkern = signalprocessing.design_bp_filter(ntaps=ntaps, lfreq=lfreq,
+                                                   hfreq=hfreq,
+                                                   fs=uts.fs,
+                                                   transband=transband)
     return convolve(uts, filterkern, mode='same')
 
-
 def ibp_old(uts, lfreq=500., hfreq=6000., transband=200, ntaps=257,
-                  chunksize=1024*64, reportprogress=True, channels=None, 
-                  dtype=None):
+            chunksize=1024 * 64, reportprogress=True, channels=None,
+            dtype=None):
     t1 = time.time()
-    filterkern = signalprocessing.design_bp_filter(ntaps=ntaps, lfreq=lfreq, hfreq=hfreq,
-                                    fs=uts.fs, transband=transband)
+    filterkern = signalprocessing.design_bp_filter(ntaps=ntaps, lfreq=lfreq,
+                                                   hfreq=hfreq,
+                                                   fs=uts.fs,
+                                                   transband=transband)
     t2 = time.time()
     #print 'ibp in %.3f s.' % (t2-t1)
     return iter_convolve(uts, filterkern, mode='same', chunksize=chunksize,
-                                reportprogress=reportprogress, channels=channels, dtype=dtype)
-
+                         reportprogress=reportprogress, channels=channels,
+                         dtype=dtype)
 
 def fftconvolve(signal, kernellist, mode='same'):
     '''
@@ -1177,7 +1199,7 @@ def fftconvolve(signal, kernellist, mode='same'):
     fft = np.fft.fft
     ifft = np.fft.ifft
 
-    if isinstance(kernellist,(list, tuple)):
+    if isinstance(kernellist, (list, tuple)):
         pass
     elif isinstance(kernellist, np.ndarray):
         if kernellist.ndim == 1:
@@ -1203,13 +1225,14 @@ def fftconvolve(signal, kernellist, mode='same'):
     else:
         dtype = np.float64
 
-    kernels = np.zeros((nkernels,n), dtype=dtype)
-    for i,kernel in enumerate(kernellist):
+    kernels = np.zeros((nkernels, n), dtype=dtype)
+    for i, kernel in enumerate(kernellist):
         size = len(kernel)
-        kernels[i,:size] = kernel
+        kernels[i, :size] = kernel
     kernelsfft = fft(kernels, axis=-1)
 
-    c = ifft(fft(signal.get_samples(copy=False), n)[np.newaxis,:] * kernelsfft)
+    c = ifft(
+        fft(signal.get_samples(copy=False), n)[np.newaxis, :] * kernelsfft)
     if not complex_result:
         c = c.real
 
@@ -1219,27 +1242,27 @@ def fftconvolve(signal, kernellist, mode='same'):
         starttime = signal.starttime
         origintime = signal.origintime
         if mode == 'full':
-            samples = c[i,:signal.nsamples+kernellength-1]
+            samples = c[i, :signal.nsamples + kernellength - 1]
             # we have extra samples at the head and tail
             # the total number of extra samples is signal.size - 1
             extratime = ((kernellength - 1) / signal.fs) / 2.0
             starttime -= extratime
             origintime += extratime
         elif mode == 'valid':
-            samples = c[i,kernellength-1:signal.nsamples]
+            samples = c[i, kernellength - 1:signal.nsamples]
             # we have less samples than our original
             # the total number of lost samples is signal.size - 1
-            losttime = (kernellength - 1)/signal.fs
+            losttime = (kernellength - 1) / signal.fs
             starttime += losttime / 2.0
             origintime -= losttime / 2.0
-        else: # mode == 'same'
-            fulllength = signal.nsamples+kernellength-1
+        else:  # mode == 'same'
+            fulllength = signal.nsamples + kernellength - 1
             remainder = fulllength - signal.nsamples
             if (remainder) % 2 == 0:
                 start = remainder / 2
             else:
                 start = int(np.floor(remainder / 2.0))
-            samples = c[i,start:start+signal.nsamples]
+            samples = c[i, start:start + signal.nsamples]
             # we have the same number of samples, but need a small time shift
             # correction if signal is even
             if (kernellength % 2) == 0:
@@ -1265,11 +1288,17 @@ def ramp(uts, duration=8e-3, window=np.hanning):
     duration = check_arg(duration, 'duration')
     ruts = uts.copy()
     axis = ruts.samples.axes['time']
-    ntimebins = int(np.round(duration*ruts.fs))
-    w = window(ntimebins*2)
+    ntimebins = int(np.round(duration * ruts.fs))
+    w = window(ntimebins * 2)
     w1 = w[-ntimebins:]
     w2 = w[:ntimebins]
     samples = uts.samples.get(copy=True)
-    ruts[:ntimebins].samples.array[:]=np.apply_along_axis(np.multiply, axis, ruts[:ntimebins].samples.array[:], w2)
-    ruts[-ntimebins:].samples.array[:]=np.apply_along_axis(np.multiply, axis, ruts[-ntimebins:].samples.array[:], w1)
+    ruts[:ntimebins].samples.array[:] = np.apply_along_axis(np.multiply, axis,
+                                                            ruts[
+                                                            :ntimebins].samples.array[
+                                                            :], w2)
+    ruts[-ntimebins:].samples.array[:] = np.apply_along_axis(np.multiply, axis,
+                                                             ruts[
+                                                             -ntimebins:].samples.array[
+                                                             :], w1)
     return ruts

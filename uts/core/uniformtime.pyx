@@ -1493,10 +1493,17 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
         samplesindex, starttime, origintime = \
              super(self.__class__, self)._to_timeslice(axisslices['time'])
         # channels = self.channelnames[axisslices['channel']]
-        epochs = self.epochs[axisslices['epoch']]
-        samples = self.samples[fullindex]
+        epochs = np.array(self.epochs[axisslices['epoch']], ndmin=1)
+        samples = np.squeeze(self.samples[fullindex])
+        # print samples, samples.shape, self.samples.axisorder, fullindex
+        # print axisslices
+        # print epochs
+        # print axisslices['epoch']
         channelnames = np.array(self.channelnames[axisslices['channel']], ndmin=1)
+        # print channelnames
         nselchannels = len(channelnames)
+        # print nselchannels
+        # print len(epochs)
         if nselchannels == self.nchannels:
             geometry = self.geometry
         else:
@@ -1609,7 +1616,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
 
     def concatenate_epochs(self):
         """
-        Concatenates epochs so that the epoch dimension dispears and a 
+        Concatenates epochs so that the epoch dimension disappears and a
         MultiChannelUniformTimeSeries is created.
 
         """

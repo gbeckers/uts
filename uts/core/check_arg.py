@@ -24,6 +24,11 @@ from .defs import defined_integers
 from .defs import defined_floats
 
 
+# FIXME
+# The follwing could be used
+# import numbers
+# isinstance(n, numbers.Integral)
+
 class DimensionError(Exception): pass
 
 
@@ -184,18 +189,6 @@ def check_float(arg, positive=True, zero=True, negative=True, nan=True,
 
 def check_floatarray(arg, positive=True, zero=True, negative=True, nan=True,
                      inf=True, cast=float64, copy=False):
-    """
-    pass
-
-    :param arg:
-    :param positive:
-    :param zero:
-    :param negative:
-    :param nan:
-    :param inf:
-    :param cast:
-    :param copy:
-    """
     for switch in (positive, zero, negative, nan, inf, copy):
         check_bool(switch)
     if not cast in defined_floats:
@@ -229,10 +222,6 @@ def check_int(arg, positive=True, zero=True, negative=True, cast=int64):
 
 def check_intarray(arg, positive=True, zero=True, negative=True, cast=int64,
                    copy=False):
-    """
-    pass
-
-    """
     for switch in (positive, zero, negative, copy):
         check_bool(switch)
     if not cast in defined_integers:

@@ -9,7 +9,7 @@ import os, os.path
 import uts
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib import cm
-import Image, ImageFont, ImageDraw
+from PIL import Image, ImageFont, ImageDraw
 
 class VoltageMap2(LinearSegmentedColormap):
     cdict = {'red': ((0.0, 0.0, 0.0),

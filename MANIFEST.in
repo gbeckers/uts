@@ -26,3 +26,5 @@ global-exclude *.h
 
 prune utils
 
+include versioneer.py
+include uts/_version.py

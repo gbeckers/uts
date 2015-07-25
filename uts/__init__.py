@@ -31,8 +31,10 @@ from viz.core import *
 from signalfactory.factory import *
 from signalfactory.h5factory import *
 from signalfactory.testsignals import *
+from signalfactory.examplesignals import *
 
-from processing.processing import *
+
+from processing.uniformtime_processing import *
 from processing.elementwise_math import *
 from processing.stats import *
 
@@ -41,3 +43,6 @@ import tests
 from numpy.testing import Tester
 test = Tester().test
 bench = Tester().bench
+from ._version import get_versions
+__version__ = get_versions()['version']
+del get_versions

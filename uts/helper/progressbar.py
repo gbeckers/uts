@@ -23,7 +23,10 @@ class ProgressBar:
         self.update_iteration(iter + 1)
 
     def update_iteration(self, elapsed_iter):
-        self.__update_amount((elapsed_iter / float(self.iterations)) * 100.0)
+        if self.iterations == 0:
+            self.__update_amount(100.)
+        else:
+            self.__update_amount((elapsed_iter / float(self.iterations)) * 100.0)
         self.prog_bar += '  %d of %s complete' % (elapsed_iter, self.iterations)
 
     def __update_amount(self, new_amount):

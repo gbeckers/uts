@@ -1,7 +1,15 @@
+try:
+    import setuptools
+except ImportError:
+    pass
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
 import numpy.distutils.misc_util
+import versioneer
+
+version = versioneer.get_version()
+cmdclass = versioneer.get_cmdclass()
 
 DESCRIPTION = 'uts, a python package for unifrom time series representation'
 LONG_DESCRIPTION = """Uniform Time Series
@@ -28,19 +36,18 @@ CLASSIFIERS = [
     'Topic :: Scientific/Engineering',
 ]
 
-MAJOR = 1
-MINOR = 0
-MICRO = 0
-ISRELEASED = False
-VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
-QUALIFIER = 'b'
-
-FULLVERSION = VERSION
-if not ISRELEASED:
-    FULLVERSION += '.dev'
-else:
-    FULLVERSION += QUALIFIER
-
+# MAJOR = 1
+# MINOR = 0
+# MICRO = 2
+# ISRELEASED = False
+# VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
+# QUALIFIER = 'b'
+#
+# FULLVERSION = VERSION
+# if not ISRELEASED:
+#     FULLVERSION += '.dev'
+# else:
+#     FULLVERSION += QUALIFIER
 
 include_dirs = numpy.distutils.misc_util.get_numpy_include_dirs()
 
@@ -129,20 +136,21 @@ If True, the directory will be created if it doesn't exist.
 
 configdir=get_configdir(True)
 
-data_files = [('uts.testdata', ['uts/testdata/ifdv_test.mat']), (configdir, ['uts/config/configrc'])]
+data_files = [(configdir, ['uts/config/configrc'])]
 
 
 setup(
   name = DISTNAME,
   cmdclass = {'build_ext': build_ext},
   ext_modules = extensions,
-  version=FULLVERSION,
+  version=version,
   maintainer=MAINTAINER,
   packages=['uts', 'uts.display', 'uts.core', 'uts.processing',
            'uts.config', 'uts.tests','uts.signalfactory', 'uts.helper',
-           'uts.io', 'uts.viz'],
+           'uts.io', 'uts.viz', 'uts.exampledata'],
   data_files=data_files,
-  package_data={'uts.display' : ['*.ttf']},
+  package_data={'uts.display' : ['*.ttf'],
+                'uts.exampledata': ['*.h5']},
   include_package_data=True,
   maintainer_email=MAINTAINER_EMAIL,
   description=DESCRIPTION,

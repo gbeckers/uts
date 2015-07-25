@@ -35,7 +35,6 @@ def _meaniterframefunc(func, s, axis=None, framesize=1024*64, **kwargs):
         ms = np.array(ms, dtype=np.float64)
         weights = np.array(weights, dtype=np.float64)
         m = np.average(ms, axis=0, weights=weights)
-
     if not axis == s.baseaxis:
         m = s._collapse_axis(samples=m, axis=axis)
     return m
