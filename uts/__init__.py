@@ -16,7 +16,7 @@ except Exception as e:  # pragma: no cover
     else:
         raise
 
-from uts.version import version as __version__
+# from uts.version import version as __version__
 from uts.info import __doc__
 from uts.core.uniformtime import *
 from uts.core.uniformfrequency import *
