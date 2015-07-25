@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 try:
     import setuptools
 except ImportError:
@@ -8,7 +9,6 @@ from Cython.Distutils import build_ext
 import numpy.distutils.misc_util
 import versioneer
 
-version = versioneer.get_version()
 cmdclass = versioneer.get_cmdclass()
 
 DESCRIPTION = 'uts, a python package for unifrom time series representation'
@@ -35,6 +35,7 @@ CLASSIFIERS = [
     'Programming Language :: Cython',
     'Topic :: Scientific/Engineering',
 ]
+
 
 # MAJOR = 1
 # MINOR = 0
@@ -143,7 +144,7 @@ setup(
   name = DISTNAME,
   cmdclass = {'build_ext': build_ext},
   ext_modules = extensions,
-  version=version,
+  version=versioneer.get_version(),
   maintainer=MAINTAINER,
   packages=['uts', 'uts.display', 'uts.core', 'uts.processing',
            'uts.config', 'uts.tests','uts.signalfactory', 'uts.helper',
