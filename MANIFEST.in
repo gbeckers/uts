@@ -5,7 +5,7 @@ include README.rst
 include TODO.rst
 include setup.py
 include setupegg.py
-include uts/example_data/examples.h5
+include uts/exampledata/examples.h5
 include uts/fonts/*
 
 graft doc
