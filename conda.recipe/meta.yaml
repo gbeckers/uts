@@ -16,5 +16,6 @@ requirements:
     - python
     - numpy
     - libpython # [win]
-    - dateutil
-    - pytz
+
+source:
+  path: ..
