@@ -25,7 +25,7 @@ from .defs import defined_floats
 
 
 # FIXME
-# The follwing could be used
+# The following could be used
 # import numbers
 # isinstance(n, numbers.Integral)
 
