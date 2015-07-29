@@ -25,7 +25,7 @@ def plot_uts(s, ax=None, **kwargs):
 def plot_mcuts(mcuts, ylim=None, wspace=0.06,
                    hspace=0.06, left=None, right=None, bottom=None, top=None,
                    ylabel=None, xlabel='Time (s)', yticks=None, xticks=None,
-                ga=None, vline=None, **kwargs):
+                ga=None, vline=None, hline=None, **kwargs):
     if ga is None:
         ga = GridAxes(mcuts.geometry, wspace=wspace, hspace=hspace,
                       left=left, right=right,
@@ -53,6 +53,8 @@ def plot_mcuts(mcuts, ylim=None, wspace=0.06,
         ax.set_ylim([low, high])
         if not vline is None:
             ax.axvline(vline, color='k')
+        if not hline is None:
+            ax.axhline(vline, color='k')
     return ga
 
 
