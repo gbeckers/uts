@@ -64,8 +64,7 @@ extensionfiles = (
     ('uts.processing.ifdv',                   'uts/processing/ifdv.pyx'),
     ('uts.processing.correlate',              'uts/processing/correlate.pyx'),
     ('uts.viz.static',                    'uts/viz/static.pyx'),
-    ('uts.io.hdf5',                           'uts/io/hdf5.pyx'),
-    ('uts.viz.movies',                   'uts/viz/movies.pyx'),
+    ('uts.io.hdf5',                           'uts/io/hdf5.pyx')
 )
 
 extensions = [Extension(extname, [filename], include_dirs=include_dirs) for extname, filename in extensionfiles]

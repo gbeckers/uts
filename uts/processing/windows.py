@@ -2,8 +2,7 @@ import numpy as np
 
 def gaussian(size, dtype=np.float64):
     """
-    A gaussian windows as is used by the phonetics program Praat. Bioac uses
-    this type of window as well.
+    A gaussian windows as is used by the phonetics program Praat.
 
     Its -3 dB bandwidth is 2*sqrt(6*ln(2))/(pi*size)
     """
