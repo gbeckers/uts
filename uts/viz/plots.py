@@ -9,7 +9,7 @@ from ..core.geometry import RectangularLattice
 from core import GridAxes
 
 
-def plot_uts(s, ax=None, **kwargs):
+def plot_uts(s, ax=None, ylim=None, vline=None, hline=None, **kwargs):
     defaults = {'color': (0.3,0.3,0.3)}
     for key, item in defaults.iteritems():
         if not key in kwargs:
@@ -19,12 +19,24 @@ def plot_uts(s, ax=None, **kwargs):
     pl = ax.plot(s.samplingtimes(),
         s.samples.get(False), **kwargs)
     ax.tick_params(direction='out', top=False, right=False)
+    if ylim is None:
+        low = np.min(uts.min(s))
+        high = np.max(uts.max(s))
+        low -= abs(low * 0.05)
+        high += abs(high * 0.05)
+    else:
+        low, high = ylim
+    ax.set_ylim([low, high])
+    if not vline is None:
+        ax.axvline(vline, color='k')
+    if not hline is None:
+        ax.axhline(hline, color='k')
     return ax
 
 
 def plot_mcuts(mcuts, ylim=None, wspace=0.06,
                    hspace=0.06, left=None, right=None, bottom=None, top=None,
-                   ylabel=None, xlabel='Time (s)', yticks=None, xticks=None,
+                   ylabel=None, xlabel='Time (s)', yticks=(), xticks=(),
                 ga=None, vline=None, hline=None, **kwargs):
     if ga is None:
         ga = GridAxes(mcuts.geometry, wspace=wspace, hspace=hspace,
@@ -34,6 +46,10 @@ def plot_mcuts(mcuts, ylim=None, wspace=0.06,
                       yticks=yticks, xticks=xticks, fig=None)
 
     defaults = {'color': (0.3,0.3,0.3)}
+    if 'linewidth' in kwargs:
+        linewidth = kwargs['linewidth']
+    else:
+        linewidth = 1.0
     # if plot_params is None:
     #     plot_params = {}
     for key, item in defaults.iteritems():
@@ -52,9 +68,45 @@ def plot_mcuts(mcuts, ylim=None, wspace=0.06,
             mcuts[:, channelname].samples.get(False), **kwargs)
         ax.set_ylim([low, high])
         if not vline is None:
-            ax.axvline(vline, color='k')
+            ax.axvline(vline, color=(0.5,0.5,0.5), linewidth=linewidth)
         if not hline is None:
-            ax.axhline(vline, color='k')
+            ax.axhline(hline, color=(0.5,0.5,0.5), linewidth=linewidth)
+    return ga
+
+
+def plot_emcuts(emcuts, clim=None, wspace=0.06, cmap='hot',
+                   hspace=0.06, left=None, right=None, bottom=None, top=None,
+                   ylabel=None, xlabel='Time (s)', yticks=(), xticks=(),
+                ga=None, vline=None, hline=None, **kwargs):
+    if ga is None:
+        ga = GridAxes(emcuts.geometry, wspace=wspace, hspace=hspace,
+                      left=left, right=right,
+                      bottom=bottom, top=top,
+                      ylabel=ylabel, xlabel=xlabel,
+                      yticks=yticks, xticks=xticks, fig=None)
+    defaults = {'aspect': 'auto', 'interpolation': 'nearest'}
+    if 'linewidth' in kwargs:
+        linewidth = kwargs['linewidth']
+    else:
+        linewidth = 1.0
+    for key, item in defaults.iteritems():
+        if not key in kwargs:
+            kwargs[key] = item
+    if clim is None:
+        low = np.min(uts.min(emcuts))
+        high = np.max(uts.max(emcuts))
+        clim = (low,high)
+    extent = list(emcuts.timerange)
+    extent.extend([0,emcuts.nepochs])
+    print extent
+    for i, channelname in enumerate(emcuts.channelnames):
+        ax = ga.axes[channelname]
+        pl = ax.imshow(emcuts[:, channelname].samples.get(False),
+                       cmap=cmap, clim=clim, extent=extent, **kwargs)
+        if not vline is None:
+            ax.axvline(vline, color=(1.0,1.0,1.0), linewidth=linewidth)
+        if not hline is None:
+            ax.axhline(hline, color=(1.0,1.0,1.0), linewidth=linewidth)
     return ga
 
 

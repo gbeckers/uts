@@ -49,11 +49,11 @@ def mean(s, axis=None, framesize=1024*128):
                               framesize=framesize,  dtype=np.float64)
 
 def nanmean(s, axis=None, framesize=1024*128):
-    return _meaniterframefunc(func=scipy.stats.nanmean, s=s, axis=axis, 
+    return _meaniterframefunc(func=np.nanmean, s=s, axis=axis,
                               framesize=framesize)#, dtype=np.float64)
 
 def nanmedian(s, axis=None, framesize=1024*128):
-    return _meaniterframefunc(func=scipy.stats.nanmedian, s=s, axis=axis, 
+    return _meaniterframefunc(func=np.nanmedian, s=s, axis=axis,
                               framesize=framesize)#, dtype=np.float64)
 
 def std(s, axis=None, framesize=1024*128):
@@ -61,7 +61,7 @@ def std(s, axis=None, framesize=1024*128):
                               framesize=framesize, dtype=np.float64)
 
 def nanstd(s, axis=None, framesize=1024*128):
-    return _meaniterframefunc(func=scipy.stats.nanstd, s=s, axis=axis, 
+    return _meaniterframefunc(func=np.nanstd, s=s, axis=axis,
                               framesize=framesize)#, dtype=np.float64)
 
 def rms(s, axis=None, framesize=1024*128):
@@ -324,8 +324,8 @@ def standardize(s, axis='time', sdone=True, ignorenan=True):
     """
 
     if ignorenan:
-        mean = scipy.stats.nanmean
-        std = scipy.stats.nanstd
+        mean = np.nanmean
+        std = np.nanstd
     else:
         mean = np.mean
         std = np.std
@@ -333,11 +333,11 @@ def standardize(s, axis='time', sdone=True, ignorenan=True):
     assert_signal(s)
     axis = s.samples.axes[axis]
     samples = s.samples.get(copy=True)
-    m = mean(samples, axis=axis)
-    unsqueeze(data=m, axis=axis, oldshape=samples.shape)
+    m = mean(samples, axis=axis, keepdims=True)
+    #unsqueeze(data=m, axis=axis, oldshape=samples.shape)
     samples -= m
     if sdone:
-        sd = std(samples, axis=axis)
-        unsqueeze(data=sd, axis=axis, oldshape=samples.shape)
+        sd = std(samples, axis=axis, keepdims=True)
+        #unsqueeze(data=sd, axis=axis, oldshape=samples.shape)
         samples /= sd
     return s._instantiatefromself(samples=samples)

@@ -774,20 +774,49 @@ class UniformTimeSeries(UniformTime):
         ntimesamples = self.samples.shape[self.samples.axes['time']]
         self._update_ntimesamples(ntimesamples)
 
-    def get_epochs(self, starttimes, duration):
+    # def get_epochs(self, starttimes, duration):
+    #     """
+    #     get_epochs(self, starttimes, duration)
+    #     """
+    #     startsamples = self.time_to_index(starttimes)
+    #     duration = check_arg(duration, 'duration')
+    #     nsamples = int(np.round(duration * self.fs))
+    #     ar = np.empty((len(startsamples), nsamples), dtype=self.samples.dtype)
+    #     for i, sample in enumerate(startsamples):
+    #         ar[i] = self.samples[sample:sample + nsamples]
+    #     epochs = np.array(list(starttimes), dtype=[('starttime', np.float64)])
+    #     return EpochedUniformTimeSeries(samples=ar, fs=self.fs, epochs=epochs,
+    #                                     epochaxis=0,
+    #                                     attrs=self.attrs)
+
+
+
+    def get_epochs(self, duration, starttimes=None, epochs=None,
+                   origintime=0.0):
         """
         get_epochs(self, starttimes, duration)
         """
-        startsamples = self.time_to_index(starttimes)
         duration = check_arg(duration, 'duration')
+        if (starttimes is None) and (epochs is None):
+            raise ValueError(
+                "Either 'starttimes' or 'epochs' should not be None")
+        elif (not starttimes is None) and (not epochs is None):
+            warnings.warn(
+                "Both 'starttimes' and 'epochs' are provided; using only 'epochs'")
+        elif epochs is None:  # starttimes have been provided
+            epochs = np.array(list(starttimes),
+                              dtype=[('starttime', np.float64)])
+        startsamples = self.time_to_index(epochs['starttime'])
         nsamples = int(np.round(duration * self.fs))
-        ar = np.empty((len(startsamples), nsamples), dtype=self.samples.dtype)
+        ar = np.empty((len(startsamples), nsamples),
+                      dtype=self.samples.dtype)
         for i, sample in enumerate(startsamples):
-            ar[i] = self.samples[sample:sample + nsamples]
-        epochs = np.array(list(starttimes), dtype=[('starttime', np.float64)])
-        return EpochedUniformTimeSeries(samples=ar, fs=self.fs, epochs=epochs,
+            ar[i] = self[sample:sample + nsamples].samples.get(True)
+
+        return EpochedUniformTimeSeries(samples=ar, fs=self.fs,
+                                        epochs=epochs,
                                         epochaxis=0,
-                                        attrs=self.attrs)
+                                        origintime=origintime)
 
 
 class EpochedUniformTimeSeries(Epoched, UniformTimeSeries):
@@ -1342,6 +1371,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
         """
         get_epochs(self, starttimes, duration)
         """
+        duration = check_arg(duration, 'duration')
         if (starttimes is None) and (epochs is None):
             raise ValueError(
                 "Either 'starttimes' or 'epochs' should not be None")
@@ -1358,7 +1388,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
         for i, sample in enumerate(startsamples):
             ar[i] = self[sample:sample + nsamples].transpose(
                 ['channel', 'time']).samples.get(True)
-        duration = check_arg(duration, 'duration')
+
         return EpochedMultiChannelUniformTimeSeries(samples=ar, fs=self.fs,
                                                     epochs=epochs,
                                                     epochaxis=0, channelaxis=1,

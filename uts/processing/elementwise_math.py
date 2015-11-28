@@ -53,6 +53,7 @@ def add(s, val, out=None):
     expr = "a+val"
     return eval_expr(s=s, expr=expr, out=out, val=val)
 
+
 def power(s, p, out=None):
     """
     Returns signal raised to the power p.

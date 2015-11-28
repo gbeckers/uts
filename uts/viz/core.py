@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec
 import matplotlib.pyplot as plt
-from uts import isuts, ismcuts, iseuts, isspectrum, ispowerspectrum
+from uts import isuts, ismcuts, iseuts, isemcuts, isspectrum, ispowerspectrum
 
 __all__ = ['image', 'imshow', 'imsave', 'plot']
 
@@ -13,6 +13,8 @@ def plot(s, **kwargs):
         return plots.plot_uts(s, **kwargs)
     elif ismcuts(s):
         return plots.plot_mcuts(s, **kwargs)
+    elif isemcuts(s):
+        return plots.plot_emcuts(s, **kwargs)
     elif isspectrum(s):
         return plots.spectrum_plot(s, **kwargs)
     elif ispowerspectrum(s):
@@ -61,16 +63,16 @@ class GridAxes(object):
                  left=None, right=None,
                  bottom=None, top=None,
                  ylabel=None, xlabel=None,
-                 yticks=None, xticks=None, fig=None):
+                 yticks=(), xticks=(), fig=None):
 
         if left is None:
-            left = wspace
+            left = 0
         if right is None:
-            right = 1.0 - left
+            right = 1.0 
         if bottom is None:
-            bottom = hspace
+            bottom = 0
         if top is None:
-            top = 1.0 - bottom
+            top = 1.0
         if fig is None:
             fig = plt.gcf()
         gs = matplotlib.gridspec.GridSpec(nrows=g.ny, ncols=g.nx,
@@ -90,11 +92,11 @@ class GridAxes(object):
                 if (coln == 0) and (rown == ny - 1):
                     ax.tick_params(direction='out', top=False, right=False)
                     self.ylabelsubplot = ax
-                    ax.set_xticks(())
+                    ax.set_yticks(yticks)
                 if (rown == ny - 1) and (coln == nx - 1):
                     ax.tick_params(direction='out', top=False, right=False)
                     self.xlabelsubplot = ax
-                    ax.set_yticks(())
+                    ax.set_xticks(xticks)
 
         self.axes = axes
         self._geometry = g
