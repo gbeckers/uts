@@ -142,9 +142,10 @@ data_files = [(configdir, ['uts/config/configrc'])]
 
 setup(
   name = DISTNAME,
-  cmdclass = {'build_ext': build_ext},
+  # cmdclass = {'build_ext': build_ext},
   ext_modules = extensions,
   version=versioneer.get_version(),
+  cmdclass=versioneer.get_cmdclass(),
   maintainer=MAINTAINER,
   packages=['uts', 'uts.display', 'uts.core', 'uts.processing',
            'uts.config', 'uts.tests','uts.signalfactory', 'uts.helper',
