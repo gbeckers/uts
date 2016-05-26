@@ -57,6 +57,7 @@ extensionfiles = (
     ('uts.core.geometry',                     'uts/core/geometry.pyx'),
     ('uts.core.epoched',                      'uts/core/epoched.pyx'),
     ('uts.core.multichannel',                 'uts/core/multichannel.pyx'),
+    ('uts.core.uniformtime',                 'uts/core/uniformtime.pyx'),
     ('uts.core.uniformfrequency',             'uts/core/uniformfrequency.pyx'),
     ('uts.core.uniformtimefrequency',         'uts/core/uniformtimefrequency.pyx'),
     ('uts.processing.uniformtime_processing', 'uts/processing/uniformtime_processing.pyx'),
