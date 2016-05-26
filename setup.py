@@ -9,8 +9,6 @@ from Cython.Distutils import build_ext
 import numpy.distutils.misc_util
 import versioneer
 
-cmdclass = versioneer.get_cmdclass()
-
 DESCRIPTION = 'uts, a python package for unifrom time series representation'
 LONG_DESCRIPTION = """Uniform Time Series
 
@@ -36,20 +34,6 @@ CLASSIFIERS = [
     'Topic :: Scientific/Engineering',
 ]
 
-
-# MAJOR = 1
-# MINOR = 0
-# MICRO = 2
-# ISRELEASED = False
-# VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
-# QUALIFIER = 'b'
-#
-# FULLVERSION = VERSION
-# if not ISRELEASED:
-#     FULLVERSION += '.dev'
-# else:
-#     FULLVERSION += QUALIFIER
-
 include_dirs = numpy.distutils.misc_util.get_numpy_include_dirs()
 
 extensionfiles = (
@@ -57,15 +41,13 @@ extensionfiles = (
     ('uts.core.geometry',                     'uts/core/geometry.pyx'),
     ('uts.core.epoched',                      'uts/core/epoched.pyx'),
     ('uts.core.multichannel',                 'uts/core/multichannel.pyx'),
-    ('uts.core.uniformtime',                 'uts/core/uniformtime.pyx'),
+    ('uts.core.uniformtime',                  'uts/core/uniformtime.pyx'),
     ('uts.core.uniformfrequency',             'uts/core/uniformfrequency.pyx'),
     ('uts.core.uniformtimefrequency',         'uts/core/uniformtimefrequency.pyx'),
     ('uts.processing.uniformtime_processing', 'uts/processing/uniformtime_processing.pyx'),
     ('uts.processing.cstft',                  'uts/processing/cstft.pyx'),
     ('uts.processing.ifdv',                   'uts/processing/ifdv.pyx'),
     ('uts.processing.correlate',              'uts/processing/correlate.pyx'),
-    ('uts.viz.static',                    'uts/viz/static.pyx'),
-    ('uts.viz.movies',                    'uts/viz/movies.pyx'),
     ('uts.io.hdf5',                           'uts/io/hdf5.pyx')
 )
 
@@ -151,7 +133,7 @@ setup(
   maintainer=MAINTAINER,
   packages=['uts', 'uts.display', 'uts.core', 'uts.processing',
            'uts.config', 'uts.tests','uts.signalfactory', 'uts.helper',
-           'uts.io', 'uts.viz', 'uts.exampledata'],
+           'uts.io', 'uts.exampledata'],
   data_files=data_files,
   package_data={'uts.display' : ['*.ttf'],
                 'uts.exampledata': ['*.h5']},

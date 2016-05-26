@@ -2,10 +2,8 @@ import os
 import time
 from numpy.testing import TestCase, assert_raises, run_module_suite, \
      assert_almost_equal
-import numpy as np
 from scipy.io import loadmat
 import uts
-from uts.processing.signalprocessing import ifdv
 from uts.processing.ifdv import cifdv
 
 TEST_DATA_DIR = os.path.join(os.path.dirname(uts.__file__),
@@ -30,9 +28,9 @@ class test_ifdv(TestCase):
         FL=int(mlresults['FL'][0,0])
         
         # calculate
-        ifdgram, sonogram = ifdv(s=s, SAMPLING=SAMPLING, N=N, OVERLAP=OVERLAP, 
+        ifdgram, sonogram = cifdv(s=s, SAMPLING=SAMPLING, N=N, OVERLAP=OVERLAP,
             sigma=sigma, ZOOMT=ZOOMT, ZOOMF=ZOOMF, TL=TL, FL=FL, 
-            symmetric=False, weave=False)
+            symmetric=False)
         
         # and compare
         assert_almost_equal(sonogram, mlresults['sonogram'])

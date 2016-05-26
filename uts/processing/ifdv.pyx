@@ -115,8 +115,8 @@ def cifdv(np.ndarray s, SAMPLING, N, OVERLAP, sigma=2.0, ZOOMT=1, ZOOMF=3,
 
     # Gaussian and first derivative as windows.
     sigma = (sigma/1000.0) * SAMPLING
-    w = np.exp(-np.power((t/sigma),2.0))
-    dw = w * t/(np.power(sigma,2)) * -2
+    w = np.exp(-np.power((t/sigma), 2.0))
+    dw = w * t/(np.power(sigma, 2.0)) * -2
     
     cdef int F = (segmentedsound.shape[1] // 2) + 1
     cdef int T = segmentedsound.shape[0]
