@@ -272,55 +272,55 @@ else:
     uniformtime_depends = []
 
 uniformtime_ext = Extension('uts.core.uniformtime',
-                        depends=uniformtime_depends + ['uts/core/numpy_helper.h'],
+                        depends=uniformtime_depends + ['uts/core/numpy_helper_old.h'],
                         sources=[srcpath('uniformtime', suffix=suffix)],
                         include_dirs=[np.get_include()],
                         # extra_compile_args=['-Wconversion']
                         )
 # check_libraries_ext = Extension('uts.core.check_libraries',
-#                        depends=['uts/core/numpy_helper.h'],
+#                        depends=['uts/core/numpy_helper_old.h'],
 #                        sources=[srcpath('check_libraries', suffix=suffix)],
 #                        include_dirs=[np.get_include()])
 geometry_ext = Extension('uts.core.geometry',
-                       depends=['uts/core/numpy_helper.h'],
+                       depends=['uts/core/numpy_helper_old.h'],
                        sources=[srcpath('geometry', suffix=suffix)],
                        include_dirs=[np.get_include()])
 epoched_ext = Extension('uts.core.epoched',
-                       depends=['uts/core/numpy_helper.h'],
+                       depends=['uts/core/numpy_helper_old.h'],
                        sources=[srcpath('epoched', suffix=suffix)],
                        include_dirs=[np.get_include()])
 multichannel_ext = Extension('uts.core.multichannel',
-                       depends=['uts/core/numpy_helper.h'],
+                       depends=['uts/core/numpy_helper_old.h'],
                        sources=[srcpath('multichannel', suffix=suffix)],
                        include_dirs=[np.get_include()])
 uniformtime_processing_ext = Extension('uts.processing.uniformtime_processing',
-                       depends=['uts/core/numpy_helper.h'],
+                       depends=['uts/core/numpy_helper_old.h'],
                        sources=[srcpath('uniformtime_processing', suffix=suffix, subdir='processing')],
                        include_dirs=[np.get_include()])
 
 cstft_ext = Extension('uts.processing.cstft',
-                       depends=['uts/core/numpy_helper.h'],
+                       depends=['uts/core/numpy_helper_old.h'],
                        sources=[srcpath('cstft', suffix=suffix, subdir='processing')],
                        include_dirs=[np.get_include()])
 
 ifdv_ext = Extension('uts.processing.ifdv',
-                       depends=['uts/core/numpy_helper.h'],
+                       depends=['uts/core/numpy_helper_old.h'],
                        sources=[srcpath('ifdv', suffix=suffix, subdir='processing')],
                        include_dirs=[np.get_include()])
 correlate_ext = Extension('uts.processing.correlate',
-                       depends=['uts/core/numpy_helper.h'],
+                       depends=['uts/core/numpy_helper_old.h'],
                        sources=[srcpath('correlate', suffix=suffix, subdir='processing')],
                        include_dirs=[np.get_include()])
 static_ext = Extension('uts.display.static',
-                       depends=['uts/core/numpy_helper.h'],
+                       depends=['uts/core/numpy_helper_old.h'],
                        sources=[srcpath('static', suffix=suffix, subdir='display')],
                        include_dirs=[np.get_include()])
 hdf5_ext = Extension('uts.io.hdf5',
-                       depends=['uts/core/numpy_helper.h'],
+                       depends=['uts/core/numpy_helper_old.h'],
                        sources=[srcpath('hdf5', suffix=suffix, subdir='io')],
                        include_dirs=[np.get_include()])
 movies_ext = Extension('uts.viz.movies',
-                       depends=['uts/core/numpy_helper.h'],
+                       depends=['uts/core/numpy_helper_old.h'],
                        sources=[srcpath('movies', suffix=suffix, subdir='viz')],
                        include_dirs=[np.get_include()])
 

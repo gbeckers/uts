@@ -53,11 +53,6 @@ extensionfiles = (
 
 extensions = [Extension(extname, [filename], include_dirs=include_dirs) for extname, filename in extensionfiles]
 
-# uniformtime_ext = Extension('uts.core.uniformtime',
-#                             ['uts/core/uniformtime.pyx'],
-#                         include_dirs=[include_dirs],
-#                         )
-
 def get_configdir(create=True):
     """
 Returns the uts configuration directory name.

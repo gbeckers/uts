@@ -7,6 +7,7 @@ DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t
 COMPLEXTYPE = np.complex128
 ctypedef np.complex128_t COMPLEX_t
+ctypedef np.int32_t INT_t
 
 def cifdv(np.ndarray s, SAMPLING, N, OVERLAP, sigma=2.0, ZOOMT=1, ZOOMF=3, 
           TL=5, FL=5, symmetric=False):
@@ -96,6 +97,11 @@ def cifdv(np.ndarray s, SAMPLING, N, OVERLAP, sigma=2.0, ZOOMT=1, ZOOMF=3,
     #may be optimal for most sounds.
     
     N = int(N) # for some reason this is important
+    TL = int(TL)
+    FL = int(FL)
+    ZOOMF = int(ZOOMF)
+    ZOOMT = int(ZOOMT)
+    OVERLAP = int(OVERLAP)
     
     FACTOR=np.float64(N - OVERLAP)
     nsamples = s.size
@@ -145,8 +151,8 @@ def cifdv(np.ndarray s, SAMPLING, N, OVERLAP, sigma=2.0, ZOOMT=1, ZOOMF=3,
 
     F = F * ZOOMF # rescale the image by the resolution stretching factors.
     T = T * ZOOMT
-    cdef np.ndarray[DTYPE_t, ndim=2] f_e = np.round(ZOOMF * f_est)
-    cdef np.ndarray[DTYPE_t, ndim=2] t_e = np.round(ZOOMT * t_est)
+    cdef np.ndarray[INT_t, ndim=2] f_e = np.round(ZOOMF * f_est).astype(np.int32)
+    cdef np.ndarray[INT_t, ndim=2] t_e = np.round(ZOOMT * t_est).astype(np.int32)
 
     q[(f_e < 1) | (f_e > F)] = 0  #set to zero the points that are mapped out of the image
     q[(t_e < 1) | (t_e > T)] = 0 
@@ -167,8 +173,8 @@ def cifdv(np.ndarray s, SAMPLING, N, OVERLAP, sigma=2.0, ZOOMT=1, ZOOMF=3,
     cdef np.ndarray[DTYPE_t, ndim=2] newq = np.zeros([f_e.max()+1, t_e.max()+1], dtype=DTYPE)
     #cdef int x
     #cdef int y
-    cdef DTYPE_t x
-    cdef DTYPE_t y
+    cdef int x
+    cdef int y
 
     for i in range(a):
         for j in range(b):

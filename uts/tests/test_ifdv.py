@@ -28,14 +28,6 @@ class test_ifdv(TestCase):
         FL=int(mlresults['FL'][0,0])
         
         # calculate
-        ifdgram, sonogram = cifdv(s=s, SAMPLING=SAMPLING, N=N, OVERLAP=OVERLAP,
-            sigma=sigma, ZOOMT=ZOOMT, ZOOMF=ZOOMF, TL=TL, FL=FL, 
-            symmetric=False)
-        
-        # and compare
-        assert_almost_equal(sonogram, mlresults['sonogram'])
-        assert_almost_equal(ifdgram, mlresults['ifdgram'])
-        t2 = time.time()
         ifdgram, sonogram = cifdv(s=s, SAMPLING=SAMPLING, N=N, OVERLAP=OVERLAP, 
             sigma=sigma, ZOOMT=ZOOMT, ZOOMF=ZOOMF, TL=TL, FL=FL, 
             symmetric=False)
