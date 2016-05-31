@@ -18,7 +18,6 @@ requirements:
     - numpy
     - pytables
     - scipy
-    - matplotlib
 
 test:
   imports:
