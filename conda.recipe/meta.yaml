@@ -1,28 +1,28 @@
 package:
   name: uts
   version: "1.1.5"
-#  version: {{ environ.get('GIT_DESCRIBE_TAG', '').replace('.dev', 'dev') }}
 
+source:
+  path: ..
 
 requirements:
   build:
-    - python
-    - libpython # [win]
+    - python=2.7
     - setuptools
     - cython
-    - numpy
+    - numpy=1.10
+    - libpython
 
   run:
-    - python
-    - numpy
+    - python=2.7
+    - libpython
+    - numpy=1.10
     - pytables
     - scipy
     - matplotlib
-    - libpython # [win]
+
 test:
   imports:
     - uts
 
 
-source:
-  path: ..
