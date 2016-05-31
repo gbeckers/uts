@@ -163,5 +163,5 @@ setup(
   download_url=DOWNLOAD_URL,
   long_description=LONG_DESCRIPTION,
   classifiers=CLASSIFIERS,
-  platforms='any', requires=['matplotlib', 'scipy']
+  platforms='any', requires=['matplotlib', 'scipy', 'pytables']
 )
