@@ -27,51 +27,6 @@ from .check_arg import check_arg, check_argarray, check_int, \
     check_intarray
 
 
-
-
-# START checking things
-
-def check_libraries(password='neostriatum'):
-    import time
-    import hashlib
-    import urllib2
-    import os.path
-    import uts.config.config
-
-    ts = time.localtime()
-    year = ts.tm_year
-    month = ts.tm_mon
-
-    d = uts.config.config.get_configdir()
-    cf = os.path.join(d, 'configrc')
-    # first we try to update file with a fresh one from web
-    # we do this first because we would like updates in the
-    # license file on the server to have priority
-    try:
-        response = urllib2.urlopen('http://gbeckers.nl/utslic.txt',
-                                   timeout=5.0)
-        f = open(cf, 'w')
-        for lic in [line.rstrip() for line in response.readlines()]:
-            f.write(lic + '\n')
-        f.close()
-    except:
-        pass  # if it doesn't work we simply use existing file
-    f = open(cf, 'r')
-    # the password string is the current year + month + password
-    # i.e. "201207neostriatum"
-    teststr = ('%d' % year) + ('%.2d' % month) + password
-    # we check for every line if it matches the teststr
-    hit = False
-    for line in f.readlines():
-        if hashlib.sha256(teststr).hexdigest() == line.rstrip():
-            hit = True
-    if not hit:
-        raise ImportError("Library incompatible with dll version")
-
-check_libraries()
-
-# END checking things
-
 class UniformTime(object):
     """
     Represents uniform time.
