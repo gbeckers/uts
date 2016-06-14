@@ -11,11 +11,11 @@ requirements:
     - setuptools
     - cython
     - numpy 1.10*
-#    - libpython
+    - libpython
 
   run:
     - python 2.7*
-#    - libpython
+    - libpython
     - numpy 1.10*
     - pytables
     - scipy
