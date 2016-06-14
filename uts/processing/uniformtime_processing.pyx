@@ -156,6 +156,8 @@ def crosscorrelatetime(s1, s2, normalized=True):
 
     assert_signal(s1)
     assert_signal(s2)
+    s1 = s1.astype(np.float64)
+    s2 = s2.astype(np.float64)
     check_bool(normalized)
     if not (s1.axes == s2.axes):
         raise ValueError('axes are not the same')
