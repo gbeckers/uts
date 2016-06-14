@@ -36,8 +36,6 @@ from processing.uniformtime_processing import *
 from processing.elementwise_math import *
 from processing.stats import *
 
-from viz.core import *
-
 import tests
 
 from numpy.testing import Tester
