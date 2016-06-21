@@ -142,7 +142,6 @@ class RectangularLattice(Geometry):
         '''
         pointnames is a 2D array; this has been checked before
         '''
-        cdef int rown,coln
         pointdict = {}
         for rown, row in enumerate(pointnames):
             for coln, pointname in enumerate(row):
@@ -246,7 +245,6 @@ class RectangularLattice(Geometry):
         return np.power(np.power(c1-c2,2.0).sum(),0.5)
     
     def distance_matrix(self, pointnames):
-        cdef int i,j
         if (self.dx is None) or (self.dy is None):
             raise ValueError("no information on absolute point positions")
         #this can be optimized to half-matrix
