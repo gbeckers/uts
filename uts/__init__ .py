@@ -25,8 +25,6 @@ from uts.io.hdf5 import *
 from uts.io.audio import *
 from uts.io.matlab import *
 from uts.core.check_arg import check_arg
-from viz.core import *
-# from uts.display.stftview import STFTView
 
 from signalfactory.factory import *
 from signalfactory.h5factory import *

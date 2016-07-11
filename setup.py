@@ -9,7 +9,7 @@ from Cython.Distutils import build_ext
 import numpy.distutils.misc_util
 import versioneer
 
-DESCRIPTION = 'uts, a python package for unifrom time series representation'
+DESCRIPTION = 'uts, a python package for uniform time series representation'
 LONG_DESCRIPTION = """Uniform Time Series
 
 Uniform Time Series is a python package that defines uniform time
@@ -44,8 +44,6 @@ extensionfiles = (
 
 extensions = [Extension(extname, [filename], include_dirs=include_dirs) for extname, filename in extensionfiles]
 
-data_files = []
-
 cmdclass = versioneer.get_cmdclass()
 cmdclass['build_ext'] =  build_ext
 
@@ -55,12 +53,10 @@ setup(
   version=versioneer.get_version(),
   cmdclass=cmdclass,
   maintainer=MAINTAINER,
-  packages=['uts', 'uts.display', 'uts.core', 'uts.processing',
-           'uts.config', 'uts.tests','uts.signalfactory', 'uts.helper',
+  packages=['uts', 'uts.core', 'uts.processing',
+            'uts.tests','uts.signalfactory', 'uts.helper',
            'uts.io', 'uts.exampledata'],
-  data_files=data_files,
-  package_data={'uts.display' : ['*.ttf'],
-                'uts.exampledata': ['*.h5']},
+  package_data={'uts.exampledata': ['*.h5']},
   include_package_data=True,
   maintainer_email=MAINTAINER_EMAIL,
   description=DESCRIPTION,
@@ -69,5 +65,5 @@ setup(
   download_url=DOWNLOAD_URL,
   long_description=LONG_DESCRIPTION,
   classifiers=CLASSIFIERS,
-  platforms='any', requires=['matplotlib', 'scipy']
+  platforms='any', requires=['scipy', 'pytables']
 )

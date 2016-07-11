@@ -3,7 +3,7 @@ import numexpr
 from uts import UniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedUniformTimeSeries, \
     EpochedMultiChannelUniformTimeSeries, assert_signal
-from uts.core.samplesource import NumpyArraySamples, h5ArraySamples
+from uts.core.samplesource import NumpyArraySamples, PytablesArraySamples
 from uts.core.uniformfrequency import Spectrum
 from uts.core.uniformtimefrequency import Spectrogram
 from uts.core.check_arg import check_arg, check_float, check_floatarray, check_argarray
@@ -26,7 +26,7 @@ def eval_expr(s, expr, out=None, **kwargs):
     
     """
     assert_signal(s)
-    if not isinstance(s.samples, (NumpyArraySamples, h5ArraySamples)):
+    if not isinstance(s.samples, (NumpyArraySamples, PytablesArraySamples)):
         NotImplemented, "at the moment only numpy or hdf5 samples allowed" 
     if isinstance(s.samples, NumpyArraySamples):
         kwargs['a'] = s.samples.array
@@ -36,7 +36,7 @@ def eval_expr(s, expr, out=None, **kwargs):
         assert_signal(out)
         if isinstance(out.samples, NumpyArraySamples):
             r = out.samples.array
-        elif isinstance(out.samples, h5ArraySamples):
+        elif isinstance(out.samples, PytablesArraySamples):
             r = out.samples.h5array
         else:
             NotImplemented, "at the moment only numpy or hdf5 samples allowed"
