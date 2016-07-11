@@ -30,9 +30,9 @@ goodarraydtypes = (np.int8, np.int16, np.int32, np.int64, np.uint8,
 
 
 # all allowed int types
-ints = (int, long, np.uint8, np.int8, np.uint16, np.int16, np.uint32, np.int32, np.int64)
+ints = (int, np.uint8, np.int8, np.uint16, np.int16, np.uint32, np.int32, np.int64)
 # all allowed int types that can hold negative values
-nints = (int, long, np.int8, np.int16, np.int32, np.int64)
+nints = (int, np.int8, np.int16, np.int32, np.int64)
 # all allowed float types
 floats = (float, np.float32, np.float64)
 

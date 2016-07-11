@@ -1,4 +1,3 @@
-from builtins import int
 import numpy as np
 
 nan = np.NaN
@@ -58,7 +57,7 @@ def float_to_floats(x):
 
 
 # ints, positive, negative, zero
-pints = int_to_pints(1) + [int(np.power(int(2),32))]
+pints = int_to_pints(1) + [int(np.power(np.int64(2),32))]
 zints = int_to_pints(0)
-nints = int_to_nints(-1) + [-int(np.power(int(2),32))]
+nints = int_to_nints(-1) + [-int(np.power(np.int64(2),32))]
 

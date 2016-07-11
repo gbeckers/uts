@@ -1,5 +1,5 @@
 # pylint: disable-msg=W0614,W0401,W0611,W0622
-
+from __future__ import absolute_import
 __docformat__ = 'restructuredtext'
 
 #from datetime import datetime
@@ -17,26 +17,26 @@ except Exception as e:  # pragma: no cover
         raise
 
 # from uts.version import version as __version__
-from uts.info import __doc__
-from uts.core.uniformtime import *
-from uts.core.uniformfrequency import *
-from uts.core.utils import *
-from uts.io.hdf5 import *
-from uts.io.audio import *
-from uts.io.matlab import *
-from uts.core.check_arg import check_arg
+from .uts.info import __doc__
+from .uts.core.uniformtime import *
+from .uts.core.uniformfrequency import *
+from .uts.core.utils import *
+from .uts.io.hdf5 import *
+from .uts.io.audio import *
+from .uts.io.matlab import *
+from .uts.core.check_arg import check_arg
 
-from signalfactory.factory import *
-from signalfactory.h5factory import *
-from signalfactory.testsignals import *
-from signalfactory.examplesignals import *
+from .signalfactory.factory import *
+from .signalfactory.h5factory import *
+from .signalfactory.testsignals import *
+from .signalfactory.examplesignals import *
 
 
-from processing.uniformtime_processing import *
-from processing.elementwise_math import *
-from processing.stats import *
+from .processing.uniformtime_processing import *
+from .processing.elementwise_math import *
+from .processing.stats import *
 
-import tests
+from . import tests
 
 from numpy.testing import Tester
 test = Tester().test

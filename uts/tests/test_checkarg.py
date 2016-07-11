@@ -102,7 +102,7 @@ class TestCheck_int(TestCase):
         for val in int_to_pints(1):
             assert isinstance(check_int(val), (np.int64))
             assert check_int(val) == val
-        for dtype in (int, long, np.uint8, np.int8, np.uint16, np.int16,
+        for dtype in (int, np.uint8, np.int8, np.uint16, np.int16,
                       np.uint32, np.int32, np.int64, np.int64):
             assert isinstance(check_int(val, cast=dtype), type(dtype(val)))
             assert check_int(val,cast=dtype) == val
@@ -120,7 +120,7 @@ class TestCheck_int(TestCase):
     def test_negativearg(self):
         "int argument: negative arg"
         for val in int_to_nints(-1.0):
-            for dtype in (int, long, np.int8, np.int16, np.int32, np.int64):
+            for dtype in (int, np.int8, np.int16, np.int32, np.int64):
                 assert check_int(arg=val, cast=dtype) == -1.0
                 assert check_int(arg=val, cast=dtype, negative=True) == -1.0
                 assert_raises(ValueError, check_int, arg=val, cast=dtype, negative=False)
@@ -128,7 +128,7 @@ class TestCheck_int(TestCase):
     def test_zeroarg(self):
         "int argument: zero arg"
         for val in int_to_pints(0):
-            for dtype in (int, long, np.uint8, np.int8, np.uint16, np.int16,
+            for dtype in (int, np.uint8, np.int8, np.uint16, np.int16,
                       np.uint32, np.int32, np.int64):
                 assert check_int(arg=val, cast=dtype) == 0
                 assert check_int(arg=val, zero=True, cast=dtype) == 0
@@ -137,7 +137,7 @@ class TestCheck_int(TestCase):
     def test_positivearg(self):
         "int argument: positive arg"
         for val in int_to_pints(1.0):
-            for dtype in (int, long, np.uint8, np.int8, np.uint16, np.int16,
+            for dtype in (int, np.uint8, np.int8, np.uint16, np.int16,
                       np.uint32, np.int32, np.int64):
                 assert check_int(arg=val, cast=dtype) == 1
                 assert check_int(arg=val, cast=dtype, positive=True) == 1
