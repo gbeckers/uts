@@ -32,7 +32,8 @@ class MultiChannel(object):
         if (nchannels is None) and (channels is None):
             raise ValueError("'nchannels' and 'channels' parameters cannot both be None")
         if (channels is None) and (not geometry is None):
-            raise ValueError("if 'geometry' is specified, 'channels' should be specified as well")
+            raise ValueError("if 'geometry' is specified, 'channels'"
+                             " should be specified as well ({},{})".format(channels,geometry))
         if nchannels is None:
             nchannels = len(channels)
 
