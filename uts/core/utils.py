@@ -46,18 +46,6 @@ def alleven(numbers):
 def allodd(numbers):
     return np.all((np.asarray(numbers) % 2.0) == 1.0)
 
-def isradix2(number):
-    if not (number & (number - 1)):
-        return True
-    else:
-        return False
-
-def allradix2(numbers):
-    numbers = np.asarray(numbers)
-    if not (numbers & (numbers- 1)).any():
-        return True
-    else:
-        return False
 
 def fit_frames(totalsize, framesize, stepsize=None):
     """

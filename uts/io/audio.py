@@ -321,5 +321,5 @@ def packing_code(samplewidth):
         return 'h', 32768.0        # signed 16 bits
     elif samplewidth == 4:
         return 'i',  32768.0 * 65536.0    # signed 32 bits
-    raise 'WaveIO Packing Error','Not able to parse %s bytes' % samp_width
+    raise('WaveIO Packing Error, Not able to parse %s bytes' % samplewidth)
     

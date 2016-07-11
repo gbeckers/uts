@@ -25,7 +25,7 @@ def tempdir(dir='.', keep=False, report=False):
             if report:
                 print('removed cache file {}'.format(tempdirname))
 
-def make_dirs(path, mode=0777, existserror=False):
+def make_dirs(path, mode=0o777, existserror=False):
     from os import makedirs
     from os.path import exists
     if not exists(path):

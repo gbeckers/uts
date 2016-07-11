@@ -3,7 +3,7 @@ import numpy as np
 class DimensionError(Exception): pass
 
 # np.uint64 creates troubles with cython an indexing
-defined_integers = (int, long, np.uint8, np.int8, np.uint16,
+defined_integers = (int, np.uint8, np.int8, np.uint16,
         np.int16, np.uint32, np.int32, np.int64)
  
 defined_floats = (float, np.float16, np.float32, np.float64)

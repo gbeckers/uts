@@ -2,6 +2,7 @@
 Tests for class UniformTime
 
 """
+from __future__ import print_function
 # FIXME: saveh5 tests (now uncommented should be moved to io test module
 from unittest import TestCase
 
@@ -437,7 +438,7 @@ class test_UniformTimeSeries(TestCase):
         ## test different good array dimensions and bad array dimensions
         for node in iter_arnodes(self.testarrays):
             typename, dim, artype = node._v_name.split('_')
-            print typename, dim
+            print(typename, dim)
             if dim == '1D':
                 if node[:].dtype in goodarraydtypes:
                     ss = UniformTimeSeries(samples=node, fs=1.0, copy=False)

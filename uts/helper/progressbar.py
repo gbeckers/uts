@@ -1,4 +1,6 @@
+from __future__ import print_function
 import sys, time
+
 try:
     from IPython.display import clear_output
     have_ipython = True
@@ -18,7 +20,7 @@ class ProgressBar:
             self.animate = self.animate_noipython
 
     def animate_ipython(self, iter):
-        print '\r', self,
+        print('\r', self,)
         sys.stdout.flush()
         self.update_iteration(iter + 1)
 

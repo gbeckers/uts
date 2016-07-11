@@ -53,7 +53,7 @@ def foreach(f,l,threads=3,return_=False, args=()):
             t.join()
         if exceptions:
             a, b, c = exceptions[0]
-            raise a, b, c
+            raise(a, b, c)
         if return_:
             r = d.items()
             r.sort()

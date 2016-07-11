@@ -11,7 +11,6 @@ Samples.
 
 import numpy as np
 import tables as tb
-import h5py
 from .check_arg import check_arg, check_int, check_argarray
 from .defs import defined_sampledtypes
 
@@ -157,7 +156,7 @@ class Samples(object):
             return s
 
 
-class PytablesArraySamples(Samples):
+class h5ArraySamples(Samples):
     # _supporteddtypes = (np.int8, np.int16, np.int32, np.int64,
     #                     np.uint8, np.uint16, np.uint32, np.uint64,
     #                     np.float16, np.float32, np.float64, np.complex128)
@@ -221,57 +220,6 @@ class PytablesArraySamples(Samples):
         """
         return NumpyArraySamples(array=self[:], axes=self.axes,
                                  dtype=None, copy=False, readonly=self.readonly).transpose(neworder)
-
-h5ArraySamples = PytablesArraySamples
-
-class H5pyArraySamples(Samples):
-    # _supporteddtypes = (np.int8, np.int16, np.int32, np.int64,
-    #                     np.uint8, np.uint16, np.uint32, np.uint64,
-    #                     np.float16, np.float32, np.float64, np.complex128)
-
-    descr = 'h5pyarray'
-
-    def __init__(self, h5array, axes, readonly=True):
-        self.__h5array = self._check_h5array(h5array=h5array)
-        dtype = self.__h5array.dtype
-        shape = self.__h5array.shape
-        sampletype = type(self.__h5array)
-        Samples.__init__(self, dtype=dtype, shape=shape, sampletype=sampletype,
-                         axes=axes, readonly=readonly)
-
-    h5array = property(lambda self: (self.__h5array), None, None,
-                       "h5array object")
-
-    def __getitem__(self, index):
-
-        return self.__h5array[index]
-
-    def _check_h5array(self, h5array):
-        if not isinstance(h5array, (h5py.Dataset)):
-            raise TypeError("h5node should be a h5py array node")
-
-        if h5array.dtype not in defined_sampledtypes:
-            raise TypeError("input type %s not supported" % h5array.atom.dtype)
-
-        return h5array
-
-    def append(self, samples, axis):
-         raise NotImplementedError('append not supported yet for h5py arrays')
-
-    def transpose(self, neworder):
-        """
-        Returns a NumpyArraySamples object that is a transpose of the
-        h5ArraySamples object.
-
-        Parameter
-        ---------
-        neworder:
-          sequence of axes names that represent the desired order
-
-        """
-        return NumpyArraySamples(array=self[:], axes=self.axes,
-                                 dtype=None, copy=False, readonly=self.readonly).transpose(neworder)
-
 
 
 class NumpyArraySamples(Samples):
@@ -422,20 +370,7 @@ def assamples(samples, axes, dtype=None, copy=True, readonly=True):
         if not copy:
             if (dtype is not None) and (dtype != samples.atom.dtype):
                 raise ValueError("dtype argument ({}) is different from h5array dtype ({})".format(dtype,samples.atom.dtype ))
-            samples = PytablesArraySamples(h5array=samples, axes=axes, readonly=readonly)
-        else:  # copy == True
-            samples = NumpyArraySamples(array=samples[:],
-                                        dtype=dtype, copy=True,
-                                        axes=axes, readonly=readonly)
-
-    elif isinstance(samples, (h5py.Dataset)):
-        if not copy:
-            if (dtype is not None) and (dtype != samples.dtype):
-                raise ValueError(
-                    "dtype argument ({}) is different from h5array dtype ({})".format(
-                        dtype, samples.dtype))
-            samples = H5pyArraySamples(h5array=samples, axes=axes,
-                                           readonly=readonly)
+            samples = h5ArraySamples(h5array=samples, axes=axes, readonly=readonly)
         else:  # copy == True
             samples = NumpyArraySamples(array=samples[:],
                                         dtype=dtype, copy=True,
