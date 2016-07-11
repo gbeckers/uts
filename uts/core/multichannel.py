@@ -93,7 +93,7 @@ class MultiChannel(object):
             raise ChannelFormatError("channel names not a 1-dimensional sequence" \
                                      ", %s" % channelnames)
         if not np.issubdtype(channelnames.dtype, np.string_):
-            raise ChannelFormatError("channel name(s) not of string type")
+            raise ChannelFormatError("channel name(s) not of string type ({})".format(channelnames.dtype))
         if not np.unique(channelnames).size == channelnames.size:
             raise ChannelFormatError("channel names not unique")
         if not channelnames.size == nchannels:

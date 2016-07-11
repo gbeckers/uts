@@ -9,18 +9,18 @@ etc. here. This should be done in signal methods or functions that
 accept signals.
 
 """
-
+from __future__ import absolute_import
 
 import numpy as np
 # from time import time
 # import warnings
 import scipy.fftpack
 from scipy.signal import cheby1, firwin, lfilter, remez
-from helper import fit_frames
+from .helper import fit_frames
 import scipy
-from windows import windows
+from .windows import windows
 # from scipy.weave import converters, inline
-from uts.core.utils import round_nearestodd, eps
+from ..core.utils import round_nearestodd, eps
 
 
 

@@ -3,7 +3,7 @@ import scipy
 import warnings
 from uts.core.check_arg import check_arg, check_int
 
-defined_integers = (int, long, np.uint8, np.int8, np.uint16,
+defined_integers = (int, np.uint8, np.int8, np.uint16,
         np.int16, np.uint32, np.int32, np.uint64, np.int64)
 
 eps = np.power(2.0,-52.0)

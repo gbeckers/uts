@@ -1,12 +1,8 @@
+from __future__ import absolute_import
 import numpy as np
-import _stats
-from uts import UniformTimeSeries, \
-    MultiChannelUniformTimeSeries, EpochedUniformTimeSeries, \
-    EpochedMultiChannelUniformTimeSeries, assert_signal
-from uts.core.uniformfrequency import Spectrum
-from helper import unsqueeze
-from uts.core.check_arg import check_arg, check_int, check_float, check_floatarray,\
-     check_axis
+from . import _stats
+from ..core.uniformtime import assert_signal
+from ..core.check_arg import check_axis
 import scipy.stats #import nanmean, nanstd, nanmedian
 
 __all__ = [ 'argmax', 'argmin','extremes', 'kurtosis', 'mad', 'max', 'mean', 

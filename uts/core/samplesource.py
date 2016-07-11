@@ -109,12 +109,13 @@ class Samples(object):
     def _check_axes(self, axes, shape):
         if not isinstance(axes, dict):
             raise TypeError("axes parameter should be a dictionary")
-        axiskeys = axes.keys()
+        axiskeys = list(axes.keys())
         if not len(axiskeys) == len(shape):
             raise ValueError("axes dictionary (%s) not congruent with shape parameter (%s)" \
                              % (axiskeys, shape))
         axisorder = np.array(axiskeys, copy=True)
         for axiskey in axiskeys:
+            # print(axiskey, axisorder, axiskey, axes[axiskey])
             axisorder[axes[axiskey]] = axiskey
         return axes, axisorder.tolist()
 

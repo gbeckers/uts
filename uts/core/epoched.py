@@ -62,7 +62,7 @@ class Epoched(object):
     def _check_epochs(self, epochs):
         if not isinstance(epochs, (np.ndarray, tb.table.Table)) or (epochs.dtype.fields is None):
             raise TypeError('epochs parameter is not a numpy structured array or h5 table')
-        if not epochs.dtype.fields.has_key('starttime'):
+        if not 'starttime' in epochs.dtype.fields:
             raise ValueError('epochs do not have a "starttime" field')
         return epochs
     

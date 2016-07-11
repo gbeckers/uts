@@ -1,5 +1,6 @@
+from __future__ import absolute_import
 import numpy as np
-from helper import unsqueeze
+from .helper import unsqueeze
 
 
 def mad(a, axis=None, c=0.6745):

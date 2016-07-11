@@ -445,7 +445,7 @@ def _newh5mcuts(h5group, dtype, ntimesamples, fs, origintime,
         if SAMPLEARRAYNAME in h5group:
             h5group._v_children[SAMPLEARRAYNAME]._f_remove()
             f.flush()
-        if h5group._v_children.has_key(CHANNELTABLENAME):
+        if CHANNELTABLENAME in h5group._v_children:
             h5group._v_children[CHANNELTABLENAME]._f_remove()
             f.flush()
     filters = tb.Filters(complevel=complevel, complib=complib)

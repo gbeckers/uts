@@ -2,12 +2,11 @@
 from __future__ import absolute_import
 __docformat__ = 'restructuredtext'
 
-#from datetime import datetime
 
-from uts.core.uniformtime import *
+from .core.uniformtime import *
 
 try:
-    from uts.core.uniformtime import *
+    from .core.uniformtime import *
 except Exception as e:  # pragma: no cover
     if 'No module named' in str(e):
         raise ImportError('C extensions not built: if you installed already '
@@ -17,14 +16,13 @@ except Exception as e:  # pragma: no cover
         raise
 
 # from uts.version import version as __version__
-from .uts.info import __doc__
-from .uts.core.uniformtime import *
-from .uts.core.uniformfrequency import *
-from .uts.core.utils import *
-from .uts.io.hdf5 import *
-from .uts.io.audio import *
-from .uts.io.matlab import *
-from .uts.core.check_arg import check_arg
+from .core.uniformtime import *
+from .core.uniformfrequency import *
+from .core.utils import *
+from .io.hdf5 import *
+from .io.audio import *
+from .io.matlab import *
+from .core.check_arg import check_arg
 
 from .signalfactory.factory import *
 from .signalfactory.h5factory import *

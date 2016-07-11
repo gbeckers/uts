@@ -1,7 +1,7 @@
 import sys
 import time
 import threading
-from itertools import izip, count
+from itertools import count
 
 def foreach(f,l,threads=3,return_=False, args=()):
     """
@@ -14,7 +14,7 @@ def foreach(f,l,threads=3,return_=False, args=()):
         if return_:
             n = 0
             d = {}
-            i = izip(count(),l.__iter__())
+            i = zip(count(),l.__iter__())
         else:
             i = l.__iter__()
 

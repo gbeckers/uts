@@ -6,15 +6,15 @@ The processing module holds functions that operate on time sampled signals.
 
 
 """
-from __future__ import print_function
+from __future__ import absolute_import, print_function
 
 import sys
 import time
 import warnings
 import numpy as np
 import scipy.signal
-import signalprocessing
-from signalprocessing import segment_axis, fit_frames, multi_taper_psd, \
+from . import signalprocessing
+from .signalprocessing import segment_axis, fit_frames, multi_taper_psd, \
     iminterpolate
 from ..core.utils import round_nearesteven, round_nextradix2
 from ..core.uniformtime import UniformTimeSeries, \
