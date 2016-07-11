@@ -65,5 +65,5 @@ setup(
   download_url=DOWNLOAD_URL,
   long_description=LONG_DESCRIPTION,
   classifiers=CLASSIFIERS,
-  platforms='any', requires=['scipy', 'pytables']
+  platforms='any', requires=['scipy', 'pytables', 'h5py']
 )
