@@ -921,7 +921,7 @@ class test_MultiChannelUniformTimeSeries(TestCase):
         fs = 48.443798
         starttime = 0.55754441
         origintime = 0.02353585
-        channelnames = ['ch1', 'ch2']
+        channelnames = np.array(['ch1', 'ch2'], dtype=np.string_)
         for dtype in dtypes:
             for readonly in [True, False]:
                 for channelaxis in [0, 1]:
@@ -1021,7 +1021,7 @@ class test_EpochedMultiChannelUniformTimeSeries(TestCase):
             assert s[:, [2, 1]].nchannels == 2
             assert (s[:, [2, 1]].samples.get() == s[:, ['c', 'b']].samples.get()).all()
             assert (s[:, [2, 1, 0]][:, [2, 1, 0]].samples.get() == s.samples.get()).all()
-            assert (s[:, :, [4, 3]].epochs['event'] == np.array(['z', 'y'])).all()
+            assert (s[:, :, [4, 3]].epochs['event'] == np.array(['z', 'y'], dtype=np.string_)).all()
 
             assert (s[:, :, :].samples.get() == s.__getitem__(
                 (slice(None, None, None), slice(None, None, None), slice(None, None, None))).samples.get()).all()

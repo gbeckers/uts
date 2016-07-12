@@ -65,19 +65,18 @@ class test_MultiChannel(TestCase):
                        np.array(["channel1","channel1","channel3"], dtype=np.string_),
                        ["channel1","channel3"],
                        ("channel1","channel3"),
-                       np.array(["channel1","channel3"], dtype=np.string_),
-                       [1, 2, 3], 
-                       [1.0, 2.0, 3.0]]
+                       np.array(["channel1","channel3"], dtype=np.string_)]
         # structured arrays
         star3 = np.empty(3, dtype=[('geometrypoint', np.int64), ('impedance', np.int64)]) # no channelname column
         star3['impedance'] = [1.0, 2.0, 3.0]
         star3['geometrypoint'] = np.array([0,1,2])
         badchannels.append(star3)
-        star4 = np.empty(3, dtype=[('channelname', channelnames.dtype), ('impedance', np.int64)]) # no geometrypoint column
+        star4 = np.empty(3, dtype=[('channelname', np.string_), ('impedance', np.int64)]) # no geometrypoint column
         star4['impedance'] = [1.0, 2.0, 3.0]
         star4['channelname'] = channelnames
         badchannels.append(star4)
         for channels in badchannels:
+            # print(nchannels, channels)
             assert_raises(ChannelFormatError, MultiChannel, nchannels=nchannels,
                           channels=channels, geometry=None)
 

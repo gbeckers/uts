@@ -54,7 +54,7 @@ class test_RectangularLattice(TestCase):
         # OK
         pointnames_list = pn(nx*ny)
         pointnames_tuple = tuple(pointnames_list)
-        pointnames_array = np.array(pointnames_list)
+        pointnames_array = np.array(pointnames_list, dtype=np.string_)
         for pointnames in (pointnames_list, pointnames_tuple,
                            pointnames_array):
             g = RectangularLattice(nx=nx, ny=ny, pointnames=pointnames)
@@ -113,16 +113,16 @@ class test_RectangularLattice(TestCase):
         # 'point_2'  'point_3'
         # 'point_4'  'point_5',
         g = RectangularLattice(nx=2, ny=3, pointnames=pn(6), dx=1.0, dy=2.0)
-        assert g.distance('point_0','point_0') == 0.0
-        assert g.distance('point_0','point_1') == 1.0
-        assert g.distance('point_0','point_2') == 2.0
-        assert g.distance('point_0','point_4') == 4.0
-        assert_almost_equal(g.distance('point_0','point_3'), (1.0**2.0+2.0**2.0)**0.5)
-        assert_almost_equal(g.distance('point_3','point_0'), (1.0**2.0+2.0**2.0)**0.5)
-        assert_almost_equal(g.distance('point_0','point_5'), (1.0**2.0+4.0**2.0)**0.5)
-        assert_almost_equal(g.distance('point_5','point_0'), (1.0**2.0+4.0**2.0)**0.5)
-        assert_almost_equal(g.distance('point_4','point_1'), (1.0**2.0+4.0**2.0)**0.5)
-        assert_almost_equal(g.distance('point_1','point_4'), (1.0**2.0+4.0**2.0)**0.5)
+        assert g.distance(b'point_0',b'point_0') == 0.0
+        assert g.distance(b'point_0',b'point_1') == 1.0
+        assert g.distance(b'point_0',b'point_2') == 2.0
+        assert g.distance(b'point_0',b'point_4') == 4.0
+        assert_almost_equal(g.distance(b'point_0',b'point_3'), (1.0**2.0+2.0**2.0)**0.5)
+        assert_almost_equal(g.distance(b'point_3',b'point_0'), (1.0**2.0+2.0**2.0)**0.5)
+        assert_almost_equal(g.distance(b'point_0',b'point_5'), (1.0**2.0+4.0**2.0)**0.5)
+        assert_almost_equal(g.distance(b'point_5',b'point_0'), (1.0**2.0+4.0**2.0)**0.5)
+        assert_almost_equal(g.distance(b'point_4',b'point_1'), (1.0**2.0+4.0**2.0)**0.5)
+        assert_almost_equal(g.distance(b'point_1',b'point_4'), (1.0**2.0+4.0**2.0)**0.5)
 
     def test_distance_matrix(self):
         "RectangularLattice: distance matrix"
