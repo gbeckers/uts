@@ -69,12 +69,12 @@ class MultiChannel(object):
         # we first take care of the channels
         if channels is None:
             s = 'channel_%%.%dd' % max(1, int(np.ceil(np.log10(nchannels))))
-            channelnames = np.array([s % i for i in range(nchannels)])
+            channelnames = np.array([s % i for i in range(nchannels)], dtype=np.string_)
             channels = np.empty(channelnames.size,
                                 dtype=[('channelname', channelnames.dtype),('geometrypoint', np.int64)])
             channels['channelname'] = channelnames
         else:
-            channels = np.array(channels)
+            channels = np.array(channels, dtype=np.string_)
         if not channels.dtype.fields is None:
             if not 'channelname' in channels.dtype.names:
                 raise ChannelFormatError("'channels' structured array does not have 'channelname' field")
@@ -163,6 +163,8 @@ class MultiChannel(object):
             return int(channelindex)
         else: # channelindex probably a sequence
             channelindex = np.array(channelindex, ndmin=1)
+            if np.issubdtype(channelindex.dtype, np.unicode_):
+                channelindex = np.array(channelindex, dtype=np.string_)
             if np.issubdtype(channelindex.dtype, np.string_):
                 channelindices = []
                 chindnumbers = np.arange(self.nchannels)

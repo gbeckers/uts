@@ -53,7 +53,7 @@ class Epoched(object):
         index = index[0]
 
         # first see if index is an int
-        if isinstance(index, (int, long)):
+        if isinstance(index, int):
             return index
 
         indices = np.arange(self.nepochs,dtype=np.int)[index]

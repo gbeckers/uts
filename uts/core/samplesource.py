@@ -352,11 +352,11 @@ class NumpyArraySamples(Samples):
           
         """
         # check arguments
-        axesnames = self.axes.keys()
+        axesnames = list(self.axes.keys())
         if ignore_missingaxes:
             neworder = [ax for ax in neworder if ax in axesnames]
-        neworder = np.array(neworder)
-        axesnames = np.array(axesnames)  # we still need to order
+        neworder = np.array(neworder,  dtype=np.string_)
+        axesnames = np.array(axesnames,  dtype=np.string_)  # we still need to order
         if not len(neworder) == len(axesnames):
             raise ValueError("neworder argument (%s) does not have the right number of axes (%s)" \
                              % (neworder, axesnames))

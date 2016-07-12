@@ -40,9 +40,9 @@ class test_MultiChannel(TestCase):
         # sequences
         goodchannels = [["channel1","channel2","channel3"],
                         ("channel1","channel2","channel3"),
-                         np.array(["channel1","channel2","channel3"])]
+                         np.array(["channel1","channel2","channel3"], dtype=np.string_)]
         # structured arrays
-        channelnames = np.array(["channel1","channel2","channel3"])
+        channelnames = np.array(["channel1","channel2","channel3"], dtype=np.string_)
         star1 = np.empty(3, dtype=[('channelname', channelnames.dtype),('geometrypoint', np.int64)])
         star1['channelname'] = channelnames
         star1['geometrypoint'] = np.array([0,1,2])
@@ -56,16 +56,16 @@ class test_MultiChannel(TestCase):
             mc = MultiChannel(nchannels=nchannels, channels=channels,
                               geometry=None)
             assert mc.nchannels == nchannels
-            assert (mc.channelnames == np.array(channelnames)).all()
+            assert (mc.channelnames == np.array(channelnames, dtype=np.string_)).all()
             assert mc.channelnames.size == nchannels
 
         # duplicate names, or nchannels != channelname.size
         badchannels = [["channel1","channel1","channel3"],
                        ("channel1","channel1","channel3"),
-                       np.array(["channel1","channel1","channel3"]),
+                       np.array(["channel1","channel1","channel3"], dtype=np.string_),
                        ["channel1","channel3"],
                        ("channel1","channel3"),
-                       np.array(["channel1","channel3"]),
+                       np.array(["channel1","channel3"], dtype=np.string_),
                        [1, 2, 3], 
                        [1.0, 2.0, 3.0]]
         # structured arrays

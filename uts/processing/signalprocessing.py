@@ -110,7 +110,7 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     try:
         return np.ndarray.__new__(np.ndarray,strides=newstrides,
                                      shape=newshape,buffer=a,dtype=a.dtype)
-    except TypeError:
+    except (TypeError, ValueError):
         #warnings.warn("Problem with ndarray creation forces copy.")
         a = a.copy()
         # Shape doesn't change but strides does

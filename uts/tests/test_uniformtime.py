@@ -437,7 +437,7 @@ class test_UniformTimeSeries(TestCase):
 
         ## test different good array dimensions and bad array dimensions
         for node in iter_arnodes(self.testarrays):
-            typename, dim, artype = node._v_name.split('_')
+            typename, dim, artype = node._v_name.split('7')
             print(typename, dim)
             if dim == '1D':
                 if node[:].dtype in goodarraydtypes:
@@ -680,7 +680,7 @@ class test_UniformTimeSeries(TestCase):
         "UniformTimeSeries: append h5array"
         for node in iter_arnodes(self.testarrays, dimension='1D'):
             if node[:].dtype in goodarraydtypes:
-                typename, dim, artype = node._v_name.split('_')
+                typename, dim, artype = node._v_name.split('7')
                 if artype == 'EArray':
                     ts1 = UniformTimeSeries(samples=node, fs=1.0, copy=False,
                                             starttime=6.0, origintime=-2.0)
@@ -772,7 +772,7 @@ class test_MultiChannelUniformTimeSeries(TestCase):
             assert s[:5].nchannels == 3
             assert s[:5, :2].ntimesamples == 5
             assert s[:5, :2].nchannels == 2
-            assert (s.channelnames == np.array(channelnames)).all()
+            assert (s.channelnames == np.array(channelnames, dtype=np.string_)).all()
             assert (s[:, [2, 1]].samples.get() == s[:, ['c', 'b']].samples.get()).all()
             assert (s[:, :].samples.get() == s.__getitem__(
                 (slice(None, None, None), slice(None, None, None))).samples.get()).all()
@@ -826,7 +826,7 @@ class test_MultiChannelUniformTimeSeries(TestCase):
         "MultiChannelUniformTimeSeries: append h5array"
         for node in iter_arnodes(self.testarrays, dimension='2D'):
             if node[:].dtype in goodarraydtypes:
-                typename, dim, artype = node._v_name.split('_')
+                typename, dim, artype = node._v_name.split('7')
                 if artype == 'EArray':
                     ts1 = MultiChannelUniformTimeSeries(samples=node, fs=1.0,
                                                         copy=False, channelaxis=0, starttime=6.0,
@@ -1017,7 +1017,7 @@ class test_EpochedMultiChannelUniformTimeSeries(TestCase):
             assert s[:, :, :3].nepochs == 3
             assert s[:, :2, :3].nepochs == 3
             assert s[:5, :2, :3].nepochs == 3
-            assert (s.channelnames == np.array(channelnames)).all()
+            assert (s.channelnames == np.array(channelnames, dtype=np.string_)).all()
             assert s[:, [2, 1]].nchannels == 2
             assert (s[:, [2, 1]].samples.get() == s[:, ['c', 'b']].samples.get()).all()
             assert (s[:, [2, 1, 0]][:, [2, 1, 0]].samples.get() == s.samples.get()).all()
@@ -1031,7 +1031,7 @@ class test_EpochedMultiChannelUniformTimeSeries(TestCase):
 
 def iter_arnodes(testarrays, dimension=None):
     for node in testarrays.root._f_iter_nodes():
-        typename, dim, artype = node._v_name.split('_')
+        typename, dim, artype = node._v_name.split('7')
         if dim is not None:
             if dimension == dim:
                 yield node

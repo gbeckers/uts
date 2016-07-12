@@ -121,7 +121,7 @@ class RectangularLattice(Geometry):
             #s = 'point_%%.%dd' % max(1, int(np.ceil(np.log10(npoints))))
             #pointnames = [s % i for i in range(npoints)]
         try:
-            pointnames = np.array(pointnames)
+            pointnames = np.array(pointnames, dtype=np.string_)
         except:
             raise TypeError("cannot convert pointnames to string array")
         try:
