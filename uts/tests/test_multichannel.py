@@ -76,7 +76,6 @@ class test_MultiChannel(TestCase):
         star4['channelname'] = channelnames
         badchannels.append(star4)
         for channels in badchannels:
-            # print(nchannels, channels)
             assert_raises(ChannelFormatError, MultiChannel, nchannels=nchannels,
                           channels=channels, geometry=None)
 

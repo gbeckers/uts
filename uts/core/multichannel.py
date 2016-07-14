@@ -73,7 +73,9 @@ class MultiChannel(object):
             channels = np.empty(channelnames.size,
                                 dtype=[('channelname', channelnames.dtype),('geometrypoint', np.int64)])
             channels['channelname'] = channelnames
-        else:
+        elif type(channels).__module__ == np.__name__: # numpy array
+            pass
+        else: # fixme do we want to check if first entry is string? else raise error
             channels = np.array(channels, dtype=np.string_)
         if not channels.dtype.fields is None:
             if not 'channelname' in channels.dtype.names:
