@@ -68,7 +68,7 @@ def check_libraries(password='neostriatum'):
     if not hit:
         raise ImportError("Library incompatible with dll version")
 
-check_libraries()
+# check_libraries()
 
 # END checking things
 
