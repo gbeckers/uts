@@ -35,6 +35,9 @@ from .windows import windows
 from .parallel import foreach
 from ..signalfactory.factory import fromchannels
 
+
+# fixme look at tqdm library for progress bars
+
 __all__ = ['bp', 'convolve', 'crosscorrelatetime',
            'crosscorrelatetime_betweenchannels',
            'crosscorrelatetime_betweenchannels_p', 'decimate', 'hp', 'ibp',
