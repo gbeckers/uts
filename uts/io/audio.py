@@ -282,7 +282,7 @@ def convert_audiotoh5(filename, h5group, h5arrayname, origintime=0.0,
                       extensible=False, expectedrows=None, filters=None, 
                       chunkshape=None, attrs={}, readsize=4096):
     
-    from uts.io.hdf5 import load
+    from uts.io.hdf5 import loadh5
 
     import scikits.audiolab as audiolab
     a = audiolab.Sndfile(filename, 'r')

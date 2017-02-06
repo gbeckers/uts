@@ -20,8 +20,8 @@ from .utils import tempdir
 # should contain at least one array named 'samples', but may also contain the tables
 # 'epochs' or 'channels'
 
-__all__ = ['open', 'save', 'load', 'cache', 'remove', 'rename', 'h5fillnew',
-           'h5filllike', 'save_itered', 'cache_itered']
+__all__ = ['openh5', 'saveh5', 'loadh5', 'cacheh5', 'removeh5', 'renameh5', 'h5fillnew',
+           'h5filllike', 'saveh5_itered', 'cacheh5_itered']
 
 SAMPLEARRAYNAME = 'samples'
 EPOCHTABLENAME = 'epochs'
@@ -63,14 +63,14 @@ def _remove(h5fileobject, h5path):
     else:
         f.remove_node(h5path, recursive=True)
 
-def remove(filename, signalname):
+def removeh5(filename, signalname):
     with tb.open_file(filename, 'a') as f:
         _remove(h5fileobject=f, h5path=signalname)
 
 def _rename(h5fileobject, signalname, newsignalname):
     h5fileobject.rename_node(signalname, newsignalname, overwrite=False)
 
-def rename(filename, signalname, newsignalname):
+def renameh5(filename, signalname, newsignalname):
     with tb.open_file(filename, 'a') as f:
         _rename(h5fileobject=f, signalname=signalname, newsignalname=newsignalname)
 
@@ -87,10 +87,10 @@ def _create_h5savepoint(filename, h5path='/', overwrite=False, mode='a'):
                                  createparents=True)
         yield h5group
 
-def save(s, signalname='/', filename=None, channelaxis=None,
-         epochaxis=None, overwrite=False, extensible=False,
-         expectedrows=None, dtype=None, complib='zlib', complevel=5,
-         chunkshape=None, warn=True):
+def saveh5(s, signalname='/', filename=None, channelaxis=None,
+           epochaxis=None, overwrite=False, extensible=False,
+           expectedrows=None, dtype=None, complib='zlib', complevel=5,
+           chunkshape=None, warn=True):
     '''
         Saves a signal to h5 file. This function can also be used for generator objects that
         yield signals.
@@ -174,11 +174,11 @@ def _save(s, h5group, channelaxis=None, epochaxis=None,
         raise TypeError(
             "signal is not a sampled signal, or generator (%s)" % type(s))
 
-def save_itered(smodel, gen, name='/', filename=None, ntimesamples=None,
-                fs=None, value=0.0, dtype=None, channelaxis=None,
-                epochaxis=None, overwrite=False, extensible=False,
-                expectedrows=None, filters=None, chunkshape=None, complib=None,
-                complevel=None, attrs=None):
+def saveh5_itered(smodel, gen, name='/', filename=None, ntimesamples=None,
+                  fs=None, value=0.0, dtype=None, channelaxis=None,
+                  epochaxis=None, overwrite=False, extensible=False,
+                  expectedrows=None, filters=None, chunkshape=None, complib=None,
+                  complevel=None, attrs=None):
     if attrs is None:
         attrs = smodel.attrs
     else:
@@ -198,33 +198,33 @@ def save_itered(smodel, gen, name='/', filename=None, ntimesamples=None,
             start += frame.ntimesamples
 
 @contextmanager
-def cache(s, channelaxis=None, epochaxis=None,
-          extensible=False, expectedrows=None, dtype=None, complib='blosc',
-          complevel=5, chunkshape=None, path=None, report=False,
-          signalname='/cached', filename='cached.h5', warn=True, keep=False):
+def cacheh5(s, channelaxis=None, epochaxis=None,
+            extensible=False, expectedrows=None, dtype=None, complib='blosc',
+            complevel=5, chunkshape=None, path=None, report=False,
+            signalname='/cached', filename='cached.h5', warn=True, keep=False):
 
 
     with tempdir(dir=path, keep=keep, report=report) as tempdirname:
         filename = os.path.join(tempdirname, filename)
-        save(s, signalname=signalname, filename=filename,
-             channelaxis=channelaxis, epochaxis=epochaxis,
-             overwrite=False, extensible=extensible, expectedrows=expectedrows,
-             dtype=dtype, complib=complib, complevel=complevel,
-             chunkshape=chunkshape,
-             warn=warn)
-        s = load(signalname=signalname, filename=filename)
+        saveh5(s, signalname=signalname, filename=filename,
+               channelaxis=channelaxis, epochaxis=epochaxis,
+               overwrite=False, extensible=extensible, expectedrows=expectedrows,
+               dtype=dtype, complib=complib, complevel=complevel,
+               chunkshape=chunkshape,
+               warn=warn)
+        s = loadh5(signalname=signalname, filename=filename)
         s.path = tempdirname
         s.filename = filename
         yield s
 
 @contextmanager
-def cache_itered(smodel, gen, ntimesamples=None, fs=None, channelaxis=None,
-                 epochaxis=None,
-                 extensible=False, expectedrows=None, dtype=None,
-                 complib='blosc',
-                 complevel=5, chunkshape=None, path=None, report=False,
-                 signalname='/cached', filename='cached.h5', attrs=None,
-                 mode='a', keep=False):
+def cacheh5_itered(smodel, gen, ntimesamples=None, fs=None, channelaxis=None,
+                   epochaxis=None,
+                   extensible=False, expectedrows=None, dtype=None,
+                   complib='blosc',
+                   complevel=5, chunkshape=None, path=None, report=False,
+                   signalname='/cached', filename='cached.h5', attrs=None,
+                   mode='a', keep=False):
     with tempdir(dir=path, keep=keep, report=report) as tempdirname:
         filename = os.path.join(tempdirname, filename)
         if attrs is None:
@@ -245,18 +245,18 @@ def cache_itered(smodel, gen, ntimesamples=None, fs=None, channelaxis=None,
                 newh5s.samples.h5array[index] = frame.samples.transpose(
                     newh5s.samples.axisorder).get(False)
                 start += frame.ntimesamples
-        with open(signalname=signalname, filename=filename, mode=mode) as s:
+        with openh5(signalname=signalname, filename=filename, mode=mode) as s:
             s.path = tempdirname
             s.filename = filename
             yield s
 
 
-def load(signalname='/', filename=None, start=None, end=None):
-    with open(signalname=signalname, filename=filename) as s:
+def loadh5(signalname='/', filename=None, start=None, end=None):
+    with openh5(signalname=signalname, filename=filename) as s:
         return s[start:end]
 
 @contextmanager
-def open(signalname='/', filename=None, mode='r'):
+def openh5(signalname='/', filename=None, mode='r'):
     with tb.open_file(filename, mode=mode) as f:
         h5group = f.get_node(signalname)
         yield _open(h5group, mode=mode)
