@@ -308,6 +308,25 @@ class UniformTime(object):
         else:
             return result
 
+    def hastime(self, time):
+        """
+        Checks if a sample exists at a time, or array of times.
+
+        Parameter
+        ---------
+        time: a float or array of floats
+
+
+        """
+
+        time = check_argarray(time, 'time')
+        starttime, endtime = self.__timerange
+        result = (time >= starttime) & (time <= endtime)
+        if result.size == 1:
+            return result.item()
+        else:
+            return result
+
     def movingtimeframeindices(self, framesize, stepsize=None,
                                include_remainder=True, startindex=None,
                                endindex=None):
