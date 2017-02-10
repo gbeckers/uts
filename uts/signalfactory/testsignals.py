@@ -9,7 +9,7 @@ __all__ = ['testuts', 'testeuts','testmcuts', 'testemcuts']
 
 
 def testuts(duration=0.3, fs=14000., dtype=np.float32, starttime=None):
-    nsamples = fs * duration
+    nsamples = int(np.round(fs * duration))
     samples =  np.cos(2*np.pi*50*np.linspace(0.0,nsamples/float(fs), nsamples)**2.)
     if starttime is None:
         starttime = time.time()
