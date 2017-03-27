@@ -30,7 +30,8 @@ codecs = {'png': (('-an', '-vcodec', 'png'), '%06d.png'),
 class FramesTimeAligned(object):
     def __init__(self, mcutss, fps=25, slowdown=10., chunksize=None,
                  show_progress=None, hflips=None,
-                 colormaps=None, clips=None, units=None, scales=None):
+                 colormaps=None, clips=None, units=None, scales=None,
+                 nanchannels=None, nancolor=1.0):
 
         self.mcutss = self.check_mcutss(mcutss)
         self.npannels = len(self.mcutss)
@@ -57,6 +58,17 @@ class FramesTimeAligned(object):
         else:
             self.units = units
         self.scales = scales
+        if nanchannels is None:
+            nanchannels = [None] * len(self.mcutss)
+        else:
+            channels = []
+            for (nc, mcuts) in zip(nanchannels, self.mcutss):
+                if nc is not None:
+                    nc = mcuts._to_channelsslice(nc)
+                channels.append(nc)
+            nanchannels = channels
+        self.nanchannels = nanchannels
+        self.nancolor=nancolor
 
     def check_mcutss(self, mcutss):
         for i in range(1, len(mcutss)):
@@ -111,9 +123,6 @@ class FramesTimeAligned(object):
                 time = (chunks[0][j].timerange[0] + chunks[0][j].timerange[
                     1]) / 2.0
                 for chunkn, chunk in enumerate(chunks):
-                    # print(gmapindices[chunkn])
-                    # print(np.squeeze(chunk[j].samples.get(copy=False)))
-                    # print(len(ars))
                     samples = np.squeeze(chunk[j].samples.get(copy=False))
                     if not (self.scales is None):
                         samples = samples * self.scales[chunkn]
@@ -123,8 +132,10 @@ class FramesTimeAligned(object):
                         samples -= self.clips[chunkn][0]
                         samples /= (
                         self.clips[chunkn][1] - self.clips[chunkn][0])
-                    ars[chunkn][gmapindices[chunkn]] = self.colormaps[chunkn](
-                        samples)
+                    coloredsamples = self.colormaps[chunkn](samples)
+                    if self.nanchannels[chunkn] is not None:
+                        coloredsamples[self.nanchannels[chunkn]] = self.nancolor
+                    ars[chunkn][gmapindices[chunkn]] = coloredsamples
                 k += 1
                 if self.show_progress and (((k % self.show_progress) == 0) or (
                     k == (self.nframes - 1))):
@@ -132,8 +143,6 @@ class FramesTimeAligned(object):
                     stdout.flush()
                 # this yield the frame array, the total number of frames,
                 # the frame number, and the mean time of the frame
-
-
                 yield ars, k, time
 
 

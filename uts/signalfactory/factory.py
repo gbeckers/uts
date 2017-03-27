@@ -568,8 +568,8 @@ def modfreq(freqpattern, fs, dtype=None, peakamp=None, rmsamp=None):
 
 
 def harmonic(duration=None, ntimesamples=None, fs=44100., fundfreq=500.,
-             nharmonics=1, dtype=None,
-             hweights=None, hphases=None, peakamp=None, rmsamp=None):
+             nharmonics=1, dtype=None, hweights=None, hphases=None,
+             peakamp=None, rmsamp=None):
     """
     If you don't provide peakamp and rmsamp, default peakamp is 0.99.
     """
