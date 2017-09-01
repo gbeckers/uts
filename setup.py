@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 try:
-    import setuptools
+    from setuptools import setup
+    from setuptools import Extension
 except ImportError:
-    pass
-from distutils.core import setup
-from distutils.extension import Extension
+    from distutils.core import setup
+    from distutils.extension import Extension
 from Cython.Distutils import build_ext
 import numpy.distutils.misc_util
 import versioneer
