@@ -5,7 +5,6 @@ from numpy.testing import TestCase, assert_raises, run_module_suite, \
 import numpy as np
 from scipy.io import loadmat
 import uts
-from uts.processing.signalprocessing import ifdv
 from uts.processing.ifdv import cifdv
 
 TEST_DATA_DIR = os.path.join(os.path.dirname(uts.__file__),
@@ -30,14 +29,6 @@ class test_ifdv(TestCase):
         FL=int(mlresults['FL'][0,0])
         
         # calculate
-        ifdgram, sonogram = ifdv(s=s, SAMPLING=SAMPLING, N=N, OVERLAP=OVERLAP, 
-            sigma=sigma, ZOOMT=ZOOMT, ZOOMF=ZOOMF, TL=TL, FL=FL, 
-            symmetric=False, weave=False)
-        
-        # and compare
-        assert_almost_equal(sonogram, mlresults['sonogram'])
-        assert_almost_equal(ifdgram, mlresults['ifdgram'])
-        t2 = time.time()
         ifdgram, sonogram = cifdv(s=s, SAMPLING=SAMPLING, N=N, OVERLAP=OVERLAP, 
             sigma=sigma, ZOOMT=ZOOMT, ZOOMF=ZOOMF, TL=TL, FL=FL, 
             symmetric=False)
