@@ -98,7 +98,6 @@ def plot_emcuts(emcuts, clim=None, wspace=0.06, cmap='hot',
         clim = (low,high)
     extent = list(emcuts.timerange)
     extent.extend([0,emcuts.nepochs])
-    print extent
     for i, channelname in enumerate(emcuts.channelnames):
         ax = ga.axes[channelname]
         pl = ax.imshow(emcuts[:, channelname].samples.get(False),
