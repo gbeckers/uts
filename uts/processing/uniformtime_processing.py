@@ -329,9 +329,9 @@ def pmcconvolve(mcuts, kernel, mode='same', threads=4):
 
 def pmcconvolve2(mcuts, kernel, mode='same', threads=4):
     if mcuts.channelaxis == 1:
-        ars = [mcuts.samples.get(False)[:, i] for i in xrange(mcuts.nchannels)]
+        ars = [mcuts.samples.get(False)[:, i] for i in range(mcuts.nchannels)]
     else:
-        ars = [mcuts.samples.get(False)[i, :] for i in xrange(mcuts.nchannels)]
+        ars = [mcuts.samples.get(False)[i, :] for i in range(mcuts.nchannels)]
 
     ars = foreach(np.convolve, ars, threads=threads, return_=True,
                   args=[kernel, mode])

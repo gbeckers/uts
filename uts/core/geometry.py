@@ -94,13 +94,14 @@ class RectangularLattice(Geometry):
         
 
     def __getitem__(self,index):
-        try:
-            item = str(index)
-        except:
-            raise TypeError("cannot convert index to string")
-        if not item in self.pointnames:
-            raise IndexError("no point with name %s exists" % item)
-        return self.__pointdict[item]
+        # try:
+        #     item = str(index)
+        # except:
+        #     raise TypeError("cannot convert index to string")
+        if not index in self.pointnames:
+            raise IndexError(f"no point with name '{index}' exists "
+                             f"({self.pointnames})")
+        return self.__pointdict[index]
     
     def __str__(self):
         return '\n'.join(['   '.join(point) for point in self.pointnames])

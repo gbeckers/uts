@@ -27,7 +27,7 @@ def foreach(f,l,threads=3,return_=False, args=()):
                     try:
                         if exceptions:
                             return
-                        v = i.next()
+                        v = next(i)#.next()
                     finally:
                         iteratorlock.release()
                 except StopIteration:
@@ -46,7 +46,7 @@ def foreach(f,l,threads=3,return_=False, args=()):
                     finally:
                         iteratorlock.release()
         
-        threadlist = [threading.Thread(target=runall,args=(args,)) for j in xrange(threads)]
+        threadlist = [threading.Thread(target=runall,args=(args,)) for j in range(threads)]
         for t in threadlist:
             t.start()
         for t in threadlist:
@@ -55,8 +55,7 @@ def foreach(f,l,threads=3,return_=False, args=()):
             a, b, c = exceptions[0]
             raise(a, b, c)
         if return_:
-            r = d.items()
-            r.sort()
+            r = sorted(d.items())
             return [v for (n,v) in r]
     else:
         if return_:
