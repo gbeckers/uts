@@ -101,7 +101,7 @@ class Samples(object):
         if not isinstance(shape, tuple):
             raise TypeError("shape parameter should be a tuple")
         for ax in shape:
-            if not np.issubdtype(type(ax), np.int):
+            if not np.issubdtype(type(ax), np.integer):
                 raise ValueError("shape dimensions should be ints")
         size = np.product(shape)
         return shape, size

@@ -1,6 +1,6 @@
 package:
   name: uts
-  version: "1.1.10"
+  version: "1.1.11"
 
 source:
   path: ..
@@ -9,18 +9,17 @@ requirements:
   build:
     - python 2.7*
     - setuptools
-    - cython
-    - numpy 1.10*
-    - libpython
+    - cython 0.27*
+    - numpy 1.14*
 
   run:
     - python 2.7*
-    - libpython
-    - numpy 1.10*
-    - pytables
-    - scipy
-    - matplotlib
-    - h5py
+    - numpy 1.14*
+    - pytables 3.4*
+    - scipy 1.0*
+    - matplotlib 2.1*
+    - h5py 2.7*
+    - nose
 
 test:
   imports:

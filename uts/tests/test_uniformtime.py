@@ -708,7 +708,7 @@ class test_UniformTimeSeries(TestCase):
         "UniformTimeSeries: copy"
         s = UniformTimeSeries(samples=np.arange(10.), fs=1.0)
         cs = s.copy()
-        assert cs.samples.array.base != s.samples.array
+        assert not (cs.samples.array.base is s.samples.array)
         assert cs.ntimesamples == s.ntimesamples
         assert cs.starttime == s.starttime
         assert cs.origintime == s.origintime
@@ -872,8 +872,8 @@ class test_MultiChannelUniformTimeSeries(TestCase):
         for channelaxis, ar in zip((1, 0), (ar, ar.T)):
             s = MultiChannelUniformTimeSeries(samples=ar, fs=1.0, channelaxis=1)
             cs = s.copy()
-            assert cs.samples.array.base != s.samples.array
-            assert cs.channelnames.base != s.channelnames
+            assert not (cs.samples.array.base is s.samples.array)
+            assert not(cs.channelnames.base is s.channelnames)
             assert cs.ntimesamples == s.ntimesamples
             assert cs.nchannels == s.nchannels
             assert cs.channelaxis == s.channelaxis
