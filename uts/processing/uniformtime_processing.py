@@ -811,7 +811,7 @@ def welch(tss, windowtype='gaussian', windowduration=None, fftduration=None,
     else:
         samples = tss.samples.get(False)
     f, Pxx = welch(samples, fs=tss.fs, window=window, nperseg=windowsize,
-                   noverlap=noverlap, nfft=fftsize, detrend=detrend)
+                   noverlap=noverlap, nfft=fftsize, detrend=detrend, axis=-1)
     samplingfrequencies = np.arange(Pxx.shape[-1]) * (tss.fs / fftsize)
     bandwidth = tss.fs / 2.0
     if ismcuts(tss):

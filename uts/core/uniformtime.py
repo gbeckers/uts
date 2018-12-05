@@ -1556,6 +1556,12 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                                        attrs=self.attrs)
         return res
 
+    def __iter__(self):
+        for i in range(self.nepochs):
+            yield self[:, :, i]
+
+    iter_epochs = __iter__
+
     def __str__(self):
         return "<EpochedMultiChannelUniformTimeSeries: " \
                "%.3f seconds, %d times, %d channels, %d epochs>" \
@@ -1587,16 +1593,16 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
             channels = self.channels.copy()
         return self._instantiatefromself(channels=channels, copy=True)
 
-    def show(self, autovrange=False, vrangelow=None, vrangehigh=None,
-             zmapper=None, **plotparams):
-        from uts.display.traitsmultichannel import \
-            EpochedMultiChannelUniformTimeSeriesPlot as Plot
-
-        p = Plot(self, geometry=self.geometry, zmapper=zmapper,
-                 autovrange=autovrange, vrangelow=vrangelow,
-                 vrangehigh=vrangehigh, **plotparams)
-        p.configure_traits()
-        return p
+    # def show(self, autovrange=False, vrangelow=None, vrangehigh=None,
+    #          zmapper=None, **plotparams):
+    #     from uts.display.traitsmultichannel import \
+    #         EpochedMultiChannelUniformTimeSeriesPlot as Plot
+    #
+    #     p = Plot(self, geometry=self.geometry, zmapper=zmapper,
+    #              autovrange=autovrange, vrangelow=vrangelow,
+    #              vrangehigh=vrangehigh, **plotparams)
+    #     p.configure_traits()
+    #     return p
 
     # FIXME: make this resistent against appending large h5 signals
     def append(self, signal):
@@ -1634,7 +1640,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
         else:
             starttime = self.starttimes[0]
         return MultiChannelUniformTimeSeries(samples=s, fs=self.fs,
-                                             channelnames=self.channelnames,
+                                             channels=self.channelnames,
                                              starttime=starttime,
                                              origintime=0.0, dtype=self.dtype,
                                              copy=True, channelaxis=1,
@@ -1663,15 +1669,11 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
         else:
             copy = True
         return self._instantiatefromself(samples=samples,
-                                         channelnames=channelnames,
+                                         channels=channelnames,
                                          copy=copy, dtype=samples.dtype,
                                          geometry=None,
                                          channelaxis=channelaxis,
                                          epochaxis=epochaxis)
-
-    def iter_epochs(self):
-        for i in range(self.nepochs):
-            yield self[:, :, i]
 
     def transpose(self, axes=None):
         if axes is None:

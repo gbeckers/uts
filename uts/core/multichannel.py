@@ -69,14 +69,12 @@ class MultiChannel(object):
         # we first take care of the channels
         if channels is None:
             s = 'channel_%%.%dd' % max(1, int(np.ceil(np.log10(nchannels))))
-            channelnames = np.array([s % i for i in range(nchannels)], dtype=np.string_)
+            channelnames = np.array([s % i for i in range(nchannels)], dtype=np.unicode_)
             channels = np.empty(channelnames.size,
                                 dtype=[('channelname', channelnames.dtype),('geometrypoint', np.int64)])
             channels['channelname'] = channelnames
-        elif type(channels).__module__ == np.__name__: # numpy array
-            pass
         else: # fixme do we want to check if first entry is string? else raise error
-            channels = np.array(channels, dtype=np.string_)
+            channels = np.array(channels, dtype=np.unicode_)
         if not channels.dtype.fields is None:
             if not 'channelname' in channels.dtype.names:
                 raise ChannelFormatError("'channels' structured array does not have 'channelname' field")
@@ -94,7 +92,7 @@ class MultiChannel(object):
         if not channelnames.ndim == 1:
             raise ChannelFormatError("channel names not a 1-dimensional sequence" \
                                      ", %s" % channelnames)
-        if not np.issubdtype(channelnames.dtype, np.string_):
+        if not np.issubdtype(channelnames.dtype, np.unicode_):
             raise ChannelFormatError("channel name(s) not of string type ({})".format(channelnames.dtype))
         if not np.unique(channelnames).size == channelnames.size:
             raise ChannelFormatError("channel names not unique")
@@ -125,7 +123,7 @@ class MultiChannel(object):
         channelnames = np.array(channels)
         if not channelnames.ndim == 1:
             raise DimensionError("channel names not a 1-dimensional sequence")
-        if not np.issubdtype(channelnames.dtype, np.string_):
+        if not np.issubdtype(channelnames.dtype, np.unicode_):
             raise ChannelIndexError("channel name(s) not of string type")
         if np.union1d(channelnames, self.channelnames).size > self.channelnames.size:
             raise ChannelIndexError("not all requested channels exist (requested: %s, available: %s)" \
@@ -166,8 +164,8 @@ class MultiChannel(object):
         else: # channelindex probably a sequence
             channelindex = np.array(channelindex, ndmin=1)
             if np.issubdtype(channelindex.dtype, np.unicode_):
-                channelindex = np.array(channelindex, dtype=np.string_)
-            if np.issubdtype(channelindex.dtype, np.string_):
+                channelindex = np.array(channelindex, dtype=np.unicode_)
+            if np.issubdtype(channelindex.dtype, np.unicode_):
                 channelindices = []
                 chindnumbers = np.arange(self.nchannels)
                 for channelname in self._channels_exist(channelindex):

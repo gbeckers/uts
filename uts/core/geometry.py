@@ -104,7 +104,7 @@ class RectangularLattice(Geometry):
         return self.__pointdict[index]
     
     def __str__(self):
-        return '\n'.join(['   '.join(point) for point in self.pointnames])
+        return '\n'.join(['   '.join(row) for row in self.pointnames])
             
     def __repr__(self):
         return "<RectangularLattice> nx: %d ny: %d" \
@@ -122,9 +122,9 @@ class RectangularLattice(Geometry):
             #s = 'point_%%.%dd' % max(1, int(np.ceil(np.log10(npoints))))
             #pointnames = [s % i for i in range(npoints)]
         try:
-            pointnames = np.array(pointnames, dtype=np.string_)
+            pointnames = np.array(pointnames, dtype=np.unicode_)
         except:
-            raise TypeError("cannot convert pointnames to string array")
+            raise TypeError("cannot convert pointnames to unicode array")
         try:
             pointnames = pointnames.flatten()
             pointnames = pointnames.reshape(self.ny, self.nx)
@@ -132,7 +132,7 @@ class RectangularLattice(Geometry):
             raise GeometryError("pointnames (size=%d) not congruent with lattice structure (shape=%dx%d)" \
                                 % (pointnames.size, self.ny, self.nx))
 
-        if not np.issubdtype(pointnames.dtype, np.string_):
+        if not np.issubdtype(pointnames.dtype, np.unicode_):
             raise GeometryError("pointnames name(s) not of string type")
         if not np.unique(pointnames).size == pointnames.size:
             raise GeometryError("pointnames not unique")
@@ -225,6 +225,26 @@ class RectangularLattice(Geometry):
             indices_i.append(i.item())
             indices_j.append(j.item())
         return self.nx*np.array([indices_i])+np.array([indices_j])
+
+    def positionsbyindex(self, pointnames, scale=1.0, flipx=False,
+                         flipy=False):
+        """Returns a dictionary in which the keys are numbers corresponding to
+        the order of pointnames, and the items are positions.
+
+        """
+        positions = {}
+        xspan = scale * self.dx * (self.nx - 1)
+        yspan = scale * self.dy * (self.ny - 1)
+        for pnumber, pname in enumerate(pointnames):
+            row, col = self[pname]
+            x = scale * col * self.dx
+            y = scale * row * self.dy
+            if flipx:
+                x = xspan - x
+            if flipy:
+                y = yspan - y
+            positions[pnumber] = [x, y]
+        return positions
 
     def instantiationcode(self):
         """Returns a length-2 tuple containing (0) the name of the class, and

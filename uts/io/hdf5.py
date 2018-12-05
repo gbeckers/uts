@@ -1044,11 +1044,14 @@ def geometry_to_h5attr(node, geometry):
 
 def _save_multichannel(multichannel, h5group, name, overwrite=False, attrs={}):
     h5file = h5group._v_file
+    dtypedescr = multichannel.channels.dtype.descr
+    dtypedescr[0] = (dtypedescr[0][0], dtypedescr[0][1].replace('U', 'S'))
     if overwrite and (name in h5group):
         h5group._v_children[name]._f_remove()
         h5file.flush()
+    channels = multichannel.channels.astype(dtypedescr)
     table = h5file.create_table(where=h5group, name=name,
-                                description=multichannel.channels)
+                                description=channels)
     for attrname, value in attrs.items():
         table.set_attr(attrname, value)
     geometry_to_h5attr(table, multichannel.geometry)
