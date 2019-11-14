@@ -1303,7 +1303,6 @@ def _uts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
         dtype = s.dtype
     else:
         dtype = np.dtype(dtype)
-    params = {'dtype': dtype}
     if hasattr(s.samples, 'h5array'):
         if chunkshape is None:
             chunkshape = s.samples.h5array.chunkshape
@@ -1319,12 +1318,9 @@ def _uts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
                         expectedrows=expectedrows, complib=complib,
                         complevel=complevel,
                         chunkshape=chunkshape, attrs=attrs)
-    if 'channelaxis' in samples.attrs:
-        params['channelaxis'] = samples.attrs.channelaxis
-    if 'epochaxis' in samples.attrs:
-        params['epochaxis'] = samples.attrs.epochaxis
+
     return s._instantiatefromself(samples=samples, copy=False,
-                                  dtype=samples.atom.dtype, fs=fs, **params)
+                                  dtype=samples.atom.dtype, fs=fs)
 
 #euts
 def _euts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
