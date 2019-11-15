@@ -42,7 +42,7 @@ def testmcuts(duration=0.3, nchannels=5, fs=14000., dtype=np.float32,
         pointnames = ['channel_%.3d' % i for i in range(nchannels)]
         geometry = uts.core.geometry.RectangularLattice(*geometryshape, pointnames=pointnames)
     else:
-        geometry=None
+        geometry = None
     return MultiChannelUniformTimeSeries(samples=samples, fs=fs, channelaxis=0,
                                          geometry=geometry, starttime=starttime,
                                          dtype=dtype)

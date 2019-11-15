@@ -307,7 +307,7 @@ class PowerSpectrum(FrequencySampled):
 
 class MultiChannelPowerSpectrum(MultiChannel, PowerSpectrum):
     def __init__(self, samples, bandwidth, samplingfrequencies, dtype=None,
-                 copy=True, channels=None, channelaxis=1,
+                 copy=True, channelnames=None, channelaxis=1,
                  geometry=None, readonly=True):
 
         self.__channelaxis, self.__frequencyaxis = self._check_channelaxis(
@@ -317,7 +317,7 @@ class MultiChannelPowerSpectrum(MultiChannel, PowerSpectrum):
                                dtype=dtype, copy=copy, readonly=readonly)
         nchannels = self.samples.shape[self.__channelaxis]
         MultiChannel.__init__(self, nchannels=nchannels,
-                              channels=channels, geometry=geometry)
+                              channelnames=channelnames, geometry=geometry)
 
     channelaxis = property(
         lambda self: (self.__channelaxis), None, None,

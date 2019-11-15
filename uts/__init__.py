@@ -22,7 +22,7 @@ from .core.utils import *
 from .io.hdf5 import *
 from .io.audio import *
 from .io.matlab import *
-from .io.darray import *
+from .io.darr import *
 from .core.check_arg import check_arg
 
 from .signalfactory.factory import *

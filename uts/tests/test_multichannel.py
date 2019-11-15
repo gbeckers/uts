@@ -17,7 +17,7 @@ class test_MultiChannel(TestCase):
         for nchannels in [1,2,3]:
             # good nchannels type
             for intnchannels in int_to_pints(nchannels):
-                mc = MultiChannel(nchannels=nchannels, channels=None,
+                mc = MultiChannel(nchannels=nchannels, channelnames=None,
                                   geometry=None)
                 assert mc.nchannels == nchannels
                 assert isinstance(mc.nchannels, int)
@@ -32,7 +32,7 @@ class test_MultiChannel(TestCase):
         # bad number of channels:
         for nchannels in [-1,0]:
             assert_raises(ValueError, MultiChannel, nchannels=nchannels,
-                          channels=None, geometry=None)
+                          channelnames=None, geometry=None)
 
     def test_channels_arg(self):
         "MultiChannel: channels argument"
@@ -40,86 +40,69 @@ class test_MultiChannel(TestCase):
         # sequences
         goodchannels = [["channel1","channel2","channel3"],
                         ("channel1","channel2","channel3"),
-                         np.array(["channel1","channel2","channel3"], dtype=np.string_)]
-        # structured arrays
-        channelnames = np.array(["channel1","channel2","channel3"], dtype=np.string_)
-        star1 = np.empty(3, dtype=[('channelname', channelnames.dtype),('geometrypoint', np.int64)])
-        star1['channelname'] = channelnames
-        star1['geometrypoint'] = np.array([0,1,2])
-        goodchannels.append(star1)
-        star2 = np.empty(3, dtype=[('channelname', channelnames.dtype),('geometrypoint', np.int64), ('impedance',np.float64)])
-        star2['channelname'] = channelnames
-        star2['geometrypoint'] = np.array([0,1,2])
-        star2['impedance'] = np.array([1.0, 2.0, 3.0])
-        goodchannels.append(star2)
+                        np.array(["channel1","channel2","channel3"], dtype=np.unicode_),
+                        np.array(["channel1","channel2","channel3"], dtype=np.string_)]
+        # # structured arrays
         for channels in goodchannels:
-            mc = MultiChannel(nchannels=nchannels, channels=channels,
+            mc = MultiChannel(nchannels=nchannels, channelnames=channels,
                               geometry=None)
             assert mc.nchannels == nchannels
-            assert (mc.channelnames == np.array(channelnames, dtype=np.string_)).all()
+            assert (mc.channelnames == np.array(channels, dtype=np.unicode_)).all()
             assert mc.channelnames.size == nchannels
 
         # duplicate names, or nchannels != channelname.size
         badchannels = [["channel1","channel1","channel3"],
                        ("channel1","channel1","channel3"),
-                       np.array(["channel1","channel1","channel3"], dtype=np.string_),
+                       np.array(["channel1","channel1","channel3"], dtype=np.unicode_),
                        ["channel1","channel3"],
                        ("channel1","channel3"),
-                       np.array(["channel1","channel3"], dtype=np.string_)]
-        # structured arrays
-        star3 = np.empty(3, dtype=[('geometrypoint', np.int64), ('impedance', np.int64)]) # no channelname column
-        star3['impedance'] = [1.0, 2.0, 3.0]
-        star3['geometrypoint'] = np.array([0,1,2])
-        badchannels.append(star3)
-        star4 = np.empty(3, dtype=[('channelname', np.string_), ('impedance', np.int64)]) # no geometrypoint column
-        star4['impedance'] = [1.0, 2.0, 3.0]
-        star4['channelname'] = channelnames
-        badchannels.append(star4)
-        for channels in badchannels:
+                       np.array(["channel1","channel3"], dtype=np.unicode_)]
+        for channelnames in badchannels:
             assert_raises(ChannelFormatError, MultiChannel, nchannels=nchannels,
-                          channels=channels, geometry=None)
+                          channelnames=channelnames, geometry=None)
 
         # bad dimension
         assert_raises(ChannelFormatError, MultiChannel, nchannels=6,
-                      channels=[['1','2','3'],['1','2','3']],
+                      channelnames=[['1','2','3'],['1','2','3']],
                       geometry=None)
         assert_raises(ChannelFormatError, MultiChannel, nchannels=6,
-                      channels='123456',
+                      channelnames='123456',
                       geometry=None)
 
     def test_geometry_arg(self):
         "MultiChannel: geometry argument"
         # correct Geometry
         gm = RectangularLattice(nx=2,ny=2, pointnames=['a','b','c','d'])
-        mc = MultiChannel(nchannels=4, channels=['a','b','c','d'], geometry=gm)
+        mc = MultiChannel(nchannels=4, channelnames=['a', 'b', 'c', 'd'], geometry=gm)
         assert mc.nchannels == mc.geometry.npoints
         # wrong number of points
         assert_raises(ChannelFormatError, MultiChannel, nchannels=3,
-                      channels=['a','b','c','d'], geometry=gm)
+                      channelnames=['a','b','c','d'], geometry=gm)
         # wrong type
         assert_raises(ChannelFormatError, MultiChannel, nchannels=3,
-                      channels=['a','b','c','d'], geometry=(2,2))
+                      channelnames=['a','b','c','d'], geometry=(2,2))
         # None is acceptable and should lead to a default geometry
-        mc = MultiChannel(nchannels=4, channels=None, geometry=None)
+        mc = MultiChannel(nchannels=4, channelnames=None, geometry=None)
         assert isinstance(mc.geometry, RectangularLattice)
 
     def test_set_geometry(self):
         "MultiChannel: set geometry"
-        mc = MultiChannel(nchannels=4, channels=None, geometry=None)
+        mc = MultiChannel(nchannels=4, channelnames=None, geometry=None)
         gm = RectangularLattice(nx=2, ny=2, pointnames=mc.channelnames)
         assert isinstance(mc.geometry, RectangularLattice)
-        mc.set_geometry(gm, mc.channels)
+        mc.set_geometry(gm, mc.channelnames)
         assert mc.geometry == gm
-        mc.set_geometry(None, mc.channels)
+        mc.set_geometry(None, mc.channelnames)
         assert isinstance(mc.geometry, RectangularLattice)
         badgm = RectangularLattice(nx=3,ny=2, pointnames=['a','b','c','d','e','f'])
-        assert_raises(ChannelFormatError, mc.set_geometry, geometry=badgm, channels=mc.channels)
+        assert_raises(ChannelFormatError, mc.set_geometry, geometry=badgm,
+                      channelnames=mc.channelnames)
 
     def test_to_channelsslicevalid(self):
         "MultiChannel: valid slicing"
 
         channels = ["channel1","channel2","channel3","channel4"]
-        mc = MultiChannel(nchannels=4, channels=channels, geometry=None)
+        mc = MultiChannel(nchannels=4, channelnames=channels, geometry=None)
         # int
         for i in int_to_pints(1):
             assert mc._to_channelsslice(i) == 1
@@ -152,7 +135,7 @@ class test_MultiChannel(TestCase):
         "MultiChannel: invalid slicing"
 
         channels = ["channel1","channel2","channel3","channel4"]
-        mc = MultiChannel(nchannels=4, channels=channels, geometry=None)
+        mc = MultiChannel(nchannels=4, channelnames=channels, geometry=None)
         # float
         for i in float_to_floats(1.0):
             assert_raises(ChannelIndexError, mc._to_channelsslice, channelindex=i)

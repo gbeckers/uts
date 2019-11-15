@@ -222,7 +222,7 @@ def crosscorrelatetime_betweenchannels(s, lag, normalized=True,
             k += 1
     g = RectangularLattice(s.nchannels, s.nchannels, channelnames)
     return MultiChannelUniformTimeSeries(samples=samples, fs=s.fs, geometry=g,
-                                         channels=channelnames, channelaxis=0,
+                                         channelnames=channelnames, channelaxis=0,
                                          origintime=corrlen / (s.fs * 2.0))
 
 def _cct(args):
@@ -260,7 +260,7 @@ def crosscorrelatetime_betweenchannels_p(s, lag, normalized=True,
     samples = np.array(results, dtype=s.dtype)
     g = RectangularLattice(s.nchannels, s.nchannels, channelnames)
     return MultiChannelUniformTimeSeries(samples=samples, fs=s.fs, geometry=g,
-                                         channels=channelnames, channelaxis=0,
+                                         channelnames=channelnames, channelaxis=0,
                                          origintime=corrlen / (s.fs * 2.0))
 
 def convolve(uts, kernel, mode='same', threads=None,
@@ -818,7 +818,7 @@ def welch(tss, windowtype='gaussian', windowduration=None, fftduration=None,
         return MultiChannelPowerSpectrum(samples=Pxx,
                                          samplingfrequencies=samplingfrequencies,
                                          copy=False, channelaxis=0,
-                                         channels=tss.channels,
+                                         channelnames=tss.channels,
                                          geometry=tss.geometry)
     else:
         return PowerSpectrum(samples=Pxx,

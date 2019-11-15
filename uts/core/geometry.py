@@ -257,6 +257,10 @@ class RectangularLattice(Geometry):
         return ('RectangularLattice', {'dx': self.dx, 'dy': self.dy,
             'nx': self.nx, 'ny': self.ny})
             #,'pointnames': self.pointnames.tolist()})
+
+    def instantiationparameters(self):
+        return {'dx': self.dx, 'dy': self.dy, 'nx': self.nx, 'ny': self.ny,
+                'pointnames': self.pointnames.flatten().tolist()}
     
     def distance(self, pointname1, pointname2):
         if (self.dx is None) or (self.dy is None):

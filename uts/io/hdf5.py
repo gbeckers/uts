@@ -302,7 +302,8 @@ def _open(h5group, mode='r'):
                     "no channels found in %s" % h5array._v_pathname)
                 #channels = None
             signal = MultiChannelUniformTimeSeries(samples=samples,
-                                                   fs=fs, channels=channels,
+                                                   fs=fs,
+                                                   channelnames=channelnames,
                                                    starttime=starttime,
                                                    origintime=origintime,
                                                    copy=False, dtype=None,
@@ -350,7 +351,7 @@ def _open(h5group, mode='r'):
         else:
             raise IOError("no channels found in %s" % h5array._v_pathname)
         signal = EpochedMultiChannelUniformTimeSeries(samples=samples,
-                                                      fs=fs, channels=channels,
+                                                      fs=fs, channelnames=channels,
                                                       origintime=origintime,
                                                       copy=False, dtype=None,
                                                       epochs=epochtable,
@@ -434,7 +435,7 @@ def _newh5mcuts(h5group, dtype, ntimesamples, fs, origintime,
     origintime = check_arg(origintime, 'time')
     starttime = check_arg(starttime, 'time')
     channelaxis = check_arg(channelaxis, 'channelaxis')
-    mc = MultiChannel(nchannels=nchannels, channels=channels,
+    mc = MultiChannel(nchannels=nchannels, channelnames=channels,
                       geometry=geometry)
     ntimesamples = check_int(ntimesamples, negative=False)
     dtype = np.dtype(dtype)
@@ -610,7 +611,7 @@ def _newh5emcuts(h5group, dtype, ntimesamples, fs, origintime,
     origintime = check_arg(origintime, 'time')
     starttime = check_arg(starttime, 'time')
     channelaxis = check_arg(channelaxis, 'channelaxis')
-    mc = MultiChannel(nchannels=nchannels, channels=channels,
+    mc = MultiChannel(nchannels=nchannels, channelnames=channels,
                       geometry=geometry)
     epochaxis = check_arg(epochaxis, 'epochaxis')
     ep = Epoched(duration=ntimesamples / fs, epochs=epochs,
@@ -1175,7 +1176,7 @@ def h5fillnew(signalname, filename=None, value=0.0, ntimesamples=None,
                                                   origintime=origintime,
                                                   starttime=starttime,
                                                   channelaxis=channelaxis,
-                                                  channels=channels,
+                                                  channelnames=channels,
                                                   dtype=None, copy=False,
                                                   readonly=readonly,
                                                   geometry=geometry)
@@ -1234,7 +1235,7 @@ def h5fillnew(signalname, filename=None, value=0.0, ntimesamples=None,
                                                          fs=fs,
                                                          origintime=origintime,
                                                          channelaxis=channelaxis,
-                                                         channels=channels,
+                                                         channelnames=channels,
                                                          epochaxis=epochaxis,
                                                          epochs=epochs,
                                                          dtype=None,

@@ -27,28 +27,27 @@ class MultiChannel(object):
 
     """
 
-    def __init__(self, nchannels=None, channels=None, geometry=None):
+    def __init__(self, nchannels=None, channelnames=None, geometry=None):
 
-        if (nchannels is None) and (channels is None):
+        if (nchannels is None) and (channelnames is None):
             raise ValueError("'nchannels' and 'channels' parameters cannot both be None")
-        if (channels is None) and (not geometry is None):
-            raise ValueError("if 'geometry' is specified, 'channels'"
-                             " should be specified as well ({},{})".format(channels,geometry))
+        if (channelnames is None) and (not geometry is None):
+            raise ValueError("if 'geometry' is specified, 'channelnames'"
+                             " should be specified as well ({},{})".format(channelnames, geometry))
         if nchannels is None:
-            nchannels = len(channels)
+            nchannels = len(channelnames)
 
         self.__nchannels = check_arg(nchannels, 'nchannels')
-        self.__channels, self.__geometry = \
+        self.__channelnames, self.__geometry = \
                 self._set_channels(nchannels=self.__nchannels,
-                                   channels=channels, geometry=geometry)
+                                   channelnames=channelnames, geometry=geometry)
         
-    channels = property(lambda self: self.__channels, None, None,
-                         "structured array witch channel info")
+    # channels = property(lambda self: self.__channels, None, None,
+    #                      "structured array witch channel info")
     nchannels = property(lambda self: self.__nchannels, None, None,
                          "number of channels")
     channelnames = property(
-        lambda self: (self.__channels['channelname']), None, None,
-        "names of channels")
+        lambda self: self.__channelnames, None, None, "names of channels")
     geometry = property(lambda self: self.__geometry, None, None,
                          "geometry of channel set")
 
@@ -62,47 +61,28 @@ class MultiChannel(object):
         s += self.geometry.info()
         return s
 
-    def _set_channels(self, nchannels, channels, geometry):
+    def _set_channels(self, nchannels, channelnames, geometry):
         """Checks if channels parameter is properly formatted. Will return
         a structured array with at least a column 'channelname'.
         """
         # we first take care of the channels
-        if channels is None:
+        if channelnames is None:
             s = 'channel_%%.%dd' % max(1, int(np.ceil(np.log10(nchannels))))
             channelnames = np.array([s % i for i in range(nchannels)], dtype=np.unicode_)
-            channels = np.empty(channelnames.size,
-                                dtype=[('channelname', channelnames.dtype),('geometrypoint', np.int64)])
-            channels['channelname'] = channelnames
         else: # fixme do we want to check if first entry is string? else raise error
-            channels = np.array(channels, dtype=np.unicode_)
-        if not channels.dtype.fields is None:
-            if not 'channelname' in channels.dtype.names:
-                raise ChannelFormatError("'channels' structured array does not have 'channelname' field")
-            if not 'geometrypoint' in channels.dtype.names:
-                raise ChannelFormatError("'channels' structured array does not have 'geometrypoint' field")
-        else: # we assume we got a sequence of channelnames
-            if not channels.ndim == 1:
-                raise ChannelFormatError("channels not a 1-dimensional sequence" \
-                                         ", %s" % channels)
-            sa = np.empty(channels.size,
-                          dtype=[('channelname', channels.dtype),('geometrypoint', np.int64)])
-            sa['channelname'] = channels
-            channels = sa
-        channelnames = channels['channelname']
+            channelnames = np.array(channelnames, dtype=np.unicode_)
         if not channelnames.ndim == 1:
             raise ChannelFormatError("channel names not a 1-dimensional sequence" \
                                      ", %s" % channelnames)
-        if not np.issubdtype(channelnames.dtype, np.unicode_):
-            raise ChannelFormatError("channel name(s) not of string type ({})".format(channelnames.dtype))
         if not np.unique(channelnames).size == channelnames.size:
-            raise ChannelFormatError("channel names not unique")
+            raise ChannelFormatError(f"channelnames not unique ({channelnames})")
         if not channelnames.size == nchannels:
             raise ChannelFormatError("number of channelnames does not correspond to nchannels: %s, %d" \
                                      % (channelnames, nchannels))
         # now geometry
         if geometry is None:
             geometry =  RectangularLattice(nx=1, ny=nchannels, pointnames=channelnames)
-            channels['geometrypoint'] = np.arange(channelnames.size)
+            #channelnames['geometrypoint'] = np.arange(channelnames.size)
         else:
             if not isinstance(geometry, Geometry):
                 raise ChannelFormatError("geometry argument (%s) is not a Geometry instance" \
@@ -113,8 +93,8 @@ class MultiChannel(object):
             if len(set(pointnames) ^ set(channelnames)) != 0:
                 raise ChannelFormatError("names geometry points does not match those of channels" \
                                          "\n%s" % (set(pointnames) ^ set(channelnames)))
-            channels['geometrypoint'] = geometry.indexfrom1Dto1D(channelnames)
-        return channels, geometry
+            #channelnames['geometrypoint'] = geometry.indexfrom1Dto1D(channelnames)
+        return channelnames, geometry
 
     def _channels_exist(self, channels):
         '''
@@ -176,7 +156,6 @@ class MultiChannel(object):
                     raise ChannelIndexError("channel index (%s) is of wrong type (%s)" \
                                             % (channelindex, channelindex.dtype))
                 channelindices = np.arange(self.nchannels, dtype=np.int)[channelindex]
-
             if len(channelindices) == 1:
                 channelindices = channelindices[0]
             else:
@@ -186,8 +165,8 @@ class MultiChannel(object):
                     channelindices = slice(channelindices[0],channelindices[-1]+1)
             return channelindices
 
-    def set_geometry(self, geometry, channels):
-        self.__channels, self.__geometry = \
+    def set_geometry(self, geometry, channelnames):
+        self.__channelnames, self.__geometry = \
                 self._set_channels(nchannels=self.nchannels,
-                                   channels=channels, geometry=geometry)
+                                   channelnames=channelnames, geometry=geometry)
     

@@ -12,6 +12,7 @@ Samples.
 import numpy as np
 import tables as tb
 import h5py
+import darr
 from .check_arg import check_arg, check_int, check_argarray
 from .defs import defined_sampledtypes
 
@@ -156,6 +157,58 @@ class Samples(object):
             return s.copy()
         else:
             return s
+
+class DarrSamples(Samples):
+
+    descr = 'darr'
+
+    def __init__(self, a, axes):
+        self.__array = a
+        dtype = self.__array.dtype
+        shape = self.__array.shape
+        sampletype = type(self.__array)
+        if a.accessmode == 'r':
+            readonly = True
+        else:
+            readonly = False
+        Samples.__init__(self, dtype=dtype, shape=shape, sampletype=sampletype,
+                         axes=axes, readonly=readonly)
+
+    h5array = property(lambda self: (self.__h5array), None, None,
+                       "h5array object")
+
+    def __getitem__(self, index):
+
+        return self.__array[index]
+
+
+    def append(self, samples, axis):
+        """
+        Appends samples.
+
+        Parameter
+        ---------
+        samples: a numpy ndarray
+
+        """
+        self.__array.append(samples)
+        self._update_shape(self.__array.shape)
+
+    def transpose(self, neworder):
+        """
+        Returns a NumpyArraySamples object that is a transpose of the
+        h5ArraySamples object.
+
+        Parameter
+        ---------
+        neworder:
+          sequence of axes names that represent the desired order
+
+        """
+        return NumpyArraySamples(array=self[:], axes=self.axes,
+                                 dtype=None, copy=False,
+                                 readonly=self.readonly).transpose(neworder)
+
 
 
 class PytablesArraySamples(Samples):
@@ -413,8 +466,9 @@ def assamples(samples, axes, dtype=None, copy=True, readonly=True):
             samples = samples.get(copy=True)
         else:
             return samples
-
-    if isinstance(samples, (list, tuple, np.ndarray)):
+    if isinstance(samples, darr.Array):
+        samples = DarrSamples(samples, axes=axes)
+    elif isinstance(samples, (list, tuple, np.ndarray)):
         samples = NumpyArraySamples(array=samples,
                                     dtype=dtype, copy=copy,
                                     axes=axes, readonly=readonly)
@@ -429,7 +483,7 @@ def assamples(samples, axes, dtype=None, copy=True, readonly=True):
                                         dtype=dtype, copy=True,
                                         axes=axes, readonly=readonly)
 
-    elif isinstance(samples, (h5py.Dataset)):
+    elif isinstance(samples, h5py.Dataset):
         if not copy:
             if (dtype is not None) and (dtype != samples.dtype):
                 raise ValueError(

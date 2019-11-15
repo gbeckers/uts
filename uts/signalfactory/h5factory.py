@@ -124,10 +124,10 @@ def h5fill_new(signalname, filename=None, value=0.0, ntimesamples=None,
                                           overwrite=overwrite, extensible=extensible, 
                                           expectedrows=expectedrows, complib=complib, 
                                           complevel=complevel,chunkshape=chunkshape, attrs=attrs)
-                s = MultiChannelUniformTimeSeries(samples=samples, fs=fs, 
-                                                  origintime=origintime, starttime=starttime, 
-                                                  channelaxis=channelaxis, channels=channels,
-                                                  dtype=None, copy=False, readonly=readonly, 
+                s = MultiChannelUniformTimeSeries(samples=samples, fs=fs,
+                                                  origintime=origintime, starttime=starttime,
+                                                  channelaxis=channelaxis, channelnames=channels,
+                                                  dtype=None, copy=False, readonly=readonly,
                                                   geometry=geometry)
             else: # epoched multichannel
                 nepochs = records.size
@@ -174,10 +174,10 @@ def h5fill_new(signalname, filename=None, value=0.0, ntimesamples=None,
                                            overwrite=overwrite, extensible=extensible, 
                                            expectedrows=expectedrows, complib=complib, 
                                            complevel=complevel, chunkshape=chunkshape, attrs=attrs)
-                s = EpochedMultiChannelUniformTimeSeries(samples=samples, fs=fs, 
-                                                         origintime=origintime, channelaxis=channelaxis, 
-                                                         channels=channels, epochaxis=epochaxis, 
-                                                         epochs=epochs, dtype=None, copy=False, readonly=readonly, 
+                s = EpochedMultiChannelUniformTimeSeries(samples=samples, fs=fs,
+                                                         origintime=origintime, channelaxis=channelaxis,
+                                                         channelnames=channels, epochaxis=epochaxis,
+                                                         epochs=epochs, dtype=None, copy=False, readonly=readonly,
                                                          geometry=geometry)
         yield s
 

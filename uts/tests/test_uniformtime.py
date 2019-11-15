@@ -761,7 +761,7 @@ class test_MultiChannelUniformTimeSeries(TestCase):
         samples = np.arange(30.).reshape(10, 3)
         for channelaxis, ar in zip((1, 0), (samples, samples.T)):
             s = MultiChannelUniformTimeSeries(samples=ar, fs=1.0,
-                                              channelaxis=channelaxis, channels=channelnames)
+                                              channelaxis=channelaxis, channelnames=channelnames)
             assert s.nchannels == 3
             assert s.ntimesamples == 10
             assert s[:, :2].ntimesamples == 10
@@ -772,7 +772,7 @@ class test_MultiChannelUniformTimeSeries(TestCase):
             assert s[:5].nchannels == 3
             assert s[:5, :2].ntimesamples == 5
             assert s[:5, :2].nchannels == 2
-            assert (s.channelnames == np.array(channelnames, dtype=np.string_)).all()
+            assert (s.channelnames == np.array(channelnames, dtype=np.unicode_)).all()
             assert (s[:, [2, 1]].samples.get() == s[:, ['c', 'b']].samples.get()).all()
             assert (s[:, :].samples.get() == s.__getitem__(
                 (slice(None, None, None), slice(None, None, None))).samples.get()).all()
@@ -921,13 +921,13 @@ class test_MultiChannelUniformTimeSeries(TestCase):
         fs = 48.443798
         starttime = 0.55754441
         origintime = 0.02353585
-        channelnames = np.array(['ch1', 'ch2'], dtype=np.string_)
+        channelnames = np.array(['ch1', 'ch2'], dtype=np.unicode_)
         for dtype in dtypes:
             for readonly in [True, False]:
                 for channelaxis in [0, 1]:
                     mc = MultiChannelUniformTimeSeries(samples=samples[channelaxis], fs=fs,
                                                        starttime=starttime, origintime=origintime, dtype=dtype,
-                                                       channels=channelnames, channelaxis=channelaxis)
+                                                       channelnames=channelnames, channelaxis=channelaxis)
                     tmc = mc.transpose(mc.samples.axisorder[::-1])
                     assert (tmc.samples.get() == mc.samples.get().T).all()
                     assert tmc.fs == mc.fs
@@ -1001,7 +1001,7 @@ class test_EpochedMultiChannelUniformTimeSeries(TestCase):
             s = EpochedMultiChannelUniformTimeSeries(
                 samples=np.transpose(samples, t), fs=1.0,
                 channelaxis=channelaxis, epochaxis=epochaxis,
-                channels=channelnames,
+                channelnames=channelnames,
                 epochs=epochs)
             assert s.nchannels == 3
             assert s.ntimesamples == 10
@@ -1017,7 +1017,7 @@ class test_EpochedMultiChannelUniformTimeSeries(TestCase):
             assert s[:, :, :3].nepochs == 3
             assert s[:, :2, :3].nepochs == 3
             assert s[:5, :2, :3].nepochs == 3
-            assert (s.channelnames == np.array(channelnames, dtype=np.string_)).all()
+            assert (s.channelnames == np.array(channelnames, dtype=np.unicode_)).all()
             assert s[:, [2, 1]].nchannels == 2
             assert (s[:, [2, 1]].samples.get() == s[:, ['c', 'b']].samples.get()).all()
             assert (s[:, [2, 1, 0]][:, [2, 1, 0]].samples.get() == s.samples.get()).all()

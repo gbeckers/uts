@@ -669,7 +669,7 @@ class UniformTimeSeries(UniformTime):
         origintime = self.origintime
         channelaxis = 1
         return MultiChannelUniformTimeSeries(samples=samples, fs=fs,
-                                             channels=channelnames,
+                                             channelnames=channelnames,
                                              starttime=starttime,
                                              origintime=origintime,
                                              channelaxis=1, copy=True,
@@ -960,7 +960,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
         Sample values.
     fs: float
         Sampling rate in Herz (number of samples per second).
-    channels: sequence, optional
+    channelnames: sequence, optional
         A sequence (list, tuple, numpy array) with the names of individual
         channels. If None, default names will be created (i.e. this object 
         must always have named channels.)
@@ -1026,7 +1026,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
 
     """
 
-    def __init__(self, samples, fs, channels=None, starttime=0.0,
+    def __init__(self, samples, fs, channelnames=None, starttime=0.0,
                  origintime=0.0, dtype=None, copy=True, channelaxis=1,
                  geometry=None, readonly=True, attrs=None):
         self.__channelaxis, self.__timeaxis = self._check_channelaxis(
@@ -1037,7 +1037,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
                                    attrs=attrs)
         nchannels = self.samples.shape[self.__channelaxis]
         MultiChannel.__init__(self, nchannels=nchannels,
-                              channels=channels, geometry=geometry)
+                              channelnames=channelnames, geometry=geometry)
 
     channelaxis = property(
         lambda self: (self.__channelaxis), None, None,
@@ -1049,7 +1049,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
     _instantiationparams = property(
         lambda self: ({'samples': self.samples,
                        'fs': self.fs,
-                       'channels': self.channels,
+                       'channelnames': self.channelnames,
                        'starttime': self.starttime,
                        'origintime': self.origintime,
                        'dtype': self.dtype,
@@ -1093,7 +1093,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
             channelindex = self._to_channelsslice(index[1])
         else:
             channelindex = slice(None, None, None)
-        channels = self.channels[channelindex]
+        #channels = self.channels[channelindex]
         # the first part refers to samples
         timeindex, starttime, origintime = \
             super(self.__class__, self)._to_timeslice(index[0])
@@ -1132,7 +1132,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
                                      attrs=self.attrs)
         else:
             return MultiChannelUniformTimeSeries(samples=samples,
-                                                 channels=channelnames,
+                                                 channelnames=channelnames,
                                                  fs=self.fs,
                                                  starttime=starttime,
                                                  copy=False,
@@ -1174,7 +1174,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
     ## user accessible methods
     ##########################
 
-    def copy(self, starttime=None, origintime=None, channels=None):
+    def copy(self, starttime=None, origintime=None, channelnames=None):
         """
         Makes a copy of the UniformTimeSeries, with the option of
         resetting starttime, origintime, and channelnames.
@@ -1182,12 +1182,12 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
         """
         if starttime is None: starttime = self.starttime
         if origintime is None: origintime = self.origintime
-        if channels is None: channels = self.channels.copy()
+        if channelnames is None: channelnames = self.channelnames.copy()
         starttime = check_arg(starttime, 'time')
         origintime = check_arg(origintime, 'time')
         return self._instantiatefromself(starttime=starttime,
                                          origintime=origintime,
-                                         channels=channels,
+                                         channelnames=channelnames,
                                          copy=True)
 
     def dot(self, m, channels=None):
@@ -1286,7 +1286,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
             np.arange(nepochs, dtype=np.float64) * (nepochsamples / self.fs))
         return EpochedMultiChannelUniformTimeSeries(samples=samples, fs=fs,
                                                     epochs=epochs,
-                                                    channels=channelnames,
+                                                    channelnames=channelnames,
                                                     origintime=origintime,
                                                     geometry=geometry,
                                                     dtype=None, copy=False,
@@ -1366,14 +1366,14 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
         return EpochedMultiChannelUniformTimeSeries(samples=ar, fs=self.fs,
                                                     epochs=epochs,
                                                     epochaxis=0, channelaxis=1,
-                                                    channels=self.channels,
+                                                    channelnames=self.channels,
                                                     geometry=self.geometry,
                                                     origintime=origintime)
 
 
 class EpochedMultiChannelUniformTimeSeries(Epoched,
                                            MultiChannelUniformTimeSeries):
-    def __init__(self, samples, fs, epochs, channels=None,
+    def __init__(self, samples, fs, epochs, channelnames=None,
                  origintime=0.0, dtype=None, copy=True, geometry=None,
                  channelaxis=2, epochaxis=0, readonly=True, attrs=None):
 
@@ -1388,7 +1388,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
         MultiChannelUniformTimeSeries.__init__(self, samples=samples,
                                                fs=fs,
                                                channelaxis=self.__channelaxis,
-                                               channels=channels,
+                                               channelnames=channelnames,
                                                origintime=origintime,
                                                starttime=0.0, dtype=dtype,
                                                copy=copy, geometry=geometry,
@@ -1529,7 +1529,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
             res = MultiChannelUniformTimeSeries(samples=samples, fs=self.fs,
                                                 starttime=starttime,
                                                 origintime=origintime,
-                                                channels=channelnames,
+                                                channelnames=channelnames,
                                                 copy=False, geometry=geometry,
                                                 channelaxis=channelaxis,
                                                 attrs=self.attrs)
@@ -1546,7 +1546,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
         else:  # remaining_axes == ['time','channel,'epoch']
             res = EpochedMultiChannelUniformTimeSeries(samples=samples,
                                                        fs=self.fs,
-                                                       channels=channelnames,
+                                                       channelnames=channelnames,
                                                        origintime=origintime,
                                                        dtype=None, copy=False,
                                                        epochs=epochs,
@@ -1640,7 +1640,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
         else:
             starttime = self.starttimes[0]
         return MultiChannelUniformTimeSeries(samples=s, fs=self.fs,
-                                             channels=self.channelnames,
+                                             channelnames=self.channelnames,
                                              starttime=starttime,
                                              origintime=0.0, dtype=self.dtype,
                                              copy=True, channelaxis=1,

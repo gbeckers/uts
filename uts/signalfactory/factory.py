@@ -29,7 +29,7 @@ def fromsamples(samples, fs, channels=None, starttime=0.0, \
                                              starttime=starttime,
                                              origintime=origintime,
                                              dtype=dtype, copy=copy,
-                                             channels=channels,
+                                             channelnames=channels,
                                              channelaxis=channelaxis,
                                              geometry=geometry)
 
@@ -55,7 +55,7 @@ def fromchannels(channels, channelnames=None, geometry=None, channelaxis=1):
     else:
         raise ValueError("channelaxis shouls be '0' of '1'")
     return MultiChannelUniformTimeSeries(samples=ar, fs=ch0.fs,
-                                         channels=channelnames,
+                                         channelnames=channelnames,
                                          starttime=ch0.starttime,
                                          origintime=ch0.origintime, dtype=None,
                                          copy=False,
@@ -226,7 +226,7 @@ def fill_new(value=0.0, ntimesamples=None, fs=None, duration=None,
                                               origintime=origintime,
                                               starttime=starttime,
                                               channelaxis=channelaxis,
-                                              channels=channels,
+                                              channelnames=channels,
                                               dtype=None, copy=False,
                                               readonly=readonly,
                                               geometry=geometry)
@@ -292,7 +292,7 @@ def fill_new(value=0.0, ntimesamples=None, fs=None, duration=None,
             s = EpochedMultiChannelUniformTimeSeries(samples=samples, fs=fs,
                                                      origintime=origintime,
                                                      channelaxis=channelaxis,
-                                                     channels=channels,
+                                                     channelnames=channels,
                                                      epochaxis=epochaxis,
                                                      epochs=epochs, dtype=None,
                                                      copy=False,
