@@ -1366,7 +1366,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
         return EpochedMultiChannelUniformTimeSeries(samples=ar, fs=self.fs,
                                                     epochs=epochs,
                                                     epochaxis=0, channelaxis=1,
-                                                    channelnames=self.channels,
+                                                    channelnames=self.channelnames,
                                                     geometry=self.geometry,
                                                     origintime=origintime)
 
@@ -1406,7 +1406,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
     _instantiationparams = property(
         lambda self: ({'samples': self.samples,
                        'fs': self.fs,
-                       'channels': self.channels,
+                       'channelnames': self.channelnames,
                        'origintime': self.origintime,
                        'epochs': self.epochs,
                        'dtype': self.dtype,
