@@ -7,7 +7,6 @@ from ..core.uniformtime import UniformTimeSeries, \
 from ..core.geometry import RectangularLattice
 from .._version import get_versions
 
-# FIXME epoched
 # FIXME Darr should become standard open and save
 
 __all__ = ['opendarr', 'savedarr']

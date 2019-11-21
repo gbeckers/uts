@@ -40,10 +40,11 @@ from ..signalfactory.factory import fromchannels
 
 __all__ = ['bp', 'convolve', 'crosscorrelatetime',
            'crosscorrelatetime_betweenchannels',
-           'crosscorrelatetime_betweenchannels_p', 'decimate', 'hp', 'ibp',
-           'ica', 'ifdv', 'ihp', 'ilp', 'iter_convolve', 'iter_convolve_info',
-           'iter_decimate', 'iter_map', 'fft', 'lp', 'overlap_and_add', 'ramp',
-           'resample', 'specgram', 'stft', 'stmtt', 'welch']
+           'crosscorrelatetime_betweenchannels_p', 'decimate', 'diff', 'hp',
+           'ibp', 'ica', 'ifdv', 'ihp', 'ilp', 'iter_convolve',
+           'iter_convolve_info', 'iter_decimate', 'iter_map', 'fft', 'lp',
+           'overlap_and_add', 'ramp', 'resample', 'specgram', 'stft', 'stmtt',
+           'welch']
 
 def overlap_and_add(tss1, tss2, overlapdur):
     """
@@ -1307,3 +1308,11 @@ def ramp(uts, duration=8e-3, window=np.hanning):
                                                              -ntimebins:].samples.array[
                                                              :], w1)
     return ruts
+
+def diff(s, n=1):
+    assert_signal(s)
+    axis = s.samples.axes['time']
+    d = np.diff(s.samples[:], axis=axis, n=n)
+    origintime = s.origintime - s.dt / 2.0
+    ds = s._instantiatefromself(samples=d, origintime=origintime, copy=False)
+    return ds
