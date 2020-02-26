@@ -528,7 +528,8 @@ def chirp(duration=None, ntimesamples=None, fs=44100., startfreq=0.,
           dtype=None, peakamp=None, rmsamp=None):
     (ntimesamples, fs, duration) = timeparams(ntimesamples=ntimesamples, fs=fs,
                                               duration=duration)
-    t = np.linspace(startfreq, endfreq, round(duration * fs))
+    nsamples = int(round(duration * fs))
+    t = np.linspace(startfreq, endfreq, num=nsamples)
     return modfreq(freqpattern=t, fs=fs, dtype=dtype, peakamp=peakamp,
                    rmsamp=rmsamp)
 
