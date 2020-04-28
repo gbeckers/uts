@@ -104,7 +104,7 @@ class Samples(object):
         for ax in shape:
             if not np.issubdtype(type(ax), np.integer):
                 raise ValueError("shape dimensions should be ints")
-        size = np.product(shape)
+        size = np.product(shape, dtype='int64')
         return shape, size
 
     def _check_axes(self, axes, shape):

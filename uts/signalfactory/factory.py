@@ -10,7 +10,6 @@ from uts.io.hdf5 import _newh5uts, _newh5euts, _newh5mcuts, _newh5emcuts
 __all__ = ['fill_new', 'fill_like', 'fromsamples', 'ones', 'zeros', 'noise',
            'chirp', 'modfreq', 'harmonic', 'impulse', 'fromchannels']
 
-
 # clean this up
 def fromsamples(samples, fs, channels=None, starttime=0.0, \
                 origintime=0.0, dtype=None, copy=True, channelaxis=1,
