@@ -19,6 +19,7 @@ except Exception as e:  # pragma: no cover
 from .core.uniformtime import *
 from .core.uniformfrequency import *
 from .core.utils import *
+from .io import *
 from .io.hdf5 import *
 from .io.audio import *
 from .io.matlab import *
