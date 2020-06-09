@@ -1,5 +1,6 @@
 import numpy as np
 import darr
+import textwrap
 from darr.basedatadir import BaseDataDir, create_basedatadir
 from ..core.uniformtime import UniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
@@ -11,9 +12,17 @@ from .._version import get_versions
 
 __all__ = ['opendarr', 'savedarr']
 
+def wrap(s):
+    return textwrap.fill(s, width=78, replace_whitespace=False)
+
+readmetxt =  "This directory contains time signal data that is accessible with the Python library uts, " \
+             "but that is also easily accessible in other data analysis / programming platforms.\n\n"
+readmetxt += "The JSON text files 'attrs.json', 'channeldata.json', 'epochdata.json' and " \
+             "'signaldata.json', if present, contain metadata. The subdirectory 'samples.darr' contains " \
+             "the numeric data array, and has its own README file detailing how it can be accessed."
 
 def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
-             framesize=1024*1000):
+             framesize=1024*1000, readmetxt=readmetxt):
     bdd = create_basedatadir(path, overwrite=overwrite)
     if overwrite:
         bdd._delete_files(('signaldata.json', 'channeldata.json',
@@ -53,7 +62,7 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
     bdd._write_jsondict(filename='signaldata.json', d=signaldata,
                         overwrite=overwrite)
     bdd._write_jsondict(filename='attrs.json', d=attrs, overwrite=overwrite)
-    bdd._write_txt(filename='README.txt', text="Not implemented yet!",
+    bdd._write_txt(filename='README.txt', text=wrap(readmetxt),
                    overwrite=overwrite)
     samplepath = bdd.path / 'samples.darr'
     a = darr.asarray(path=samplepath, array=framegenerator,
