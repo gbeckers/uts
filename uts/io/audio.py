@@ -7,7 +7,7 @@ from ..core.check_arg import check_arg
 from ..processing.stats import extremes
 from ..processing.signalprocessing import segment_axis
 
-
+# FIXME old code this should be removed and dealt with in a separate package
 
 __all__ = ['load_audiofile', 'iter_load_audiofile', 'save_audiofile', 'save_wav', 'load_wav']
 

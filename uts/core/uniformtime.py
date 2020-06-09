@@ -144,7 +144,7 @@ class UniformTime(object):
     __repr__ = __str__
 
     def info(self):
-        from utils import epochtimetotext
+        from .utils import epochtimetotext
 
         s = ''
         s += 'ntimesamples: %d\n' % self.ntimesamples
@@ -710,24 +710,6 @@ class UniformTimeSeries(UniformTime):
                 endindex=endindex):
             yield self[framestart:frameend]
 
-    def show(self, zoom=False, labels={}, indexrange=None):
-
-        if zoom:
-            from old_code.sampled_zoom_plot import SampledZoomPlot
-
-            return SampledZoomPlot(self.samplingtimes(), self.samples.get(),
-                labels=labels)
-        else:
-            from old_code.singlechannel import PlotView
-
-            p = PlotView(self.get_plot(labels=labels, indexrange=indexrange))
-            p.configure_traits()
-            return p
-
-    def plot(self, ax=None, **kwargs):
-        from ..viz.plots import plot_uts
-        return plot_uts(self, ax=ax, **kwargs)
-
     def append(self, signal):
         """
         note that append can be very inefficient, depending on the type of
@@ -1292,29 +1274,6 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
                                                     dtype=None, copy=False,
                                                     channelaxis=channelaxis,
                                                     epochaxis=epochaxis)
-
-    def show(self, plottype='lineplot', labels=None, include_imageplot=False,
-             clip=None, **plotparams):
-        from uts.display.traitsmultichannel import \
-            MultiChannelUniformTimeSeriesPlot as Plot
-        from uts.display.traitsmultichannel import \
-            MultiChannelImagePlot as ImagePlot
-
-        p1 = Plot(self, plottype=plottype, geometry=self.geometry,
-                  labels=labels, **plotparams)
-        p1.configure_traits()
-        if include_imageplot:
-            p2 = ImagePlot(self, clip=clip, mcutsp=p1,
-                           colormap='jet', inversecolor=False,
-                           time=self.timerange[0], **plotparams)
-            p2.configure_traits()
-        else:
-            p2 = None
-        return p1, p2
-
-    def plot(self, ga=None, **kwargs):
-        from ..viz.plots import plot_mcuts
-        return plot_mcuts(self, ga=ga, **kwargs)
 
     def append(self, signal):
         if not isinstance(signal, MultiChannelUniformTimeSeries):
