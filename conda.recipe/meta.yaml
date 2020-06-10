@@ -1,6 +1,6 @@
 package:
   name: uts
-  version: "2.0.3"
+  version: "2.1"
 
 source:
   path: ..
@@ -10,15 +10,16 @@ requirements:
     - python
     - setuptools
     - cython
-    - numpy >=1.11
+    - numpy
 #    - libpython
 
   run:
     - python
-    - numpy >=1.11
+    - numpy
     - pytables
     - scipy
     - h5py
+    - darr
 
 test:
   imports:
