@@ -36,11 +36,8 @@ from .processing.uniformtime_processing import *
 from .processing.elementwise_math import *
 from .processing.stats import *
 
-from . import tests
+from .tests import test
 
-from numpy.testing import Tester
-test = Tester().test
-bench = Tester().bench
 from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
