@@ -484,7 +484,7 @@ class UniformTimeSeries(UniformTime):
     #                     np.float16, np.float32, np.float64, np.complex128)
 
     def __init__(self, samples, fs, starttime=0.0, origintime=0.0, dtype=None,
-                 copy=True, readonly=True, attrs=None):
+                 copy=True, readonly=True, metadata=None, attrs=None):
 
         copy = check_arg(copy, 'copy')
         self.__samples = self._check_samples(samples, dtype=dtype, copy=copy,
@@ -492,10 +492,15 @@ class UniformTimeSeries(UniformTime):
         self.__sampletype = self.__samples.sampletype
         self.__dtype = self.__samples.dtype
         ntimesamples = self.__samples.shape[self.__samples.axes['time']]
-        if attrs is None:
-            self.attrs = {}
+        if metadata is None:
+            self.metadata = {}
         else:
-            self.attrs = attrs
+            if not isinstance(metadata, dict):
+                raise TypeError('metadata should be a dictionary')
+            self.metadata = metadata
+        if attrs is not None:
+            self.metadata.update(attrs)
+        self.attrs = self.metadata # attrs is to stay compatible with older versions
         UniformTime.__init__(self, ntimesamples=ntimesamples, fs=fs,
                              starttime=starttime, origintime=origintime)
 
@@ -524,7 +529,7 @@ class UniformTimeSeries(UniformTime):
                        'dtype': self.dtype,
                        'copy': True,
                        'readonly': self.readonly,
-                       'attrs': self.attrs}),
+                       'metadata': self.metadata}),
         None, None, "parameter dictionary for instantiation")
 
     ######################
@@ -550,7 +555,7 @@ class UniformTimeSeries(UniformTime):
         return UniformTimeSeries(samples=self.samples[sslice], fs=self.fs,
                                  starttime=starttime, copy=False,
                                  origintime=origintime,
-                                 attrs=self.attrs)
+                                 metadata=self.metadata)
 
     def __eq__(self, other):
         result = UniformTime.__eq__(self, other)
@@ -649,7 +654,7 @@ class UniformTimeSeries(UniformTime):
         origintime = check_arg(origintime, 'time')
         return self._instantiatefromself(starttime=starttime,
                                          origintime=origintime, copy=True,
-                                         attrs=self.attrs)
+                                         metadata=self.metadata)
 
     def astype(self, dtype):
         if not self.dtype.type is dtype:
@@ -667,13 +672,12 @@ class UniformTimeSeries(UniformTime):
             channelnames = [channelname]
         starttime = self.starttime
         origintime = self.origintime
-        channelaxis = 1
         return MultiChannelUniformTimeSeries(samples=samples, fs=fs,
                                              channelnames=channelnames,
                                              starttime=starttime,
                                              origintime=origintime,
                                              channelaxis=1, copy=True,
-                                             attrs=self.attrs)
+                                             metadata=self.metadata)
 
     def iter_frames(self, framesize, stepsize=None, include_remainder=True,
                     startindex=None, endindex=None):
@@ -730,23 +734,6 @@ class UniformTimeSeries(UniformTime):
         ntimesamples = self.samples.shape[self.samples.axes['time']]
         self._update_ntimesamples(ntimesamples)
 
-    # def get_epochs(self, starttimes, duration):
-    #     """
-    #     get_epochs(self, starttimes, duration)
-    #     """
-    #     startsamples = self.time_to_index(starttimes)
-    #     duration = check_arg(duration, 'duration')
-    #     nsamples = int(np.round(duration * self.fs))
-    #     ar = np.empty((len(startsamples), nsamples), dtype=self.samples.dtype)
-    #     for i, sample in enumerate(startsamples):
-    #         ar[i] = self.samples[sample:sample + nsamples]
-    #     epochs = np.array(list(starttimes), dtype=[('starttime', np.float64)])
-    #     return EpochedUniformTimeSeries(samples=ar, fs=self.fs, epochs=epochs,
-    #                                     epochaxis=0,
-    #                                     attrs=self.attrs)
-
-
-
     def get_epochs(self, duration, starttimes=None, epochs=None,
                    origintime=0.0):
         """
@@ -772,12 +759,13 @@ class UniformTimeSeries(UniformTime):
         return EpochedUniformTimeSeries(samples=ar, fs=self.fs,
                                         epochs=epochs,
                                         epochaxis=0,
-                                        origintime=origintime)
+                                        origintime=origintime,
+                                        metadata=self.metadata)
 
 
 class EpochedUniformTimeSeries(Epoched, UniformTimeSeries):
     def __init__(self, samples, fs, epochs, origintime=0.0, dtype=None,
-                 copy=True, epochaxis=0, readonly=True, attrs=None):
+                 copy=True, epochaxis=0, readonly=True, metadata=None, attrs=None):
         """
         samples: a (events x samples) array
         epochs: a numpy structured array or h5 table, with at least a 'starttime' column
@@ -787,7 +775,7 @@ class EpochedUniformTimeSeries(Epoched, UniformTimeSeries):
         UniformTimeSeries.__init__(self, samples=samples, fs=fs, starttime=0.0,
                                    origintime=origintime, dtype=dtype,
                                    copy=copy,
-                                   readonly=readonly, attrs=attrs)
+                                   readonly=readonly, metadata=metadata, attrs=attrs)
         duration = self.samples.shape[self.samples.axes['time']] / self.fs
         nepochs = self.samples.shape[self.samples.axes['epoch']]
         Epoched.__init__(self, duration=duration, epochs=epochs,
@@ -809,7 +797,7 @@ class EpochedUniformTimeSeries(Epoched, UniformTimeSeries):
                        'epochaxis': self.samples.axes['epoch'],
                        'epochs': self.epochs,
                        'readonly': self.readonly,
-                       'attrs': self.attrs}),
+                       'metadata': self.metadata}),
         None, None, "parameter dictionary for instantiation")
 
     def __eq__(self, other):
@@ -858,7 +846,7 @@ class EpochedUniformTimeSeries(Epoched, UniformTimeSeries):
                                      fs=self.fs,
                                      starttime=self.starttimes[epochindex],
                                      origintime=origintime, copy=False,
-                                     attrs=self.attrs)
+                                     metadata=self.metadata)
         else:
             epochs = self.epochs[epochindex]
             return self._instantiatefromself(samples=samples, fs=self.fs,
@@ -903,11 +891,6 @@ class EpochedUniformTimeSeries(Epoched, UniformTimeSeries):
     def iter_epochs(self):
         for i in range(self.nepochs):
             yield self[slice(None, None, None), i]
-
-    def show(self):
-        p = self.get_plot()
-        p.configure_traits()
-        return p
 
     def append(self, euts):
         if not isinstance(euts, EpochedUniformTimeSeries):
@@ -1010,13 +993,13 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
 
     def __init__(self, samples, fs, channelnames=None, starttime=0.0,
                  origintime=0.0, dtype=None, copy=True, channelaxis=1,
-                 geometry=None, readonly=True, attrs=None):
+                 geometry=None, readonly=True, metadata=None, attrs=None):
         self.__channelaxis, self.__timeaxis = self._check_channelaxis(
             channelaxis)
         UniformTimeSeries.__init__(self, samples=samples, fs=fs,
                                    starttime=starttime, origintime=origintime,
                                    dtype=dtype, copy=copy, readonly=readonly,
-                                   attrs=attrs)
+                                   metadata=metadata, attrs=attrs)
         nchannels = self.samples.shape[self.__channelaxis]
         MultiChannel.__init__(self, nchannels=nchannels,
                               channelnames=channelnames, geometry=geometry)
@@ -1039,7 +1022,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
                        'channelaxis': self.samples.axes['channel'],
                        'geometry': self.geometry,
                        'readonly': self.readonly,
-                       'attrs': self.attrs}),
+                       'metadata': self.metadata}),
         None, None, "parameter dictionary for instantiation")
 
     ######################
@@ -1111,7 +1094,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
             return UniformTimeSeries(samples=samples.flatten(), fs=self.fs,
                                      copy=False, starttime=starttime,
                                      origintime=origintime,
-                                     attrs=self.attrs)
+                                     metadata=self.metadata)
         else:
             return MultiChannelUniformTimeSeries(samples=samples,
                                                  channelnames=channelnames,
@@ -1121,7 +1104,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
                                                  origintime=origintime,
                                                  channelaxis=self.__channelaxis,
                                                  geometry=geometry,
-                                                 attrs=self.attrs)
+                                                 metadata=self.metadata)
 
 
 
@@ -1334,7 +1317,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                            MultiChannelUniformTimeSeries):
     def __init__(self, samples, fs, epochs, channelnames=None,
                  origintime=0.0, dtype=None, copy=True, geometry=None,
-                 channelaxis=2, epochaxis=0, readonly=True, attrs=None):
+                 channelaxis=2, epochaxis=0, readonly=True, metadata=None, attrs=None):
 
         '''
         samples: a (events x samples x channels) array
@@ -1351,7 +1334,8 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                                origintime=origintime,
                                                starttime=0.0, dtype=dtype,
                                                copy=copy, geometry=geometry,
-                                               readonly=readonly, attrs=attrs)
+                                               readonly=readonly, metadata=metadata,
+                                               attrs=attrs)
         duration = self.samples.shape[self.samples.axes['time']] / self.fs
         nepochs = self.samples.shape[self.samples.axes['epoch']]
 
@@ -1374,7 +1358,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                        'channelaxis': self.samples.axes['channel'],
                        'epochaxis': self.samples.axes['epoch'],
                        'readonly': self.readonly,
-                       'attrs': self.attrs}),
+                       'metadata': self.metadata}),
         None, None, "parameter dictionary for instantiation")
 
     def _check_samples(self, samples, dtype=None, copy=True, readonly=True):
@@ -1479,7 +1463,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
             res = UniformTimeSeries(samples=samples, fs=self.fs,
                                     starttime=starttime, origintime=origintime,
                                     copy=False,
-                                    attrs=self.attrs)
+                                    metadata=self.metadata)
         elif len(epochs)==1:
             if self.channelaxis > self.timeaxis:
                 channelaxis = 1
@@ -1491,7 +1475,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                                 channelnames=channelnames,
                                                 copy=False, geometry=geometry,
                                                 channelaxis=channelaxis,
-                                                attrs=self.attrs)
+                                                metadata=self.metadata)
         elif nselchannels==1:
             if self.epochaxis > self.timeaxis:
                 epochaxis = 1
@@ -1501,7 +1485,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                            epochs=epochs,
                                            origintime=origintime, copy=False,
                                            epochaxis=epochaxis,
-                                           attrs=self.attrs)
+                                           metadata=self.metadata)
         else:  # remaining_axes == ['time','channel,'epoch']
             res = EpochedMultiChannelUniformTimeSeries(samples=samples,
                                                        fs=self.fs,
@@ -1512,7 +1496,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                                        geometry=geometry,
                                                        epochaxis=self.epochaxis,
                                                        channelaxis=self.channelaxis,
-                                                       attrs=self.attrs)
+                                                       metadata=self.metadata)
         return res
 
     def __iter__(self):
@@ -1551,17 +1535,6 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
         if channels is None:
             channels = self.channels.copy()
         return self._instantiatefromself(channels=channels, copy=True)
-
-    # def show(self, autovrange=False, vrangelow=None, vrangehigh=None,
-    #          zmapper=None, **plotparams):
-    #     from uts.display.traitsmultichannel import \
-    #         EpochedMultiChannelUniformTimeSeriesPlot as Plot
-    #
-    #     p = Plot(self, geometry=self.geometry, zmapper=zmapper,
-    #              autovrange=autovrange, vrangelow=vrangelow,
-    #              vrangehigh=vrangehigh, **plotparams)
-    #     p.configure_traits()
-    #     return p
 
     # FIXME: make this resistent against appending large h5 signals
     def append(self, signal):
@@ -1603,7 +1576,8 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                              starttime=starttime,
                                              origintime=0.0, dtype=self.dtype,
                                              copy=True, channelaxis=1,
-                                             geometry=self.geometry)
+                                             geometry=self.geometry,
+                                             metadata=self.metadata)
 
     def dot(self, m, channelnames=None):
         """

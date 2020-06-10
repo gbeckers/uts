@@ -15,22 +15,24 @@ __all__ = ['opendarr', 'savedarr']
 def wrap(s):
     return textwrap.fill(s, width=78, replace_whitespace=False)
 
-readmetxt =  "This directory contains time signal data that is accessible with the Python library uts, " \
-             "but that is also easily accessible in other data analysis / programming platforms.\n\n"
-readmetxt += "The JSON text files 'attrs.json', 'channeldata.json', 'epochdata.json' and " \
-             "'signaldata.json', if present, contain metadata. The subdirectory 'samples.darr' contains " \
-             "the numeric data array, and has its own README file detailing how it can be accessed."
+readmetxt =  wrap("This directory contains time signal data that is accessible with the Python library uts, "
+                  "but that is also easily accessible in other data analysis / programming platforms.")
+readmetxt += "\n\n"
+readmetxt += wrap("The JSON text files 'metadata.json', 'channeldata.json', 'epochdata.json' and "
+                  "'signaldata.json', if present, contain metadata. The subdirectory 'samples.darr' contains "
+                  "the numeric data array, and has its own README file detailing how it can be accessed.")
+readmetxt += "\n"
 
 def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
              framesize=1024*1000, readmetxt=readmetxt):
     bdd = create_basedatadir(path, overwrite=overwrite)
     if overwrite:
         bdd._delete_files(('signaldata.json', 'channeldata.json',
-                           'epochdata.json', 'attrs.json'))
+                           'epochdata.json', 'metadata.json'))
 
     framegenerator = (f.samples[:] for f in s.iter_frames(framesize=framesize))
-    attrs = dict(((k, i) if not hasattr(i, 'decode') else (k, i.decode("utf-8"))
-                     for (k, i) in s.attrs.items()))
+    metadata = dict(((k, i) if not hasattr(i, 'decode') else (k, i.decode("utf-8"))
+                      for (k, i) in s.metadata.items()))
     signaldata = ({'fs': s.fs,
                  'starttime': s.starttime,
                  'origintime': s.origintime,
@@ -41,8 +43,8 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
         channeldata = {'channelnames': [str(n) for n in s.channelnames]}
         if hasattr(s, 'geometry'):
             if type(s.geometry) is RectangularLattice:
-                g = {'type': 'RectangularLattice'}
-                g['instantiationparameters'] = s.geometry.instantiationparameters()
+                g = {'type': 'RectangularLattice',
+                     'instantiationparameters': s.geometry.instantiationparameters()}
                 channeldata['geometry'] = g
             else:
                 raise TypeError(f'Geometry type "{type(g)}" not supported for Darr')
@@ -61,8 +63,8 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
     signaldata['utstype'] = type(s).__name__
     bdd._write_jsondict(filename='signaldata.json', d=signaldata,
                         overwrite=overwrite)
-    bdd._write_jsondict(filename='attrs.json', d=attrs, overwrite=overwrite)
-    bdd._write_txt(filename='README.txt', text=wrap(readmetxt),
+    bdd._write_jsondict(filename='metadata.json', d=metadata, overwrite=overwrite)
+    bdd._write_txt(filename='README.txt', text=readmetxt,
                    overwrite=overwrite)
     samplepath = bdd.path / 'samples.darr'
     a = darr.asarray(path=samplepath, array=framegenerator,
@@ -72,15 +74,28 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
 
 def opendarr(path, accessmode='r'):
     bdd = BaseDataDir(path)
+    # bdd._write_txt(filename='README.txt', text=readmetxt,
+    #                overwrite=True)
     a = darr.Array(bdd.path / 'samples.darr' , accessmode=accessmode)
     sd = bdd._read_jsondict('signaldata.json')
-    attrs = bdd._read_jsondict('attrs.json')
+    if (bdd.path / 'metadata.json').exists():
+        metadata = bdd._read_jsondict('metadata.json')
+    else:
+        metadata = None
+    # if (bdd.path / 'attrs.json').exists(): # for compatibility with old code
+    #     attrs = bdd._read_jsondict('attrs.json')
+    #     if metadata is None:
+    #         metadata = attrs
+    #     else:
+    #         metadata.update(attrs)
+    #     bdd._write_jsondict(filename='metadata.json', d=metadata, overwrite=True)
+    #     (bdd.path / 'attrs.json').unlink()
     utstype = sd['utstype']
     if utstype == 'UniformTimeSeries':
         return UniformTimeSeries(samples=a, fs=sd['fs'],
                                  starttime=sd['starttime'],
                                  origintime=sd['origintime'], copy=False,
-                                 dtype=a.dtype, attrs=attrs)
+                                 dtype=a.dtype, metadata=metadata)
     elif utstype == 'MultiChannelUniformTimeSeries':
         sd = bdd._read_jsondict('signaldata.json')
         chd = bdd._read_jsondict('channeldata.json')
@@ -92,7 +107,7 @@ def opendarr(path, accessmode='r'):
                                       starttime=sd['starttime'],
                                       origintime=sd['origintime'], copy=False,
                                       dtype=a.dtype, geometry=geometry,
-                                      attrs=attrs)
+                                      metadata=metadata)
     elif utstype == 'EpochedUniformTimeSeries':
         sd = bdd._read_jsondict('signaldata.json')
         epochs = np.genfromtxt(bdd._path / 'epochs.csv', names=True)
@@ -103,7 +118,7 @@ def opendarr(path, accessmode='r'):
                                         epochaxis=sd['epochaxis'],
                                         copy=False,
                                         dtype=a.dtype,
-                                        attrs=attrs)
+                                        metadata=metadata)
     elif utstype == 'EpochedMultiChannelUniformTimeSeries':
         sd = bdd._read_jsondict('signaldata.json')
         chd = bdd._read_jsondict('channeldata.json')
@@ -119,7 +134,7 @@ def opendarr(path, accessmode='r'):
                                              epochaxis=sd['epochaxis'],
                                              copy=False,
                                              dtype=a.dtype, geometry=geometry,
-                                             attrs=attrs)
+                                             metadata=metadata)
     else:
         raise TypeError(f'"Type of data is not understood or not supported"')
 
