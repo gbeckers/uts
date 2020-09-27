@@ -15,7 +15,6 @@ except Exception as e:  # pragma: no cover
     else:
         raise
 
-# from uts.version import version as __version__
 from .core.uniformtime import *
 from .core.uniformfrequency import *
 from .core.utils import *
@@ -30,7 +29,6 @@ from .signalfactory.factory import *
 from .signalfactory.h5factory import *
 from .signalfactory.testsignals import *
 from .signalfactory.examplesignals import *
-
 
 from .processing.uniformtime_processing import *
 from .processing.elementwise_math import *

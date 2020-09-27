@@ -1045,12 +1045,12 @@ def geometry_to_h5attr(node, geometry):
 
 def _save_multichannel(multichannel, h5group, name, overwrite=False, attrs={}):
     h5file = h5group._v_file
-    dtypedescr = multichannel.channels.dtype.descr
+    dtypedescr = multichannel.channelnames.dtype.descr
     dtypedescr[0] = (dtypedescr[0][0], dtypedescr[0][1].replace('U', 'S'))
     if overwrite and (name in h5group):
         h5group._v_children[name]._f_remove()
         h5file.flush()
-    channels = multichannel.channels.astype(dtypedescr)
+    channels = multichannel.channelnames.astype(dtypedescr)
     table = h5file.create_table(where=h5group, name=name,
                                 description=channels)
     for attrname, value in attrs.items():
@@ -1384,7 +1384,7 @@ def _mcuts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
     samples = _newh5mcuts(h5group=h5group, dtype=dtype,
                           ntimesamples=ntimesamples, fs=fs,
                           origintime=s.origintime, starttime=s.starttime,
-                          nchannels=s.nchannels, channels=s.channels,
+                          nchannels=s.nchannels, channels=s.channelnames,
                           geometry=s.geometry, channelaxis=channelaxis,
                           dflt=value,
                           overwrite=overwrite, extensible=extensible,
@@ -1424,7 +1424,7 @@ def _emcuts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
                            ntimesamples=ntimesamples, fs=fs,
                            origintime=s.origintime, starttime=s.starttime,
                            nchannels=s.nchannels, epochaxis=epochaxis,
-                           epochs=s.epochs, channels=s.channels,
+                           epochs=s.epochs, channels=s.channelnames,
                            geometry=s.geometry, channelaxis=channelaxis,
                            dflt=value,
                            overwrite=overwrite, extensible=extensible,
