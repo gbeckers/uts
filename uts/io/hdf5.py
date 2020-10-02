@@ -291,8 +291,7 @@ def _open(h5group, mode='r'):
                 channels = channeltable[:]
                 channelnames = channels['channelname']
                 if "geometry" in channeltable.attrs._v_attrnames:
-                    pointnames = np.empty_like(channelnames)
-                    pointnames[channels['geometrypoint']] = channelnames
+                    pointnames = channeltable.attrs.pointnames
                     g = h5attr_to_geometry(channeltable.attrs.geometry,
                                            pointnames=pointnames)
                 else:
@@ -342,8 +341,7 @@ def _open(h5group, mode='r'):
             channels = channeltable[:]
             channelnames = channels['channelname']
             if "geometry" in channeltable.attrs._v_attrnames:
-                pointnames = np.empty_like(channelnames)
-                pointnames[channels['geometrypoint']] = channelnames
+                pointnames = channeltable.attrs.pointnames
                 g = h5attr_to_geometry(channeltable.attrs.geometry,
                                        pointnames=pointnames)
             else:
@@ -1041,12 +1039,13 @@ def geometry_to_h5attr(node, geometry):
     if not isinstance(geometry, Geometry):
         raise TypeError("geometry argument is not a Geometry instance")
     node.set_attr('geometry', geometry.instantiationcode())
+    node.set_attr('pointnames', geometry.pointnames.flatten())
     node._v_file.flush()
 
 def _save_multichannel(multichannel, h5group, name, overwrite=False, attrs={}):
     h5file = h5group._v_file
     dtypedescr = multichannel.channelnames.dtype.descr
-    dtypedescr[0] = (dtypedescr[0][0], dtypedescr[0][1].replace('U', 'S'))
+    dtypedescr[0] = ('channelname', dtypedescr[0][1].replace('U', 'S'))
     if overwrite and (name in h5group):
         h5group._v_children[name]._f_remove()
         h5file.flush()

@@ -293,7 +293,7 @@ class H5pyArraySamples(Samples):
         Samples.__init__(self, dtype=dtype, shape=shape, sampletype=sampletype,
                          axes=axes, readonly=readonly)
 
-    h5array = property(lambda self: (self.__h5array), None, None,
+    h5pyarray = property(lambda self: (self.__h5array), None, None,
                        "h5array object")
 
     def __getitem__(self, index):
