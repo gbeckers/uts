@@ -1526,15 +1526,14 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                                        None), 0]._instantiatefromself(
                 samples=samples)
 
-    def copy(self, channels=None):
+    def copy(self, channelnames=None):
         """
         Makes a copy of the UniformTimeSeries, with the option of
         resetting channelnames.
 
         """
-        if channels is None:
-            channels = self.channels.copy()
-        return self._instantiatefromself(channels=channels, copy=True)
+        if channelnames is None: channelnames = self.channelnames.copy()
+        return self._instantiatefromself(channelnames=channelnames, copy=True)
 
     # FIXME: make this resistent against appending large h5 signals
     def append(self, signal):
