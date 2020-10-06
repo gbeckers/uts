@@ -30,19 +30,28 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
     if overwrite:
         bdd._delete_files(('signaldata.json', 'channeldata.json',
                            'epochdata.json', 'metadata.json'))
-    if iseuts(s) and s.timeaxis != 0:
-        axes = ['time','epoch']
-    elif ismcuts(s) and s.timeaxis != 0:
-        axes = ['time','channel']
-    elif isemcuts(s) and s.timeaxis != 0:
-        axes = list(s.samples.axisorder)
-        del(axes[axes.index('time')])
-        axes.insert(0, 'time')
-    elif isuts(s): # isuts
-        axes = ['time']
+    # if iseuts(s) and s.timeaxis != 0:
+    #     axes = ['time','epoch']
+    # elif ismcuts(s) and s.timeaxis != 0:
+    #     axes = ['time','channel']
+    # elif isemcuts(s) and s.timeaxis != 0:
+    #     axes = list(s.samples.axisorder)
+    #     del(axes[axes.index('time')])
+    #     axes.insert(0, 'time')
+    # elif isuts(s): # isuts
+    #     axes = ['time']
+    axisorder = s.samples.axisorder
+    lastaxis = axisorder[-1]
+    if lastaxis == 'time':
+        iter_frames = s.iter_frames(framesize=framesize)
+    elif lastaxis == 'channel':
+        iter_frames = s.iter_channels()
+    elif lastaxis == 'epoch':
+        iter_frames = s.iter_epochs()
+    else:
+        raise ValueError(f"Do not understand last axis '{lastaxis}'")
 
-    framegenerator = (f.transpose(axes).samples[:] for f in
-                      s.iter_frames(framesize=framesize))
+    framegenerator = (f.samples[:] for f in iter_frames)
     metadata = dict(((k, i) if not hasattr(i, 'decode') else (k, i.decode("utf-8"))
                       for (k, i) in s.metadata.items()))
     signaldata = ({'fs': s.fs,
