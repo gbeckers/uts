@@ -41,15 +41,15 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
     # elif isuts(s): # isuts
     #     axes = ['time']
     axisorder = s.samples.axisorder
-    lastaxis = axisorder[-1]
-    if lastaxis == 'time':
+    firstaxis = axisorder[0]
+    if firstaxis == 'time':
         iter_frames = s.iter_frames(framesize=framesize)
-    elif lastaxis == 'channel':
+    elif firstaxis == 'channel':
         iter_frames = s.iter_channels()
-    elif lastaxis == 'epoch':
+    elif firstaxis == 'epoch':
         iter_frames = s.iter_epochs()
     else:
-        raise ValueError(f"Do not understand last axis '{lastaxis}'")
+        raise ValueError(f"Do not understand last axis '{firstaxis}'")
 
     framegenerator = (f.samples[:] for f in iter_frames)
     metadata = dict(((k, i) if not hasattr(i, 'decode') else (k, i.decode("utf-8"))
