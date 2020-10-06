@@ -30,18 +30,16 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
     if overwrite:
         bdd._delete_files(('signaldata.json', 'channeldata.json',
                            'epochdata.json', 'metadata.json'))
-    if iseuts(s) and s.timeaxis != 1:
-        axes = ['epoch', 'time']
-    elif ismcuts(s) and s.timeaxis != 1:
-        axes = ['channel', 'time']
-    elif isemcuts(s) and s.timeaxis != 1:
+    if iseuts(s) and s.timeaxis != 0:
+        axes = ['time','epoch']
+    elif ismcuts(s) and s.timeaxis != 0:
+        axes = ['time','channel']
+    elif isemcuts(s) and s.timeaxis != 0:
         axes = list(s.samples.axisorder)
         del(axes[axes.index('time')])
-        axes.append('time')
+        axes.insert(0, 'time')
     elif isuts(s): # isuts
         axes = ['time']
-    else:
-        raise TypeError(f"Don't know what to do with {type(s)}")
 
     framegenerator = (f.transpose(axes).samples[:] for f in
                       s.iter_frames(framesize=framesize))
