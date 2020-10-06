@@ -4,7 +4,7 @@ import textwrap
 from darr.basedatadir import BaseDataDir, create_basedatadir
 from ..core.uniformtime import UniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
-    EpochedUniformTimeSeries
+    EpochedUniformTimeSeries, isuts, iseuts, ismcuts, isemcuts
 from ..core.geometry import RectangularLattice
 from .._version import get_versions
 
@@ -23,14 +23,28 @@ readmetxt += wrap("The JSON text files 'metadata.json', 'channeldata.json', 'epo
                   "the numeric data array, and has its own README file detailing how it can be accessed.")
 readmetxt += "\n"
 
+# TODO perhaps an iter based version and a non-iter for time not last axis
 def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
              framesize=1024*1000, readmetxt=readmetxt):
     bdd = create_basedatadir(path, overwrite=overwrite)
     if overwrite:
         bdd._delete_files(('signaldata.json', 'channeldata.json',
                            'epochdata.json', 'metadata.json'))
+    if iseuts(s) and s.timeaxis != 1:
+        axes = ['epoch', 'time']
+    elif ismcuts(s) and s.timeaxis != 1:
+        axes = ['channel', 'time']
+    elif isemcuts(s) and s.timeaxis != 1:
+        axes = list(s.samples.axisorder)
+        del(axes[axes.index('time')])
+        axes.append('time')
+    elif isuts(s): # isuts
+        axes = ['time']
+    else:
+        raise TypeError(f"Don't know what to do with {type(s)}")
 
-    framegenerator = (f.samples[:] for f in s.iter_frames(framesize=framesize))
+    framegenerator = (f.transpose(axes).samples[:] for f in
+                      s.iter_frames(framesize=framesize))
     metadata = dict(((k, i) if not hasattr(i, 'decode') else (k, i.decode("utf-8"))
                       for (k, i) in s.metadata.items()))
     signaldata = ({'fs': s.fs,
