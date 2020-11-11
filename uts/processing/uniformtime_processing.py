@@ -819,7 +819,7 @@ def welch(tss, windowtype='gaussian', windowduration=None, fftduration=None,
         return MultiChannelPowerSpectrum(samples=Pxx,
                                          samplingfrequencies=samplingfrequencies,
                                          copy=False, channelaxis=0,
-                                         channelnames=tss.channels,
+                                         channelnames=tss.channelnames,
                                          geometry=tss.geometry)
     else:
         return PowerSpectrum(samples=Pxx,
