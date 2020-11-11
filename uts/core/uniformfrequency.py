@@ -306,7 +306,7 @@ class PowerSpectrum(FrequencySampled):
 
 
 class MultiChannelPowerSpectrum(MultiChannel, PowerSpectrum):
-    def __init__(self, samples, bandwidth, samplingfrequencies, dtype=None,
+    def __init__(self, samples, samplingfrequencies, dtype=None,
                  copy=True, channelnames=None, channelaxis=1,
                  geometry=None, readonly=True):
 
