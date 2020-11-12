@@ -38,7 +38,7 @@ from ..signalfactory.factory import fromchannels
 
 # fixme look at tqdm library for progress bars
 
-__all__ = ['apply_to_samples', 'bp', 'convolve', 'crosscorrelatetime',
+__all__ = ['absolute','apply_to_samples', 'bp', 'convolve', 'crosscorrelatetime',
            'crosscorrelatetime_betweenchannels',
            'crosscorrelatetime_betweenchannels_p', 'decimate', 'diff', 'hp',
            'ibp', 'ica', 'ifdv', 'ihp', 'ilp', 'iter_convolve',
@@ -140,7 +140,7 @@ def apply_to_samples(tss, f, copy=True, **nargs):
     """
     assert_signal(tss)
     samples = f(tss.samples.get(copy=copy), **nargs)
-    return tss._instantiatefromself(samples=samples, copy=False)
+    return tss._instantiatefromself(samples=samples, dtype=samples.dtype)
 
 #FIXME add arguments of numpy abs function
 def absolute(tss):
@@ -155,7 +155,7 @@ def absolute(tss):
     A new object of the same class of ts, but with the absolute of the samples
 
     """
-    return apply_to_samples(tss, np.absolute)
+    return apply_to_samples(tss, np.absolute, copy=True)
 
 
 def crosscorrelatetime(s1, s2, normalized=True):
