@@ -740,7 +740,7 @@ def filtfilt(uts, a, b, padtype='odd', padlen=None, method='pad', irlen=None):
     y : uniform time series
         The filtered output with the same shape as input.
     """
-    s = scipy.signal.filtfilt(b, a, uts.samples[:], axis=uts.timeaxis,
+    s = scipy.signal.filtfilt(b, a, uts.samples[:], axis=uts.samples.axes['time'],
                               padtype=padtype, padlen=padlen, method=method, irlen=irlen)
     return uts._instantiatefromself(samples=s)
 
