@@ -202,40 +202,6 @@ def lfilter_zi(b,a):
 
     return array(zi_return)
 
-
-def filtfilt(b,a,x):
-    #For now only accepting 1d arrays
-    ntaps=max(len(a),len(b))
-    edge=ntaps*3
-
-    if x.ndim != 1:
-        raise ValueError("Filtfilt is only accepting 1 dimension arrays.")
-
-    #x must be bigger than edge
-    if x.size < edge:
-        raise ValueError(
-            "Input vector needs to be bigger than 3 * max(len(a),len(b).")
-
-    if len(a) < ntaps:
-        a=r_[a,zeros(len(b)-len(a))]
-
-    if len(b) < ntaps:
-        b=r_[b,zeros(len(a)-len(b))]
-
-    zi=lfilter_zi(b,a)
-
-    #Grow the signal to have edges for stabilizing
-    #the filter with inverted replicas of the signal
-    s=r_[2*x[0]-x[edge:1:-1],x,2*x[-1]-x[-1:-edge:-1]]
-    #in the case of one go we only need one of the extrems
-    # both are needed for filtfilt
-
-    (y,zf)=lfilter(b,a,s,-1,zi*s[0])
-
-    (y,zf)=lfilter(b,a,flipud(y),-1,zi*y[-1])
-
-    return flipud(y[edge-1:-edge+1])
-
 def wavelet_gabor(freq, fs, bandwidthfactor):
     freq = float(freq)
     bandwidth = bandwidthfactor/freq

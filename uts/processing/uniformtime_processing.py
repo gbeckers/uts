@@ -40,8 +40,8 @@ from ..signalfactory.factory import fromchannels
 
 __all__ = ['absolute','apply_to_samples', 'bp', 'convolve', 'crosscorrelatetime',
            'crosscorrelatetime_betweenchannels',
-           'crosscorrelatetime_betweenchannels_p', 'decimate', 'diff', 'hp',
-           'ibp', 'ica', 'ifdv', 'ihp', 'ilp', 'iter_convolve',
+           'crosscorrelatetime_betweenchannels_p', 'decimate', 'diff', 'filtfilt',
+           'hp', 'ibp', 'ica', 'ifdv', 'ihp', 'ilp', 'iter_convolve',
            'iter_convolve_info', 'iter_decimate', 'iter_map', 'fft', 'lp',
            'overlap_and_add', 'ramp', 'resample', 'specgram', 'stft', 'stmtt',
            'welch']
@@ -692,6 +692,58 @@ def resample(uts, factor, window=None):
     origintime = 0.5 / fs - 0.5 / uts.fs  # this seems to be necessary to get everything aligned
     return uts._instantiatefromself(samples=samples, fs=fs,
                                     origintime=origintime, copy=False)
+
+def filtfilt(uts, a, b, padtype='odd', padlen=None, method='pad', irlen=None):
+    """Apply a digital filter forward and backward to a signal.
+
+    This function applies a linear digital filter twice, once forward and once backwards.
+    The combined filter has zero phase and a filter order twice that of the original.
+
+    The function provides options for handling the edges of the signal.
+
+    Parameters
+    ----------
+    uts: uniform time series
+    b : (N,) array_like
+        The numerator coefficient vector of the filter.
+    a : (N,) array_like
+        The denominator coefficient vector of the filter.  If ``a[0]``
+        is not 1, then both `a` and `b` are normalized by ``a[0]``.
+    x : array_like
+        The array of data to be filtered.
+    axis : int, optional
+        The axis of `x` to which the filter is applied.
+        Default is -1.
+    padtype : str or None, optional
+        Must be 'odd', 'even', 'constant', or None.  This determines the
+        type of extension to use for the padded signal to which the filter
+        is applied.  If `padtype` is None, no padding is used.  The default
+        is 'odd'.
+    padlen : int or None, optional
+        The number of elements by which to extend `x` at both ends of
+        `axis` before applying the filter.  This value must be less than
+        ``x.shape[axis] - 1``.  ``padlen=0`` implies no padding.
+        The default value is ``3 * max(len(a), len(b))``.
+    method : str, optional
+        Determines the method for handling the edges of the signal, either
+        "pad" or "gust".  When `method` is "pad", the signal is padded; the
+        type of padding is determined by `padtype` and `padlen`, and `irlen`
+        is ignored.  When `method` is "gust", Gustafsson's method is used,
+        and `padtype` and `padlen` are ignored.
+    irlen : int or None, optional
+        When `method` is "gust", `irlen` specifies the length of the
+        impulse response of the filter.  If `irlen` is None, no part
+        of the impulse response is ignored.  For a long signal, specifying
+        `irlen` can significantly improve the performance of the filter.
+    Returns
+    -------
+    y : uniform time series
+        The filtered output with the same shape as input.
+    """
+    s = scipy.signal.filtfilt(b, a, uts.samples[:], axis=uts.timeaxis,
+                              padtype=padtype, padlen=padlen, method=method, irlen=irlen)
+    return uts._instantiatefromself(samples=s)
+
 
 def fft(tss, n=None):
     assert_signal(tss, (UniformTimeSeries,))
