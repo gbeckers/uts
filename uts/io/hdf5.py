@@ -20,6 +20,8 @@ from .utils import tempdir
 # should contain at least one array named 'samples', but may also contain the tables
 # 'epochs' or 'channels'
 
+# FIXME allow for new startdatetime parameter
+
 __all__ = ['openh5', 'saveh5', 'loadh5', 'cacheh5', 'removeh5', 'renameh5', 'h5fillnew',
            'h5filllike', 'saveh5_itered', 'cacheh5_itered']
 

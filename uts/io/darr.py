@@ -10,6 +10,7 @@ from .._version import get_versions
 
 # FIXME Darr should become standard open and save
 
+
 __all__ = ['opendarr', 'savedarr']
 
 def wrap(s):
@@ -45,7 +46,8 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
     if firstaxis == 'time':
         framegenerator = (f.samples[:] for f in s.iter_frames(1024*100))
     elif firstaxis == 'channel':
-        framegenerator = (f.samples[:] for f in s.iter_channels())
+        print('am here')
+        framegenerator = (np.expand_dims(ch.samples[:],0) for ch in s.iter_channels()) #
     elif firstaxis == 'epoch':
         framegenerator = (f.samples[:] for f in s.iter_epochs())
     else:
@@ -53,7 +55,7 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
     metadata = dict(((k, i) if not hasattr(i, 'decode') else (k, i.decode("utf-8"))
                       for (k, i) in s.metadata.items()))
     signaldata = ({'fs': s.fs,
-                 'starttime': s.starttime,
+                 'startdatetime': str(s.startdatetime),
                  'origintime': s.origintime,
                  })
     if hasattr(s, 'channelnames'):
@@ -90,7 +92,7 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
                      accessmode=accessmode, dtype=dtype, overwrite=overwrite)
     return opendarr(path, accessmode=accessmode)
 
-
+# we need to allow the old `starttime` parameter to be read
 def opendarr(path, accessmode='r'):
     bdd = BaseDataDir(path)
     # bdd._write_txt(filename='README.txt', text=readmetxt,
@@ -112,9 +114,10 @@ def opendarr(path, accessmode='r'):
     utstype = sd['utstype']
     if utstype == 'UniformTimeSeries':
         return UniformTimeSeries(samples=a, fs=sd['fs'],
-                                 starttime=sd['starttime'],
+                                 startdatetime=sd.get('startdatetime', 'NaT'),
                                  origintime=sd['origintime'], copy=False,
-                                 dtype=a.dtype, metadata=metadata)
+                                 dtype=a.dtype, metadata=metadata,
+                                 starttime=sd.get('starttime', 0.0))
     elif utstype == 'MultiChannelUniformTimeSeries':
         sd = bdd._read_jsondict('signaldata.json')
         chd = bdd._read_jsondict('channeldata.json')
@@ -123,10 +126,11 @@ def opendarr(path, accessmode='r'):
         return MultiChannelUniformTimeSeries(samples=a,
                                       fs=sd['fs'], channelnames=channelnames,
                                       channelaxis=sd['channelaxis'],
-                                      starttime=sd['starttime'],
+                                      startdatetime=sd.get('startdatetime','NaT'),
                                       origintime=sd['origintime'], copy=False,
                                       dtype=a.dtype, geometry=geometry,
-                                      metadata=metadata)
+                                      metadata=metadata,
+                                      starttime=sd.get('starttime', 0.0))
     elif utstype == 'EpochedUniformTimeSeries':
         sd = bdd._read_jsondict('signaldata.json')
         epochs = np.genfromtxt(bdd._path / 'epochs.csv', names=True)

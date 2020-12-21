@@ -40,13 +40,12 @@ class UniformTime(object):
         Number of sampling times.
     fs: float
         Sampling rate in Herz (number of samples per second).
-    starttime: float, optional
-        Absolute time at which the signal starts relative to some user-known
-        standard (e.g. Epoch, or start of recording). Defaults to 0.0.
-
+    startdatetime: {numpy datetime64, None}, option
+        Absolute datetime at which the signal starts. Needs anything that can
+        be interpreted as a numpy datetime64.
     origintime: float, optional
-    Time of origin relative to beginning of the first sample. 
-    Defaults to 0.0.
+        Time of origin relative to beginning of the first sample. In seconds.
+        Defaults to 0.0.
 
     Attributes
     ----------
@@ -59,16 +58,18 @@ class UniformTime(object):
     duration: float64
         Duration in seconds.
     starttime: float64
-        Absolute time at which the signal starts relative to some user-known
-        standard (e.g. Epoch, or start of recording).
+        Time (in seconds) at which the signal starts *relative to origintime*.
     endtime: float64
-        Absolute time at which the signal ends relative to some user-known
-        standard (e.g. Epoch, or start of recording).
+        Time (in seconds) at which the signal ends *relative to origintime*.
     origintime: float64
         Time of origin relative to beginning of the first sample. Defaults to
         0.0.
     timerange: (float64, float64)
         Start and end times, *relative to origintime*
+    startdatetime: float64
+        Absolute datetime at which the signal starts. Nanosecond precision.
+    enddatetime: float64
+        Absolute datetime at which the signal ends. Nanosecond precision.
 
 
     Methods (see method doc for explanation)
@@ -96,18 +97,29 @@ class UniformTime(object):
 
     """
 
-    def __init__(self, ntimesamples, fs, starttime=0.0, origintime=0.0):
-
+    def __init__(self, ntimesamples, fs, startdatetime='NaT',
+                 origintime=0.0, **kwargs):
+        # compatibility with old versions, they provide starttime,
+        # not startdatetime
+        if (startdatetime == 'NaT') and ('starttime' in kwargs):
+            starttime = check_arg(kwargs['starttime'], 'time')
+            if starttime != 0.0:
+                # warnings.warn(f"`startdatetime` provided as deprecated "
+                #               f"`starttime` parameter ({starttime}). "
+                #               f"Will interpret this as seconds since "
+                #               f"1970-01-01T00:00:00.")
+                startdatetime = np.datetime64(int(round(starttime*1e9)), 'ns')
         self.__fs = check_arg(fs, 'fs')
         self.__dt = 1.0 / self.__fs
-        self.__starttime = check_arg(starttime, 'time')
         self.__origintime = check_arg(origintime, 'time')
         self.__ntimesamples = check_arg(ntimesamples, 'ntimesamples')
         self.__duration = self.__ntimesamples / self.__fs
+        self.__starttime = 0.0 - self.__origintime
         self.__endtime = self.__starttime + self.__duration
-        self.__timerange = (0.0 - self.__origintime,
-                            0.0 - self.__origintime + self.__duration)
-
+        self.__timerange = (self.__starttime, self.__endtime)
+        self.__startdatetime = np.datetime64(startdatetime, 'ns')
+        self.__enddatetime = self.__startdatetime + \
+                             np.timedelta64(int(round(self.__duration*1e9)), 'ns')
 
     ################
     ## Properties ##
@@ -122,16 +134,20 @@ class UniformTime(object):
     duration = property(lambda self: self.__duration, None, None,
                         "duration in seconds")
     starttime = property(lambda self: self.__starttime, None, None,
-                         "absolute start time (begin of first sample) "
-                         "in seconds")
+                         "start time (begin of first sample) "
+                         "in seconds relative to origintime")
     endtime = property(lambda self: self.__endtime, None, None,
-                       "absolute end time (end of last sample) in seconds")
+                       "end time (end of last sample) in seconds"
+                       "relative to origintime")
     origintime = property(lambda self: self.__origintime, None, None,
                           "time of origin in seconds *relative to starttime*")
     timerange = property(lambda self: self.__timerange, None, None,
                          "tuple representing timerange (start, end) in seconds"
                          " *relative to origintime*")
-
+    startdatetime = property(lambda self: self.__startdatetime, None, None,
+                             "absolute start datetime (begin of first sample)")
+    enddatetime = property(lambda self: self.__enddatetime, None, None,
+                             "absolute end datetime (end of last sample)")
 
     ######################
     ## Standard methods ##
@@ -144,16 +160,15 @@ class UniformTime(object):
     __repr__ = __str__
 
     def info(self):
-        from .utils import epochtimetotext
-
         s = ''
         s += 'ntimesamples: %d\n' % self.ntimesamples
         s += 'duration: %.14f\n' % self.duration
         s += 'sampling rate: %.14f\n' % self.fs
         s += 'sampling period: %.14f\n' % self.dt
-        s += 'starttime (in seconds since Epoch): %.14f\n' % self.starttime
-        s += 'local starttime : %s\n' % epochtimetotext(self.starttime)
         s += 'origintime: %.14f\n' % self.origintime
+        s += 'timerange: %.14f\n' % self.timerange
+        s += 'startdatetime : %s\n' % self.startdatetime
+        s += 'enddatetime : %s\n' % self.enddatetime
         return s
 
     def __eq__(self, other):
@@ -163,12 +178,10 @@ class UniformTime(object):
             result = True
             result &= (self.__fs == other.fs)
             result &= (self.__dt == other.dt)
-            result &= (self.__starttime == other.starttime)
+            result &= (self.__startdatetime == other.startdatetime)
             result &= (self.__origintime == other.origintime)
             result &= (self.__ntimesamples == other.ntimesamples)
             result &= (self.__duration == other.duration)
-            result &= (self.__endtime == other.endtime)
-            result &= (self.__timerange == other.timerange)
         return result
 
 
@@ -178,9 +191,9 @@ class UniformTime(object):
 
     def _update_ntimesamples(self, ntimesamples):
         """
-        Update the number of samples. The `starttime` and `origintime`
+        Update the number of samples. The `startdatetime` and `origintime`
         attributes will keep their original values, but `endtime`, `duration`
-        and `samplingtimes` will be updated.
+        and `enddatetime` will be updated.
 
         Parameter
         ---------
@@ -191,8 +204,8 @@ class UniformTime(object):
         self.__ntimesamples = check_arg(ntimesamples, 'ntimesamples')
         self.__duration = self.__ntimesamples / self.__fs
         self.__endtime = self.__starttime + self.__duration
-        self.__timerange = (0.0 - self.__origintime,
-                            0.0 - self.__origintime + self.__duration)
+        self.__timerange = (self.__starttime, self.__endtime)
+        self.__enddatetime = self.__startdatetime + np.timedelta64(int(round(self.__duration * 1e9)), 'ns')
 
     def samplingtimes(self):
         """
@@ -223,7 +236,7 @@ class UniformTime(object):
     def time_to_index(self, time, nearest_boundary=False):
         """
         Converts a time, or array of times, to their corresponding sample
-        indices. Reference time is `origintime`.
+        indices. Time is in *seconds* with respect to `origintime`.
 
         Note that the default is to return to which *sample center* the given
         time is closest. When nearest_boundary is True, this will be to which
@@ -307,6 +320,44 @@ class UniformTime(object):
             return result.item()
         else:
             return result
+
+    def datetime_to_index(self, datetime, nearest_boundary=False):
+        """Converts a datetime, or array of datetimes, to their corresponding sample
+        indices.
+
+        Note that the default is to return to which *sample center* the given
+        time is closest. When `nearest_boundary` is True, this will be to which
+        *sample start* the time is closest.
+
+        Parameter
+        ---------
+
+        datetime: <numpy datetime64, numpy datetime64 array>
+        nearest_boundary: bool
+            Determines whether or not the the sample index is given of which
+            the *center* is closest to the parameter time. If True, this will
+            be the closest sample *start*.
+
+        Example: if the time parameter is [t0, t1, t2],
+
+        |    s0    |    s1    |    s2    |    s3    |    s4    | ...
+                     ^       ^  ^
+                     t0      t1 t2
+
+        then the result will be the sample of indices [s1, s1, s2] if
+        nearest_boundary is False (default) or [s1, s2, s2] if nearest_boundary
+        is True.
+
+        Note that it is possible to get an index number of ntimesamples
+        if the time is endtime.
+
+        """
+        if np.isnat(self.__startdatetime):
+            raise ValueError('Object has no `startdatetime` defined')
+        datetime = np.array(datetime, dtype=np.datetime64)
+        diffinsec = (datetime - self.__startdatetime) / np.timedelta64(1,'s')
+        return self.time_to_index(diffinsec, nearest_boundary=nearest_boundary)
+
 
     def hastime(self, time):
         """
@@ -483,8 +534,8 @@ class UniformTimeSeries(UniformTime):
     # np.uint8, np.uint16, np.uint32, np.uint64,
     #                     np.float16, np.float32, np.float64, np.complex128)
 
-    def __init__(self, samples, fs, starttime=0.0, origintime=0.0, dtype=None,
-                 copy=True, readonly=True, metadata=None, attrs=None):
+    def __init__(self, samples, fs, origintime=0.0, startdatetime='NaT', dtype=None,
+                 copy=True, readonly=True, metadata=None, attrs=None, **kwargs):
 
         copy = check_arg(copy, 'copy')
         self.__samples = self._check_samples(samples, dtype=dtype, copy=copy,
@@ -502,7 +553,8 @@ class UniformTimeSeries(UniformTime):
             self.metadata.update(attrs)
         self.attrs = self.metadata # attrs is to stay compatible with older versions
         UniformTime.__init__(self, ntimesamples=ntimesamples, fs=fs,
-                             starttime=starttime, origintime=origintime)
+                             startdatetime=startdatetime, origintime=origintime,
+                             **kwargs)
 
     samples = s = property(lambda self: self.__samples, None, None,
                        "Samples object")
@@ -524,7 +576,7 @@ class UniformTimeSeries(UniformTime):
     _instantiationparams = property(
         lambda self: ({'samples': self.samples,
                        'fs': self.fs,
-                       'starttime': self.starttime,
+                       'startdatetime': self.startdatetime,
                        'origintime': self.origintime,
                        'dtype': self.dtype,
                        'copy': True,
@@ -549,11 +601,11 @@ class UniformTimeSeries(UniformTime):
 
     def __getitem__(self, index):
 
-        sslice, starttime, origintime = self._to_timeslice(
+        sslice, startdatetime, origintime = self._to_timeslice(
             timeindex=index)
 
         return UniformTimeSeries(samples=self.samples[sslice], fs=self.fs,
-                                 starttime=starttime, copy=False,
+                                 startdatetime=startdatetime, copy=False,
                                  origintime=origintime,
                                  metadata=self.metadata)
 
@@ -637,22 +689,20 @@ class UniformTimeSeries(UniformTime):
         samplesslice = slice(start, stop)
         # if start is not 0, starttime and origintime are not correct anymore
         timeshift = start / self.fs
-        starttime = self.starttime + timeshift
+        startdatetime = self.startdatetime + np.timedelta64(int(timeshift*1e9), 'ns')
         origintime = self.origintime - timeshift
+        return samplesslice, startdatetime, origintime
 
-        return samplesslice, starttime, origintime
-
-    def copy(self, starttime=None, origintime=None):
+    def copy(self, startdatetime=None, origintime=None):
         """
         Makes a copy of the UniformTimeSeries, with the option of
         resetting starttime and origintime.
 
         """
-        if starttime is None: starttime = self.starttime
+        if startdatetime is None: startdatetime = self.startdatetime
         if origintime is None: origintime = self.origintime
-        starttime = check_arg(starttime, 'time')
         origintime = check_arg(origintime, 'time')
-        return self._instantiatefromself(starttime=starttime,
+        return self._instantiatefromself(startdatetime=startdatetime,
                                          origintime=origintime, copy=True,
                                          metadata=self.metadata)
 
@@ -670,11 +720,11 @@ class UniformTimeSeries(UniformTime):
             channelnames = None
         else:
             channelnames = [channelname]
-        starttime = self.starttime
+        startdatetime = self.startdatetime
         origintime = self.origintime
         return MultiChannelUniformTimeSeries(samples=samples, fs=fs,
                                              channelnames=channelnames,
-                                             starttime=starttime,
+                                             startdatetime=startdatetime,
                                              origintime=origintime,
                                              channelaxis=1, copy=True,
                                              metadata=self.metadata)
@@ -844,7 +894,6 @@ class EpochedUniformTimeSeries(Epoched, UniformTimeSeries):
         if isinstance(epochindex, defined_integers):
             return UniformTimeSeries(samples=samples,
                                      fs=self.fs,
-                                     starttime=self.starttimes[epochindex],
                                      origintime=origintime, copy=False,
                                      metadata=self.metadata)
         else:
@@ -991,15 +1040,15 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
 
     """
 
-    def __init__(self, samples, fs, channelnames=None, starttime=0.0,
-                 origintime=0.0, dtype=None, copy=True, channelaxis=1,
-                 geometry=None, readonly=True, metadata=None, attrs=None):
+    def __init__(self, samples, fs, channelnames=None, origintime=0.0,
+                 startdatetime='NaT', dtype=None, copy=True, channelaxis=1,
+                 geometry=None, readonly=True, metadata=None, attrs=None, **kwargs):
         self.__channelaxis, self.__timeaxis = self._check_channelaxis(
             channelaxis)
         UniformTimeSeries.__init__(self, samples=samples, fs=fs,
-                                   starttime=starttime, origintime=origintime,
+                                   startdatetime=startdatetime, origintime=origintime,
                                    dtype=dtype, copy=copy, readonly=readonly,
-                                   metadata=metadata, attrs=attrs)
+                                   metadata=metadata, attrs=attrs, **kwargs)
         nchannels = self.samples.shape[self.__channelaxis]
         MultiChannel.__init__(self, nchannels=nchannels,
                               channelnames=channelnames, geometry=geometry)
@@ -1015,7 +1064,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
         lambda self: ({'samples': self.samples,
                        'fs': self.fs,
                        'channelnames': self.channelnames,
-                       'starttime': self.starttime,
+                       'startdatetime': self.startdatetime,
                        'origintime': self.origintime,
                        'dtype': self.dtype,
                        'copy': True,
@@ -1060,7 +1109,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
             channelindex = slice(None, None, None)
         #channels = self.channels[channelindex]
         # the first part refers to samples
-        timeindex, starttime, origintime = \
+        timeindex, startdatetime, origintime = \
             super(self.__class__, self)._to_timeslice(index[0])
         return tuple([{'channel': channelindex, 'time': timeindex}[axis]
             for axis in self.samples.axisorder])
@@ -1080,7 +1129,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
         """
         fullindex =  self._get_index(index)
         axisslices = dict(zip(self.samples.axisorder ,fullindex))
-        samplesindex, starttime, origintime = \
+        samplesindex, startdatetime, origintime = \
              super(self.__class__, self)._to_timeslice(axisslices['time'])
         channelnames = np.array(self.channelnames[axisslices['channel']],ndmin=1)
         nselchannels = len(channelnames)
@@ -1092,14 +1141,14 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
             geometry = None
         if nselchannels == 1:  # one channel only
             return UniformTimeSeries(samples=samples.flatten(), fs=self.fs,
-                                     copy=False, starttime=starttime,
+                                     copy=False, startdatetime=startdatetime,
                                      origintime=origintime,
                                      metadata=self.metadata)
         else:
             return MultiChannelUniformTimeSeries(samples=samples,
                                                  channelnames=channelnames,
                                                  fs=self.fs,
-                                                 starttime=starttime,
+                                                 startdatetime=startdatetime,
                                                  copy=False,
                                                  origintime=origintime,
                                                  channelaxis=self.__channelaxis,
@@ -1139,18 +1188,17 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
     ## user accessible methods
     ##########################
 
-    def copy(self, starttime=None, origintime=None, channelnames=None):
+    def copy(self, startdatetime=None, origintime=None, channelnames=None):
         """
         Makes a copy of the UniformTimeSeries, with the option of
-        resetting starttime, origintime, and channelnames.
+        resetting startdatetime, origintime, and channelnames.
 
         """
-        if starttime is None: starttime = self.starttime
+        if startdatetime is None: startdatetime = self.startdatetime
         if origintime is None: origintime = self.origintime
         if channelnames is None: channelnames = self.channelnames.copy()
-        starttime = check_arg(starttime, 'time')
         origintime = check_arg(origintime, 'time')
-        return self._instantiatefromself(starttime=starttime,
+        return self._instantiatefromself(startdatetime=startdatetime,
                                          origintime=origintime,
                                          channelnames=channelnames,
                                          copy=True)
@@ -1332,7 +1380,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                                channelaxis=self.__channelaxis,
                                                channelnames=channelnames,
                                                origintime=origintime,
-                                               starttime=0.0, dtype=dtype,
+                                               startdatetime='NaT', dtype=dtype,
                                                copy=copy, geometry=geometry,
                                                readonly=readonly, metadata=metadata,
                                                attrs=attrs)
@@ -1439,7 +1487,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
         ## which ones should be first? Can it be done at once?
         fullindex =  self._get_index(index)
         axisslices = dict(zip(self.samples.axisorder, fullindex))
-        samplesindex, starttime, origintime = \
+        samplesindex, startdatetime, origintime = \
              super(self.__class__, self)._to_timeslice(axisslices['time'])
         # channels = self.channelnames[axisslices['channel']]
         epochs = np.array(self.epochs[axisslices['epoch']], ndmin=1)
@@ -1459,9 +1507,8 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
             geometry = None
 
         if (nselchannels==1) and (len(epochs)==1):
-            if starttime is None: starttime = 0.0
             res = UniformTimeSeries(samples=samples, fs=self.fs,
-                                    starttime=starttime, origintime=origintime,
+                                    startdatetime=startdatetime, origintime=origintime,
                                     copy=False,
                                     metadata=self.metadata)
         elif len(epochs)==1:
@@ -1470,7 +1517,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
             else:
                 channelaxis = 0
             res = MultiChannelUniformTimeSeries(samples=samples, fs=self.fs,
-                                                starttime=starttime,
+                                                startdatetime=startdatetime,
                                                 origintime=origintime,
                                                 channelnames=channelnames,
                                                 copy=False, geometry=geometry,

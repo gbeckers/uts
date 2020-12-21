@@ -42,7 +42,7 @@ __all__ = ['absolute','apply_to_samples', 'bp', 'convolve', 'crosscorrelatetime'
            'crosscorrelatetime_betweenchannels',
            'crosscorrelatetime_betweenchannels_p', 'decimate', 'diff', 'filtfilt',
            'hp', 'ibp', 'ica', 'ifdv', 'ihp', 'ilp', 'iter_convolve',
-           'iter_convolve_info', 'iter_decimate', 'iter_map', 'fft', 'lp',
+           'iter_convolve_info', 'iter_decimate', 'iter_map', 'fft', 'lfilter', 'lp',
            'overlap_and_add', 'ramp', 'resample', 'specgram', 'stft', 'stmtt',
            'welch']
 
@@ -693,6 +693,7 @@ def resample(uts, factor, window=None):
     return uts._instantiatefromself(samples=samples, fs=fs,
                                     origintime=origintime, copy=False)
 
+# TODO make this out of core
 def filtfilt(uts, a, b, padtype='odd', padlen=None, method='pad', irlen=None):
     """Apply a digital filter forward and backward to a signal.
 
@@ -743,6 +744,47 @@ def filtfilt(uts, a, b, padtype='odd', padlen=None, method='pad', irlen=None):
     s = scipy.signal.filtfilt(b, a, uts.samples[:], axis=uts.samples.axes['time'],
                               padtype=padtype, padlen=padlen, method=method, irlen=irlen)
     return uts._instantiatefromself(samples=s)
+
+
+def lfilter(uts, b, a, zi=None):
+    """Filter data along one-dimension with an IIR or FIR filter.
+
+    Filter a data sequence, `x`, using a digital filter.  The filter is a direct
+    form II transposed implementation of the standard difference equation.
+    The function `sosfilt` (and filter design using ``output='sos'``) should be
+    preferred over `lfilter` for most filtering tasks, as second-order sections
+    have fewer numerical problems.
+
+    Parameters
+    ----------
+    uts: uniform time series
+    b : array_like
+        The numerator coefficient vector in a 1-D sequence.
+    a : array_like
+        The denominator coefficient vector in a 1-D sequence.  If ``a[0]``
+        is not 1, then both `a` and `b` are normalized by ``a[0]``.
+    zi : array_like, optional
+        Initial conditions for the filter delays.  It is a vector
+        (or array of vectors for an N-dimensional input) of length
+        ``max(len(a), len(b)) - 1``.  If `zi` is None or is not given then
+        initial rest is assumed.
+
+    Returns
+    -------
+    y : uniform time series
+        The output of the digital filter.
+    zf : array, optional
+        If `zi` is None, this is not returned, otherwise, `zf` holds the
+        final filter delay values.
+    """
+    if zi is None:
+        shape = list(uts.samples.shape)
+        shape[uts.samples.axes['time']] = max(len(a), len(b)) - 1
+        zi = np.zeros(shape, dtype='float64')
+    s, zi = scipy.signal.lfilter(b=b, a=a, x=uts.samples[:],
+                             axis=uts.samples.axes['time'],
+                             zi=zi)
+    return uts._instantiatefromself(samples=s), zi
 
 
 def fft(tss, n=None):
