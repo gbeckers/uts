@@ -49,7 +49,7 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
         print('am here')
         framegenerator = (np.expand_dims(ch.samples[:],0) for ch in s.iter_channels()) #
     elif firstaxis == 'epoch':
-        framegenerator = (f.samples[:] for f in s.iter_epochs())
+        framegenerator = (np.expand_dims(e.samples[:],0) for e in s.iter_epochs()) # FIXME check this!!
     else:
         raise ValueError(f"Do not understand last axis '{firstaxis}'")
     metadata = dict(((k, i) if not hasattr(i, 'decode') else (k, i.decode("utf-8"))
