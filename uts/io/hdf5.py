@@ -3,7 +3,6 @@ import warnings
 import numpy as np
 import tables as tb
 from contextlib import contextmanager
-from numpy import fromfile
 from ..core.uniformtime import UniformTimeSeries, EpochedUniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
     isuts, iseuts, ismcuts, isemcuts
@@ -272,18 +271,23 @@ def _open(h5group, mode='r'):
     attrs.pop('fs')
     origintime = h5array.attrs.origintime
     attrs.pop('origintime')
-
+    if 'startdatetime' in attrs:
+        startdatetime = attrs['startdatetime']
+    elif 'starttime' in attrs: # compatibility old versions
+        starttime = attrs.pop('starttime')
+        if starttime != 0.0:
+            startdatetime = np.datetime64(int(round(starttime * 1e9)), 'ns')
+        else:
+            startdatetime = 'NaT'
     if len(h5array.shape) == 1:  # uts
-        starttime = h5array.attrs.starttime
-        attrs.pop('starttime')
-        signal = UniformTimeSeries(samples=samples, fs=fs, starttime=starttime,
+        startdatetime = h5array.attrs.startdatetime
+        signal = UniformTimeSeries(samples=samples, fs=fs, startdatetime=startdatetime,
                                    origintime=origintime, copy=False,
                                    dtype=None, attrs=attrs)
     #FIXME use the attr to find name of channel and epoch tables, not hard-code strings
     elif len(h5array.shape) == 2:  # euts or mcuts
         if "channelaxis" in h5array.attrs._v_attrnames:  # mcuts
-            starttime = h5array.attrs.starttime
-            attrs.pop('starttime')
+            startdatetime = h5array.attrs.startdatetime
             channelaxis = h5array.attrs.channelaxis
             attrs.pop('channelaxis')
             attrs.pop('channeltable')
@@ -305,7 +309,7 @@ def _open(h5group, mode='r'):
             signal = MultiChannelUniformTimeSeries(samples=samples,
                                                    fs=fs,
                                                    channelnames=channelnames,
-                                                   starttime=starttime,
+                                                   startdatetime=startdatetime,
                                                    origintime=origintime,
                                                    copy=False, dtype=None,
                                                    channelaxis=channelaxis,
@@ -362,8 +366,8 @@ def _open(h5group, mode='r'):
     return signal
 
 def _newh5uts(h5group, dtype, ntimesamples, fs, origintime,
-              starttime, dflt=0.0, overwrite=False, extensible=False,
-              expectedrows=None,
+              startdatetime='NaT', dflt=0.0,
+              overwrite=False, extensible=False, expectedrows=None,
               complib='zlib', complevel=5, chunkshape=None, attrs=None):
     """
     Returns an pytables CArray or EArray node with dimensions of ntimesamples, 
@@ -372,7 +376,7 @@ def _newh5uts(h5group, dtype, ntimesamples, fs, origintime,
     """
     fs = check_arg(fs, 'fs')
     origintime = check_arg(origintime, 'time')
-    starttime = check_arg(starttime, 'time')
+    startdatetime = str(np.datetime64(startdatetime, 'ns'))
     ntimesamples = check_int(ntimesamples, negative=False)
     dtype = np.dtype(dtype)
     if attrs is None:
@@ -409,12 +413,12 @@ def _newh5uts(h5group, dtype, ntimesamples, fs, origintime,
     for attrname, value in attrs.items():
         h5group._f_setattr(attrname, value)
     h5group._f_setattr('fs', fs)
-    h5group._f_setattr('starttime', starttime)
+    h5group._f_setattr('startdatetime', startdatetime)
     h5group._f_setattr('origintime', origintime)
     for attrname, value in attrs.items():
         arnode.set_attr(attrname, value)
     arnode.set_attr('fs', fs)
-    arnode.set_attr('starttime', starttime)
+    arnode.set_attr('startdatetime', startdatetime)
     arnode.set_attr('origintime', origintime)
 
     arnode.flush()
@@ -422,7 +426,7 @@ def _newh5uts(h5group, dtype, ntimesamples, fs, origintime,
     return arnode
 
 def _newh5mcuts(h5group, dtype, ntimesamples, fs, origintime,
-                starttime, channelaxis, nchannels, channels, geometry,
+                channelaxis, nchannels, channels, geometry, startdatetime='NaT',
                 dflt=0.0, overwrite=False, extensible=False, expectedrows=None,
                 complib='zlib', complevel=5, chunkshape=None, attrs=None):
     """
@@ -433,7 +437,7 @@ def _newh5mcuts(h5group, dtype, ntimesamples, fs, origintime,
 
     fs = check_arg(fs, 'fs')
     origintime = check_arg(origintime, 'time')
-    starttime = check_arg(starttime, 'time')
+    startdatetime = str(np.datetime64(startdatetime, 'ns'))
     channelaxis = check_arg(channelaxis, 'channelaxis')
     mc = MultiChannel(nchannels=nchannels, channelnames=channels,
                       geometry=geometry)
@@ -491,14 +495,14 @@ def _newh5mcuts(h5group, dtype, ntimesamples, fs, origintime,
     for attrname, value in attrs.items():
         h5group._f_setattr(attrname, value)
     h5group._f_setattr('fs', fs)
-    h5group._f_setattr('starttime', starttime)
+    h5group._f_setattr('startdatetime', startdatetime)
     h5group._f_setattr('origintime', origintime)
     h5group._f_setattr('channelaxis', channelaxis)
     h5group._f_setattr('channeltable', CHANNELTABLENAME)
     for attrname, value in attrs.items():
         arnode.set_attr(attrname, value)
     arnode.set_attr('fs', fs)
-    arnode.set_attr('starttime', starttime)
+    arnode.set_attr('startdatetime', startdatetime)
     arnode.set_attr('origintime', origintime)
     arnode.set_attr('channelaxis', channelaxis)
     arnode.set_attr('channeltable', CHANNELTABLENAME)
@@ -509,7 +513,7 @@ def _newh5mcuts(h5group, dtype, ntimesamples, fs, origintime,
     return arnode
 
 def _newh5euts(h5group, dtype, ntimesamples, fs, origintime,
-               starttime, epochaxis, epochs, dflt=0.0, overwrite=False,
+               epochaxis, epochs, startdatetime='NaT', dflt=0.0, overwrite=False,
                extensible=False,
                expectedrows=None, complib='zlib', complevel=5, chunkshape=None,
                attrs=None):
@@ -526,7 +530,7 @@ def _newh5euts(h5group, dtype, ntimesamples, fs, origintime,
     fs = check_arg(fs, 'fs')
     ntimesamples = check_int(ntimesamples, negative=False)
     origintime = check_arg(origintime, 'time')
-    starttime = check_arg(starttime, 'time')
+    startdatetime = str(np.datetime64(startdatetime, 'ns'))
     epochaxis = check_arg(epochaxis, 'epochaxis')
     ep = Epoched(duration=ntimesamples / fs, epochs=epochs,
                  origintime=origintime)
@@ -577,14 +581,14 @@ def _newh5euts(h5group, dtype, ntimesamples, fs, origintime,
     for attrname, value in attrs.items():
         h5group._f_setattr(attrname, value)
     h5group._f_setattr('fs', fs)
-    h5group._f_setattr('starttime', starttime)
+    h5group._f_setattr('startdatetime', startdatetime)
     h5group._f_setattr('origintime', origintime)
     h5group._f_setattr('epochaxis', epochaxis)
     h5group._f_setattr('epochtable', EPOCHTABLENAME)
     for attrname, value in attrs.items():
         arnode.set_attr(attrname, value)
     arnode.set_attr('fs', fs)
-    arnode.set_attr('starttime', starttime)
+    arnode.set_attr('startdatetime', startdatetime)
     arnode.set_attr('origintime', origintime)
     arnode.set_attr('epochaxis', epochaxis)
     arnode.set_attr('epochtable', EPOCHTABLENAME)
@@ -595,9 +599,9 @@ def _newh5euts(h5group, dtype, ntimesamples, fs, origintime,
     return arnode
 
 def _newh5emcuts(h5group, dtype, ntimesamples, fs, origintime,
-                 starttime, epochaxis, channelaxis, nchannels, channels,
-                 geometry,
-                 epochs, dflt=0.0, overwrite=False, extensible=False,
+                 epochaxis, channelaxis, nchannels, channels,
+                 geometry, epochs, startdatetime='NaT', dflt=0.0,
+                 overwrite=False, extensible=False,
                  expectedrows=None,
                  complib='zlib', complevel=5, chunkshape=None, attrs=None):
     """
@@ -609,7 +613,7 @@ def _newh5emcuts(h5group, dtype, ntimesamples, fs, origintime,
     fs = check_arg(fs, 'fs')
     ntimesamples = check_int(ntimesamples, negative=False)
     origintime = check_arg(origintime, 'time')
-    starttime = check_arg(starttime, 'time')
+    startdatetime = str(np.datetime64(startdatetime, 'ns'))
     channelaxis = check_arg(channelaxis, 'channelaxis')
     mc = MultiChannel(nchannels=nchannels, channelnames=channels,
                       geometry=geometry)
@@ -686,7 +690,7 @@ def _newh5emcuts(h5group, dtype, ntimesamples, fs, origintime,
     for attrname, value in attrs.items():
         h5group._f_setattr(attrname, value)
     h5group._f_setattr('fs', fs)
-    h5group._f_setattr('starttime', starttime)
+    h5group._f_setattr('startdatetime', startdatetime)
     h5group._f_setattr('origintime', origintime)
     h5group._f_setattr('channelaxis', channelaxis)
     h5group._f_setattr('channeltable', CHANNELTABLENAME)
@@ -695,7 +699,7 @@ def _newh5emcuts(h5group, dtype, ntimesamples, fs, origintime,
     for attrname, value in attrs.items():
         arnode.set_attr(attrname, value)
     arnode.set_attr('fs', fs)
-    arnode.set_attr('starttime', starttime)
+    arnode.set_attr('startdatetime', startdatetime)
     arnode.set_attr('origintime', origintime)
     arnode.set_attr('channelaxis', channelaxis)
     arnode.set_attr('channeltable', CHANNELTABLENAME)
@@ -738,7 +742,7 @@ def _save_uts(uts, h5group, overwrite=False,
         dtype = uts.samples.dtype
     arnode = _newh5uts(h5group=h5group,
                        ntimesamples=uts.ntimesamples, fs=uts.fs,
-                       origintime=uts.origintime, starttime=uts.starttime,
+                       origintime=uts.origintime, startdatetime=uts.startdatetime,
                        dtype=dtype,
                        overwrite=overwrite, extensible=extensible,
                        expectedrows=expectedrows,
@@ -792,7 +796,7 @@ def _save_mcuts(mcuts, h5group, overwrite=False, channelaxis=None,
     arnode = _newh5mcuts(h5group=h5group, dtype=dtype,
                          ntimesamples=mcuts.ntimesamples, fs=mcuts.fs,
                          origintime=mcuts.origintime,
-                         starttime=mcuts.starttime,
+                         startdatetime=mcuts.startdatetime,
                          nchannels=mcuts.nchannels,
                          channels=mcuts.channelnames, geometry=mcuts.geometry,
                          channelaxis=channelaxis, overwrite=overwrite,
@@ -862,7 +866,7 @@ def _save_euts(euts, h5group, epochaxis=None, overwrite=False,
         epochaxis = euts.epochaxis
     arnode = _newh5euts(h5group=h5group, dtype=dtype,
                         ntimesamples=euts.ntimesamples, fs=euts.fs,
-                        origintime=euts.origintime, starttime=euts.starttime,
+                        origintime=euts.origintime, startdatetime=euts.startdatetime,
                         epochaxis=epochaxis, epochs=euts.epochs,
                         overwrite=overwrite, extensible=False,
                         expectedrows=None, complib=complib,
@@ -941,7 +945,7 @@ def _save_emcuts(emcuts, h5group, overwrite=False,
     arnode = _newh5emcuts(h5group=h5group, dtype=dtype,
                           ntimesamples=emcuts.ntimesamples, fs=emcuts.fs,
                           origintime=emcuts.origintime,
-                          starttime=emcuts.starttime,
+                          startdatetime=emcuts.startdatetime,
                           nchannels=emcuts.nchannels, epochaxis=epochaxis,
                           epochs=emcuts.epochs, channels=emcuts.channelnames,
                           geometry=emcuts.geometry, channelaxis=channelaxis,
@@ -1063,7 +1067,7 @@ def _save_multichannel(multichannel, h5group, name, overwrite=False, attrs={}):
 @contextmanager
 def h5fillnew(signalname, filename=None, value=0.0, ntimesamples=None,
               fs=None, duration=None, nchannels=None,
-              nepochs=None, starttime=0.0, origintime=0.0, channelaxis=None,
+              nepochs=None, startdatetime='NaT', origintime=0.0, channelaxis=None,
               epochaxis=None, channels=None, epochs=None, dtype=np.float64,
               readonly=False, geometry=None, attrs={},
               overwrite=False, extensible=False, expectedrows=None,
@@ -1080,7 +1084,7 @@ def h5fillnew(signalname, filename=None, value=0.0, ntimesamples=None,
     duration : {None, float}, optional
     nchannels : {None, int }, optional
     nepochs : {None, int }, optional
-    starttime : float, optional
+    startdatetime : numpy datetime, optional
     origintime : float, optional
     channelaxis : {None, int}, optional
     epochaxis: {None, int}, optional
@@ -1121,7 +1125,7 @@ def h5fillnew(signalname, filename=None, value=0.0, ntimesamples=None,
             if epochs is None:  # uts
                 samples = _newh5uts(h5group=h5group, dtype=dtype,
                                     ntimesamples=ntimesamples, fs=fs,
-                                    origintime=origintime, starttime=starttime,
+                                    origintime=origintime, startdatetime=startdatetime,
                                     dflt=value,
                                     overwrite=overwrite, extensible=extensible,
                                     expectedrows=expectedrows, complib=complib,
@@ -1129,7 +1133,7 @@ def h5fillnew(signalname, filename=None, value=0.0, ntimesamples=None,
                                     attrs=attrs)
                 s = UniformTimeSeries(samples=samples, fs=fs,
                                       origintime=origintime,
-                                      starttime=starttime, dtype=None,
+                                      startdatetime=startdatetime, dtype=None,
                                       copy=False,
                                       readonly=readonly)
             else:  # euts
@@ -1141,7 +1145,7 @@ def h5fillnew(signalname, filename=None, value=0.0, ntimesamples=None,
                                      ntimesamples=ntimesamples, epochs=epochs,
                                      epochaxis=epochaxis, fs=fs,
                                      origintime=origintime,
-                                     starttime=starttime, dflt=value,
+                                     startdatetime=startdatetime, dflt=value,
                                      overwrite=overwrite,
                                      extensible=extensible,
                                      expectedrows=expectedrows,
@@ -1166,7 +1170,7 @@ def h5fillnew(signalname, filename=None, value=0.0, ntimesamples=None,
                                       geometry=geometry, channels=channels,
                                       channelaxis=channelaxis, fs=fs,
                                       origintime=origintime,
-                                      starttime=starttime, dflt=value,
+                                      startdatetime=startdatetime, dflt=value,
                                       overwrite=overwrite,
                                       extensible=extensible,
                                       expectedrows=expectedrows,
@@ -1175,7 +1179,7 @@ def h5fillnew(signalname, filename=None, value=0.0, ntimesamples=None,
                                       chunkshape=chunkshape, attrs=attrs)
                 s = MultiChannelUniformTimeSeries(samples=samples, fs=fs,
                                                   origintime=origintime,
-                                                  starttime=starttime,
+                                                  startdatetime=startdatetime,
                                                   channelaxis=channelaxis,
                                                   channelnames=channels,
                                                   dtype=None, copy=False,
@@ -1225,7 +1229,7 @@ def h5fillnew(signalname, filename=None, value=0.0, ntimesamples=None,
                                        channels=channels,
                                        channelaxis=channelaxis,
                                        origintime=origintime,
-                                       starttime=starttime, dflt=value,
+                                       startdatetime=startdatetime, dflt=value,
                                        overwrite=overwrite,
                                        extensible=extensible,
                                        expectedrows=expectedrows,
@@ -1314,7 +1318,7 @@ def _uts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
             complevel = s.samples.h5array.filters.complevel
     samples = _newh5uts(h5group=h5group, dtype=dtype,
                         ntimesamples=ntimesamples, fs=fs,
-                        origintime=s.origintime, starttime=s.starttime,
+                        origintime=s.origintime, startdatetime=s.startdatetime,
                         dflt=value,
                         overwrite=overwrite, extensible=extensible,
                         expectedrows=expectedrows, complib=complib,
@@ -1347,7 +1351,7 @@ def _euts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
             complevel = s.samples.h5array.filters.complevel
     samples = _newh5euts(h5group=h5group, dtype=dtype,
                          ntimesamples=ntimesamples, fs=fs,
-                         origintime=s.origintime, starttime=s.starttime,
+                         origintime=s.origintime, startdatetime=s.startdatetime,
                          epochs=s.epochs, epochaxis=epochaxis, dflt=value,
                          overwrite=overwrite, extensible=extensible,
                          expectedrows=expectedrows, complib=complib,
@@ -1384,7 +1388,7 @@ def _mcuts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
             complevel = s.samples.h5array.filters.complevel
     samples = _newh5mcuts(h5group=h5group, dtype=dtype,
                           ntimesamples=ntimesamples, fs=fs,
-                          origintime=s.origintime, starttime=s.starttime,
+                          origintime=s.origintime, startdatetime=s.startdatetime,
                           nchannels=s.nchannels, channels=s.channelnames,
                           geometry=s.geometry, channelaxis=channelaxis,
                           dflt=value,
@@ -1423,7 +1427,7 @@ def _emcuts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
             complevel = s.samples.h5array.filters.complevel
     samples = _newh5emcuts(h5group=h5group, dtype=dtype,
                            ntimesamples=ntimesamples, fs=fs,
-                           origintime=s.origintime, starttime=s.starttime,
+                           origintime=s.origintime, startdatetime=s.startdatetime,
                            nchannels=s.nchannels, epochaxis=epochaxis,
                            epochs=s.epochs, channels=s.channelnames,
                            geometry=s.geometry, channelaxis=channelaxis,

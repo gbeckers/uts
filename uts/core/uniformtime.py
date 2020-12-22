@@ -160,15 +160,14 @@ class UniformTime(object):
     __repr__ = __str__
 
     def info(self):
-        s = ''
-        s += 'ntimesamples: %d\n' % self.ntimesamples
-        s += 'duration: %.14f\n' % self.duration
-        s += 'sampling rate: %.14f\n' % self.fs
-        s += 'sampling period: %.14f\n' % self.dt
-        s += 'origintime: %.14f\n' % self.origintime
-        s += 'timerange: %.14f\n' % self.timerange
-        s += 'startdatetime : %s\n' % self.startdatetime
-        s += 'enddatetime : %s\n' % self.enddatetime
+        s =  (f'ntimesamples: {self.ntimesamples}\n'
+              f'duration: {self.duration:.14f}\n'
+              f'sampling rate: {self.fs:.14f}\n'
+              f'sampling period: {self.dt:.14f}\n'
+              f'origintime: {self.origintime:.14f}\n'
+              f'timerange: {self.timerange[0]:.14f} - {self.timerange[1]:.14f}\n'
+              f'startdatetime : {str(self.startdatetime)}\n'
+              f'enddatetime : {str(self.enddatetime)}\n')
         return s
 
     def __eq__(self, other):
