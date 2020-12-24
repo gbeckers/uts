@@ -2,6 +2,8 @@
 Tests for class UniformTime
 
 """
+# TODO clean up asserts etc to test asserts
+
 from __future__ import print_function
 # FIXME: saveh5 tests (now uncommented should be moved to io test module
 from unittest import TestCase
@@ -90,25 +92,11 @@ def test_UniformTime_fs():
 def test_UniformTime_starttime():
     "UniformTime: starttime parameter"
 
-    # parameter defaults to 0.0
-    assert_equal(UniformTime(ntimesamples=10, fs=10.0).starttime, 0.0)
-    for testtype in floats:
-        assert_equal(UniformTime(ntimesamples=10, fs=10.0, starttime=testtype(10.0)).starttime, 10.0)
-        assert_equal(UniformTime(ntimesamples=10, fs=10.0, starttime=testtype(0.0)).starttime, 0.0)
-        assert_equal(UniformTime(ntimesamples=10, fs=10.0, starttime=testtype(-10.0)).starttime, -10.0)
-        # type should always be np.float64
-        assert_equal(type(UniformTime(ntimesamples=10, fs=10.0, starttime=testtype(10.0)).starttime), np.float64)
-        # values that are not allowed
-        assert_raises(ValueError, UniformTime, ntimesamples=10, fs=10.0, starttime=testtype(np.inf))
-        assert_raises(ValueError, UniformTime, ntimesamples=10, fs=10.0, starttime=testtype(-np.inf))
-        assert_raises(ValueError, UniformTime, ntimesamples=10, fs=10.0, starttime=testtype(-np.nan))
-
-    # test for all int types
-    for testtype in ints:
-        assert_raises(TypeError, UniformTime, ntimesamples=10, fs=10.0, starttime=testtype(0))
-
-    # None is not allowed
-    assert_raises(TypeError, UniformTime, ntimesamples=10, fs=10.0, starttime=None)
+    # parameter defaults to 0.0 and should be seen as startdatetime NaT
+    assert_equal(np.isnat(UniformTime(ntimesamples=10, fs=10.0, starttime=0).startdatetime), True)
+    # non-zero starttimes are considered seconds since epoch, at ns resolution
+    assert_equal(np.isnat(UniformTime(ntimesamples=10, fs=10.0, starttime=10000.).startdatetime),
+                 np.datetime64(int(round(10000.*1e9)), 'ns'))
 
 
 def test_UniformTime_origintime():
@@ -145,9 +133,11 @@ def test_UniformTime_samplingtimes():
     # different origintime
     assert_equal(UniformTime(ntimesamples=2, fs=2.0, origintime=10.0).samplingtimes(),
         np.array([0.25, 0.75], dtype=np.float64) - 10.0)
-    # starttime is irrelevant
+    # starttime and startdatetime are irrelevant
     assert_equal(UniformTime(ntimesamples=2, fs=2.0, starttime=10.0).samplingtimes(),
         np.array([0.25, 0.75], dtype=np.float64))
+    assert_equal(UniformTime(ntimesamples=2, fs=2.0, startdatetime='2020-12-24T09:52:25.0').samplingtimes(),
+                 np.array([0.25, 0.75], dtype=np.float64))
     # no samples
     assert_equal(UniformTime(ntimesamples=0, fs=2.0).samplingtimes(), np.array([], dtype=np.float64))
 
@@ -164,8 +154,9 @@ def test_UniformTime_duration():
 
     assert_equal(UniformTime(ntimesamples=2, fs=2.0).duration, 1.0)
     assert_equal(type(UniformTime(ntimesamples=2, fs=2.0).duration), np.float64)
-    # starttime and origintime don't matter
+    # starttime, startdatetime and origintime don't matter
     assert_equal(UniformTime(ntimesamples=2, fs=2.0, starttime=10.0).duration, 1.0)
+    assert_equal(UniformTime(ntimesamples=2, fs=2.0, startdatetime='2020-12-24T09:52:25.0').duration, 1.0)
     assert_equal(UniformTime(ntimesamples=2, fs=2.0, origintime=10.0).duration, 1.0)
 
 
@@ -174,10 +165,11 @@ def test_UniformTime_endtime():
 
     assert_equal(UniformTime(ntimesamples=2, fs=2.0).endtime, 1.0)
     assert_equal(type(UniformTime(ntimesamples=2, fs=2.0).endtime), np.float64)
-    # origintime doesn't matter
-    assert_equal(UniformTime(ntimesamples=2, fs=2.0, origintime=10.0).endtime, 1.0)
-    # starttime does
-    assert_equal(UniformTime(ntimesamples=2, fs=2.0, starttime=10.0).endtime, 11.0)
+    # origintime matters
+    assert_equal(UniformTime(ntimesamples=2, fs=2.0, origintime=10.0).endtime, 11.0)
+    # starttime and startdatetime do not
+    assert_equal(UniformTime(ntimesamples=2, fs=2.0, starttime=10.0).endtime, 1.0)
+    assert_equal(UniformTime(ntimesamples=2, fs=2.0, startdatetime='2020-12-24T09:52:25.0').endtime, 1.0)
 
 
 def test_UniformTime_timerange():
@@ -186,9 +178,9 @@ def test_UniformTime_timerange():
     assert_equal(UniformTime(ntimesamples=2, fs=2.0).timerange, (0.0, 1.0))
     # depends on origintime
     assert_equal(UniformTime(ntimesamples=2, fs=2.0, origintime=10.0).timerange, (-10.0, -9.0))
-    # starttime doesn't matter
+    # starttime and startdatetime do not matter
     assert_equal(UniformTime(ntimesamples=2, fs=2.0, starttime=10.0).timerange, (0.0, 1.0))
-
+    assert_equal(UniformTime(ntimesamples=2, fs=2.0, startdatetime='2020-12-24T09:52:25.0').timerange, (0.0, 1.0))
 
 def test_UniformTime_time_to_index():
     "UniformTime: time to index conversion"
@@ -197,7 +189,7 @@ def test_UniformTime_time_to_index():
 
     s1 = UniformTime(ntimesamples=2, fs=2.0)
     s2 = UniformTime(ntimesamples=2, fs=2.0, origintime=1.0)
-    s3 = UniformTime(ntimesamples=2, fs=2.0, starttime=1.0)
+    s3 = UniformTime(ntimesamples=2, fs=2.0, startdatetime='2020-12-24T09:52:25.0')
     # only floats should work
     for testtype in floats:
         # center of sample should be reference
@@ -210,7 +202,7 @@ def test_UniformTime_time_to_index():
         assert_equal(s1.time_to_index([testtype(0.0), testtype(0.999999)]), np.array([0, 1]))
         # depends on origintime
         assert_equal(s2.time_to_index([testtype(-0.75), testtype(-0.25)]), np.array([0, 1]))
-        # starttime doesn't matter
+        # startdatetime doesn't matter
         assert_equal(s3.time_to_index([testtype(0.25), testtype(0.75)]), np.array([0, 1]))
         # outside time range
         assert_raises(ValueError, s1.time_to_index, time=[testtype(-0.25), testtype(0.75)])
@@ -255,8 +247,9 @@ def test_UniformTime_index_to_time():
         assert_equal(UniformTime(ntimesamples=2, fs=2.0, origintime=1.0).index_to_time([testtype(0), testtype(1)]),
                      np.array([-0.75, -0.25]))
 
-        # starttime doesn't matter
-        assert_equal(UniformTime(ntimesamples=2, fs=2.0, starttime=1.0).index_to_time([testtype(0), testtype(1)]),
+        # startdatetime doesn't matter
+        assert_equal(UniformTime(ntimesamples=2, fs=2.0,
+                                 startdatetime='2020-12-24T09:52:25.0').index_to_time([testtype(0), testtype(1)]),
                      np.array([0.25, 0.75]))
 
         # outside time range
@@ -639,34 +632,19 @@ class test_UniformTimeSeries(TestCase):
                 assert (ts.samples.get(copy=False) == ts.samples[:]).all()
                 assert not (ts.samples.get(copy=False).base is ts.samples.h5array)
 
-            ##    # do we need this ?
-            ##    def test_replace_samples(self):
-            ##        "UniformTimeSeries: replace samples"
-            ##        # readonly is False
-            ##        ts = UniformTimeSeries(samples=[1,2,3], fs=1.0, dtype=np.int, readonly=False)
-            ##        samples = ts.samples.array
-            ##        ts._replace_samples(samples=[4,5,6])
-            ##        assert (ts.samples.get() == np.array([4,5,6])).all()
-            ##        assert (ts.samples.array is samples)
-            ##        # readonly is True
-            ##        ts = UniformTimeSeries(samples=[1,2,3], fs=1.0, dtype=np.int, readonly=True)
-            ##        samples = ts.samples.array
-            ##        assert_raises(WriteError,ts._replace_samples, samples=[4,5,6])
-            ##
-
     def test_append_ndarray(self):
         "UniformTimeSeries: append"
-        ts1 = UniformTimeSeries(samples=[1, 2, 3], fs=1400.0, starttime=5.0,
+        ts1 = UniformTimeSeries(samples=[1, 2, 3], fs=1400.0, startdatetime='2020-12-24T09:52:25.0',
                                 origintime=-3.0)
-        ts2 = UniformTimeSeries(samples=[4, 5, 6], fs=1400.0, starttime=6.0,
+        ts2 = UniformTimeSeries(samples=[4, 5, 6], fs=1400.0, startdatetime='2020-12-24T09:52:30.0',
                                 origintime=-2.0)
         ts1.append(ts2)
         assert (ts1.samples.array[:] == np.array([1, 2, 3, 4, 5, 6])).all()
-        assert ts1.starttime == 5.0
+        assert ts1.startdatetime == np.datetime64('2020-12-24T09:52:25.0', 'ns')
         assert ts1.origintime == -3.0
         assert ts1.ntimesamples == 6
         # different dtype
-        ts2 = UniformTimeSeries(samples=[4., 5., 6.], fs=1400.0, starttime=6.0,
+        ts2 = UniformTimeSeries(samples=[4., 5., 6.], fs=1400.0, startdatetime='2020-12-24T09:52:30.0',
                                 origintime=-2.0)
         assert_raises(TypeError, ts1.append, ts2)
         # different shape
@@ -685,60 +663,38 @@ class test_UniformTimeSeries(TestCase):
                 typename, dim, artype = node._v_name.split('7')
                 if artype == 'EArray':
                     ts1 = UniformTimeSeries(samples=node, fs=1.0, copy=False,
-                                            starttime=6.0, origintime=-2.0)
+                                            startdatetime='2020-12-24T09:52:25.0', origintime=-2.0)
                     # correct appends
                     ts2 = UniformTimeSeries(samples=[4, 5, 6], fs=1.0,
-                                            dtype=node[:].dtype, starttime=6.0, origintime=-2.0)
+                                            dtype=node[:].dtype, startdatetime='2020-12-24T09:52:25.0', origintime=-2.0)
                     ts1.append(ts2)
                     assert ts1.ntimesamples == node.shape[0]  # node shape has been updated
                     assert ts1.fs == 1.0
-                    assert ts1.starttime == 6.0
+                    assert ts1.startdatetime == np.datetime64('2020-12-24T09:52:25.0', 'ns')
                     assert ts1.origintime == -2.0
                     ts1.append(ts1)
                     assert ts1.ntimesamples == node.shape[0]  # node shape has been updated
                     assert ts1.fs == 1.0
-                    assert ts1.starttime == 6.0
+                    assert ts1.startdatetime == np.datetime64('2020-12-24T09:52:25.0', 'ns')
                     assert ts1.origintime == -2.0
                     # wrong signal type
                     samples = [[4, 5, 6], [4, 5, 6]]
                     ts2 = MultiChannelUniformTimeSeries(samples=samples,
                                                         fs=1.0, channelaxis=0, dtype=node[:].dtype,
-                                                        starttime=6.0, origintime=-2.0)
+                                                        startdatetime='2020-12-24T09:52:25.0', origintime=-2.0)
                     assert_raises(TypeError, ts1.append, ts2)
 
 
     def test_copy(self):
         "UniformTimeSeries: copy"
-        s = UniformTimeSeries(samples=np.arange(10.), fs=1.0)
+        s = UniformTimeSeries(samples=np.arange(10.), fs=1.0, startdatetime='2020-12-24T09:52:25.0')
         cs = s.copy()
-        assert cs.samples.array.base is not s.samples.array
-        assert cs.ntimesamples == s.ntimesamples
-        assert cs.starttime == s.starttime
-        assert cs.origintime == s.origintime
-        assert cs.endtime == s.endtime
-        assert cs.fs == s.fs
-
-        #def test_saveh5(self):
-        #"UniformTimeSeries: saveh5"
-        #f = self.temph5file
-        ## some unlikely parameters
-        #samples = np.array([0.07436005,1.62218437,2.39154842,3.55754441])
-        #fs =  48.443798
-        #starttime = 0.55754441
-        #origintime = 0.02353585
-        #dtypes = floattypes + inttypes + [np.complex128]
-        #for j, extensible in enumerate((False, True)):
-        #for i,dtype in enumerate(dtypes):
-        #csamples = samples.astype(dtype)
-        #ts =  UniformTimeSeries(samples=csamples, fs=fs, starttime=starttime,
-        #origintime=origintime, dtype=dtype)
-        #s = ts.saveh5(f.root, "uts"+"_%d_%d"%(i,j), extensible=extensible)
-        #arnode = s.samples.h5array
-        #assert (arnode[:] == csamples).all()
-        #assert arnode.attrs.fs == fs
-        #assert arnode.attrs.starttime == starttime
-        #assert arnode.attrs.origintime == origintime
-        #assert arnode.dtype == csamples.dtype
+        self.assertIsNot(cs.samples.array.base, s.samples.array)
+        self.assertEqual(cs.ntimesamples, s.ntimesamples)
+        self.assertEqual(cs.startdatetime, s.startdatetime)
+        self.assertEqual(cs.origintime, s.origintime)
+        self.assertEqual(cs.endtime, s.endtime)
+        self.assertEqual(cs.fs, s.fs)
 
 
 class test_MultiChannelUniformTimeSeries(TestCase):
@@ -785,40 +741,40 @@ class test_MultiChannelUniformTimeSeries(TestCase):
         "MultiChannelUniformTimeSeries: append ndarray"
         ts1 = MultiChannelUniformTimeSeries(
             samples=[[1, 2, 3], [1, 2, 3]],
-            fs=1400.0, channelaxis=0, dtype=np.int64, starttime=5.0,
+            fs=1400.0, channelaxis=0, dtype=np.int64, startdatetime='2020-12-24T09:52:25.0',
             origintime=-3.0)
         ts2 = MultiChannelUniformTimeSeries(
             samples=[[4, 5, 6], [4, 5, 6]],
-            fs=1400.0, channelaxis=0, dtype=np.int64, starttime=6.0,
+            fs=1400.0, channelaxis=0, dtype=np.int64, startdatetime='2020-12-24T09:52:25.0',
             origintime=-2.0)
         ts1.append(ts2)
         assert (ts1.samples.array[:] == np.array([[1, 2, 3, 4, 5, 6], [1, 2, 3, 4, 5, 6]])).all()
-        assert ts1.starttime == 5.0
-        assert ts1.origintime == -3.0
-        assert ts1.ntimesamples == 6
-        assert ts1.nchannels == 2
+        self.assertEqual(ts1.startdatetime, np.datetime64('2020-12-24T09:52:25.0', 'ns'))
+        self.assertEqual(ts1.origintime, -3.0)
+        self.assertEqual(ts1.ntimesamples, 6)
+        self.assertEqual(ts1.nchannels, 2)
         ts2 = MultiChannelUniformTimeSeries(
             samples=[[4, 5], [4, 5]],
-            fs=1400.0, channelaxis=1, dtype=np.int64, starttime=6.0,
+            fs=1400.0, channelaxis=1, dtype=np.int64, startdatetime='2020-12-24T09:52:25.0',
             origintime=-2.0)
         ts1.append(ts2)
-        assert ts1.ntimesamples == 8
-        assert ts1.nchannels == 2
+        self.assertEqual(ts1.ntimesamples, 8)
+        self.assertEqual(ts1.nchannels, 2)
 
         # different dtype
         ts2 = MultiChannelUniformTimeSeries(
             samples=[[4., 5., 6.], [4., 5., 6.]],
-            fs=1400.0, channelaxis=0, dtype=np.float64, starttime=6.0,
+            fs=1400.0, channelaxis=0, dtype=np.float64, startdatetime='2020-12-24T09:52:25.0',
             origintime=-2.0)
         assert_raises(TypeError, ts1.append, ts2)
         # different shape
         ts2 = MultiChannelUniformTimeSeries(
             samples=[[4, 5, 6], [4, 5, 6]],
-            fs=1400.0, channelaxis=1, dtype=np.int64, starttime=6.0,
+            fs=1400.0, channelaxis=1, dtype=np.int64, startdatetime='2020-12-24T09:52:25.0',
             origintime=-2.0)
         assert_raises(TypeError, ts1.append, ts2)
         ts2 = UniformTimeSeries(samples=[4, 5, 6], fs=1400.0, dtype=np.int64,
-                                starttime=6.0, origintime=-2.0)
+                                startdatetime='2020-12-24T09:52:25.0', origintime=-2.0)
         assert_raises(TypeError, ts1.append, ts2)
         # different type
         for seq in [[[1, 2], [1, 2]], ((1, 2), (1, 2)), np.array([[1, 2], [1, 2]])]:
@@ -831,24 +787,24 @@ class test_MultiChannelUniformTimeSeries(TestCase):
                 typename, dim, artype = node._v_name.split('7')
                 if artype == 'EArray':
                     ts1 = MultiChannelUniformTimeSeries(samples=node, fs=1.0,
-                                                        copy=False, channelaxis=0, starttime=6.0,
+                                                        copy=False, channelaxis=0, startdatetime='2020-12-24T09:52:25.0',
                                                         origintime=-2.0)
                     # correct appends
                     ts2 = MultiChannelUniformTimeSeries(
                         samples=np.array([node.shape[0] * [4, 5, 6]]).reshape(node.shape[0], -1),
                         fs=1.0, channelaxis=0, dtype=node[:].dtype,
-                        starttime=6.0, origintime=-2.0)
+                        startdatetime='2020-12-24T09:52:30.0', origintime=-2.0)
                     ts1.append(ts2)
                     assert ts1.ntimesamples == node.shape[1]  # node shape has been updated
                     assert ts1.nchannels == node.shape[0]
                     assert ts1.fs == 1.0
-                    assert ts1.starttime == 6.0
+                    assert ts1.startdatetime == np.datetime64('2020-12-24T09:52:25.0', 'ns')
                     assert ts1.origintime == -2.0
                     ts1.append(ts1)
                     assert ts1.ntimesamples == node.shape[1]  # node shape has been updated
                     assert ts1.nchannels == node.shape[0]
                     assert ts1.fs == 1.0
-                    assert ts1.starttime == 6.0
+                    assert ts1.startdatetime == np.datetime64('2020-12-24T09:52:25.0', 'ns')
                     assert ts1.origintime == -2.0
                     # different channel axis, but nchannels correct
                     ts2 = ts2.transpose()
@@ -856,84 +812,55 @@ class test_MultiChannelUniformTimeSeries(TestCase):
                     assert ts1.ntimesamples == node.shape[1]  # node shape has been updated
                     assert ts1.nchannels == node.shape[0]
                     assert ts1.fs == 1.0
-                    assert ts1.starttime == 6.0
+                    assert ts1.startdatetime == np.datetime64('2020-12-24T09:52:25.0', 'ns')
                     assert ts1.origintime == -2.0
                     # one channel too many
                     samples = np.array([(node.shape[0] + 1) * [4, 5, 6]]).reshape((node.shape[0] + 1), -1)
                     ts2 = MultiChannelUniformTimeSeries(samples=samples,
                                                         fs=1.0, channelaxis=0, dtype=node[:].dtype,
-                                                        starttime=6.0, origintime=-2.0)
+                                                        startdatetime='2020-12-24T09:52:25.0', origintime=-2.0)
                     assert_raises(TypeError, ts1.append, ts2)
                     # wrong signal type
                     ts2 = UniformTimeSeries(samples=np.array([4, 5, 6]), fs=1.0,
-                                            dtype=node[:].dtype, starttime=6.0, origintime=-2.0)
+                                            dtype=node[:].dtype, startdatetime='2020-12-24T09:52:25.0', origintime=-2.0)
                     assert_raises(TypeError, ts1.append, ts2)
 
     def test_copy(self):
         "MultiChannelUniformTimeSeries: copy"
         ar = np.arange(20.).reshape(10, 2)
         for channelaxis, ar in zip((1, 0), (ar, ar.T)):
-            s = MultiChannelUniformTimeSeries(samples=ar, fs=1.0, channelaxis=1)
+            s = MultiChannelUniformTimeSeries(samples=ar, fs=1.0, channelaxis=1, startdatetime='2020-12-24T09:52:25.0')
             cs = s.copy()
             assert cs.samples.array.base is not s.samples.array
             assert cs.channelnames.base is not s.channelnames
             assert cs.ntimesamples == s.ntimesamples
             assert cs.nchannels == s.nchannels
             assert cs.channelaxis == s.channelaxis
-            assert cs.starttime == s.starttime
+            assert cs.startdatetime == s.startdatetime
             assert cs.origintime == s.origintime
             assert cs.endtime == s.endtime
             assert cs.fs == s.fs
             assert cs.dtype == s.dtype
 
-            #def test_saveh5(self):
-            #"MultiChannelUniformTimeSeries: saveh5"
-            #f = self.temph5file
-            ## some unlikely parameters
-            #samples0 = np.array([[0.07436005,1.62218437,2.39154842,3.55754441],
-            #[4.07436005,5.62218437,6.39154842,7.55754441]])
-            #samples1 = samples0.T
-            #fs = 48.443798
-            #starttime = 0.55754441
-            #origintime = 0.02353585
-            #dtypes = floattypes + inttypes + [np.complex128]
-            ## chanelaxis == 0
-            #channelnames = np.array(['chan1','chan2'])
-            #for channelaxis, samples in zip((0,1),(samples0,samples1)):
-            #for i,dtype in enumerate(dtypes):
-            #csamples = samples.astype(dtype)
-            #ts =  MultiChannelUniformTimeSeries(samples=csamples, fs=fs,
-            #starttime=starttime, origintime=origintime, dtype=dtype,
-            #channelnames=channelnames, channelaxis=channelaxis)
-            #s = ts.saveh5(f.root, "MultiChannelUniformTimeSeries"+"_%d_%d"%(i,channelaxis),
-            #channelaxis=channelaxis)
-            #arnode = s.samples.h5array
-            #assert (arnode[:] == csamples).all()
-            #assert arnode.attrs.fs == fs
-            #assert arnode.attrs.starttime == starttime
-            #assert arnode.attrs.origintime == origintime
-            #assert arnode.dtype == csamples.dtype
-            #assert (arnode.attrs.channelnames == channelnames).all()
-            #assert arnode.attrs.channelaxis == channelaxis
 
     def test_transpose(self):
         "MultiChannelUniformTimeSeries: transpose"
         samples = {0: [[1, 2, 3], [4, 5, 6]], 1: [[1, 4], [2, 5], [3, 6]]}
         dtypes = goodarraydtypes
         fs = 48.443798
-        starttime = 0.55754441
+        startdatetime = '2020-12-24T09:52:25.0'
         origintime = 0.02353585
         channelnames = np.array(['ch1', 'ch2'], dtype=np.unicode_)
         for dtype in dtypes:
             for readonly in [True, False]:
                 for channelaxis in [0, 1]:
                     mc = MultiChannelUniformTimeSeries(samples=samples[channelaxis], fs=fs,
-                                                       starttime=starttime, origintime=origintime, dtype=dtype,
-                                                       channelnames=channelnames, channelaxis=channelaxis)
+                                                       startdatetime='2020-12-24T09:52:25.0', origintime=origintime,
+                                                       dtype=dtype, channelnames=channelnames, channelaxis=channelaxis)
                     tmc = mc.transpose(mc.samples.axisorder[::-1])
                     assert (tmc.samples.get() == mc.samples.get().T).all()
                     assert tmc.fs == mc.fs
-                    assert tmc.starttime == mc.starttime
+                    assert tmc.startdatetime == mc.startdatetime
                     assert tmc.origintime == mc.origintime
                     assert tmc.dtype == mc.dtype
                     assert (tmc.channelnames == channelnames).all()

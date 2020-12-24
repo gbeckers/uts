@@ -106,8 +106,7 @@ class TestIterconvolve(TestCase):
                         normalres = convolve(s, kernel, mode=mode)
                         assert (normalres.samples.get(copy=True).flatten() == iterres.samples.get(copy=True).flatten()).all()
                         assert normalres.origintime == iterres.origintime
-                        assert normalres.starttime == iterres.starttime
-                        assert normalres == iterres
+                        self.assertEqual(normalres, iterres)
                     
 
 class TestDecimate(TestCase):

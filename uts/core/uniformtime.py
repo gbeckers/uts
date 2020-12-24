@@ -85,7 +85,7 @@ class UniformTime(object):
                  |  s0  |  s1  |  s2  |  s3  |  s4  |  s5  |  s6  |
                  ^                                                ^
     absolute: starttime                                        endtime
-            (e.g. 1452.3)                       (e.g. 1452.3 + duration)
+            (e.g. -0.2)                       (e.g. starttime + duration)
 
                                  ^
     relative:                origintime
@@ -97,6 +97,7 @@ class UniformTime(object):
 
     """
 
+    # FIXME do not allow any kwarg, just starttime
     def __init__(self, ntimesamples, fs, startdatetime='NaT',
                  origintime=0.0, **kwargs):
         # compatibility with old versions, they provide starttime,
@@ -177,7 +178,10 @@ class UniformTime(object):
             result = True
             result &= (self.__fs == other.fs)
             result &= (self.__dt == other.dt)
-            result &= (self.__startdatetime == other.startdatetime)
+            if np.isnat(self.__startdatetime): # NaT cannot be compared directly
+                result &= np.isnat(other.__startdatetime)
+            else:
+                result &= (self.__startdatetime == other.startdatetime)
             result &= (self.__origintime == other.origintime)
             result &= (self.__ntimesamples == other.ntimesamples)
             result &= (self.__duration == other.duration)
