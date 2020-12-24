@@ -85,6 +85,8 @@ def test_UniformTime_fs():
         assert_raises(TypeError, UniformTime, ntimesamples=10, fs=testtype(0))
 
 
+# only in older versions starttime would be an instantiation parameter.
+# this is replaced by a startdatetime parameter.
 def test_UniformTime_starttime():
     "UniformTime: starttime parameter"
 
