@@ -1,20 +1,16 @@
 .. uts documentation master file, created by
-   sphinx-quickstart on Sun Mar  9 07:27:55 2014.
+   sphinx-quickstart on Fri Feb 12 16:03:17 2021.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
 Welcome to uts's documentation!
 ===============================
 
-Contents:
-
 .. toctree::
    :maxdepth: 2
+   :caption: Contents:
 
-.. automodule:: uts.core.uniformtime
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   api
 
 Indices and tables
 ==================
@@ -22,4 +18,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
