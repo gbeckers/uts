@@ -89,10 +89,11 @@ class MultiChannel(object):
                                          % type(geometry).__name__)
             pointnames = geometry.pointnames.flatten()
             if not geometry.npoints == nchannels:
-                raise ChannelFormatError("number of geometry points does not match number of channels")
+                raise ChannelFormatError(f"number of geometry points ({geometry.npoints}) "
+                                         f"does not match number of channels ({nchannels})")
             if len(set(pointnames) ^ set(channelnames)) != 0:
-                raise ChannelFormatError("names geometry points does not match those of channels" \
-                                         "\n%s" % (set(pointnames) ^ set(channelnames)))
+                raise ChannelFormatError(f"names geometry points does not match those of channels" \
+                                         f"{(set(pointnames) ^ set(channelnames))}")
             #channelnames['geometrypoint'] = geometry.indexfrom1Dto1D(channelnames)
         return channelnames, geometry
 

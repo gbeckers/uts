@@ -157,7 +157,10 @@ class RectangularLattice(Geometry):
         if not array.shape[-1] == self.npoints:
             raise GeometryError("shape of array not congruent with number of points")
         if not len(pointnames) == self.npoints:
-            raise GeometryError("number of pointnames not congruent with number of points")
+            raise GeometryError(f"number of pointnames not congruent with number of "
+                                f"points (pointnames: {pointnames}, number of "
+                                f"pointnames: {len(pointnames)}, number of points: "
+                                f"{self.npoints}).")
         newarray = np.empty_like(array)
         newarray[...,self.indexfrom1Dto1D(pointnames)] = array
         return newarray
