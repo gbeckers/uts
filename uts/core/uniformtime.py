@@ -294,6 +294,10 @@ class UniformTime(object):
         else:
             return index
 
+    def time_to_datetime(self, time):
+        dt = self.startdatetime + np.array((time + self.__origintime)*1e9, 'timedelta64[ns]')
+        return dt
+
     def index_to_time(self, index):
         """
         Converts a sample index, or array of indices, to their 

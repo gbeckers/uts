@@ -1216,7 +1216,7 @@ class ICA(object):
         f.flush()
         return n
 
-
+# FIXME? is if uts is smaller than ntaps, we get too long signal
 def lp(uts, freq=300., width=50., ntaps=257, window="kaiser", mode='same',
        threads=None, dtype=None):
     """low-pass filter"""

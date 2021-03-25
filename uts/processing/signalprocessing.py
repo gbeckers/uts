@@ -57,6 +57,8 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     'pad' or 'wrap').
     """
 
+    a = a.copy() # FIXME this should not be necessary, but it is at least sometimes
+
     if axis is None:
         a = np.ravel(a) # may copy
         axis = 0
