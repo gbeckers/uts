@@ -1,7 +1,7 @@
 import numpy as np
 import darr
 import textwrap
-from darr.basedatadir import DataDir, create_basedatadir
+from darr.datadir import DataDir, create_datadir
 from ..core.uniformtime import UniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
     EpochedUniformTimeSeries, isuts, iseuts, ismcuts, isemcuts
@@ -27,7 +27,7 @@ readmetxt += "\n"
 # TODO perhaps an iter based version and a non-iter for time not last axis
 def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
              framesize=1024*1000, readmetxt=readmetxt):
-    bdd = create_basedatadir(path, overwrite=overwrite)
+    bdd = create_datadir(path, overwrite=overwrite)
     if overwrite:
         bdd._delete_files(('signaldata.json', 'channeldata.json',
                            'epochdata.json', 'metadata.json'))
