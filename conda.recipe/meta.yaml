@@ -19,7 +19,7 @@ requirements:
     - pytables
     - scipy
     - h5py
-    - darr >=0.2.2
+    - darr >=0.3.1
 
 test:
   imports:
