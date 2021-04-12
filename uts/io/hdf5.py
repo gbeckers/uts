@@ -126,7 +126,7 @@ def _save(s, h5group, channelaxis=None, epochaxis=None,
           overwrite=False, extensible=False, expectedrows=None, dtype=None,
           complib='zlib', complevel=5, chunkshape=None, warn=True):
     if _isgenerator(s):
-        s1 = s.next()
+        s1 = next(s)
         if (not extensible) and warn:
             warnings.warn(
                 "Saving generator to h5 array: setting extensible to True")
