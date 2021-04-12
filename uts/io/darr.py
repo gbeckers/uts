@@ -24,9 +24,8 @@ readmetxt += wrap("The JSON text files 'metadata.json', 'channeldata.json', 'epo
                   "the numeric data array, and has its own README file detailing how it can be accessed.")
 readmetxt += "\n"
 
-# TODO perhaps an iter based version and a non-iter for time not last axis
 def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
-             framesize=1024*1000, readmetxt=readmetxt):
+             axisorder=None, readmetxt=readmetxt):
     bdd = create_datadir(path, overwrite=overwrite)
     if overwrite:
         bdd._delete_files(('signaldata.json', 'channeldata.json',
@@ -41,14 +40,16 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
     #     axes.insert(0, 'time')
     # elif isuts(s): # isuts
     #     axes = ['time']
-    axisorder = s.samples.axisorder
+    if axisorder is None:
+        axisorder = s.samples.axisorder
     firstaxis = axisorder[0]
+
     if firstaxis == 'time':
-        framegenerator = (f.samples[:] for f in s.iter_frames(1024*100))
+        framegenerator = (f.transpose(axisorder).samples[:] for f in s.iter_frames(1024*100))
     elif firstaxis == 'channel':
-        framegenerator = (np.expand_dims(ch.samples[:],0) for ch in s.iter_channels()) #
+        framegenerator = (np.expand_dims(ch.transpose(axisorder).samples[:],0) for ch in s.iter_channels()) #
     elif firstaxis == 'epoch':
-        framegenerator = (np.expand_dims(e.samples[:],0) for e in s.iter_epochs()) # FIXME check this!!
+        framegenerator = (np.expand_dims(e.transpose(axisorder).samples[:],0) for e in s.iter_epochs()) # FIXME check this!!
     else:
         raise ValueError(f"Do not understand last axis '{firstaxis}'")
     metadata = dict(((k, i) if not hasattr(i, 'decode') else (k, i.decode("utf-8"))
@@ -57,9 +58,10 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
                  'startdatetime': str(s.startdatetime),
                  'origintime': s.origintime,
                  })
+    sel = s[:2].transpose(axisorder) # two timesamples
     if hasattr(s, 'channelnames'):
-        signaldata['channelaxis'] =  int(s.channelaxis)
-        signaldata['timeaxis'] = int(s.timeaxis)
+        signaldata['channelaxis'] =  int(sel.channelaxis)
+        signaldata['timeaxis'] = int(sel.timeaxis)
         channeldata = {'channelnames': [str(n) for n in s.channelnames]}
         if hasattr(s, 'geometry'):
             if type(s.geometry) is RectangularLattice:
@@ -67,16 +69,12 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
                      'instantiationparameters': s.geometry.instantiationparameters()}
                 channeldata['geometry'] = g
             else:
-                raise TypeError(f'Geometry type "{type(g)}" not supported for Darr')
+                raise TypeError(f'Geometry type "{type(s.geometry)}" not supported for Darr')
         bdd._write_jsondict(filename='channeldata.json', d=channeldata,
                             overwrite=overwrite)
     if hasattr(s, 'epochs'):
-        signaldata['epochaxis'] = int(s.epochaxis)
-        signaldata['timeaxis'] = int(s.timeaxis)
-        # starttimes = s.epochs['starttime']
-        # epochtimespath = bdd.path / 'epochstarttimes.darr'
-        # darr.asarray(path=epochtimespath, array=starttimes,
-        #              accessmode=accessmode, dtype=dtype, overwrite=overwrite)
+        signaldata['epochaxis'] = int(sel.epochaxis)
+        signaldata['timeaxis'] = int(sel.timeaxis)
         header = ",".join(s.epochs.dtype.names)
         np.savetxt(bdd.path / 'epochs.csv', s.epochs, delimiter=',', header=header)
     signaldata['utsversion'] = get_versions()['version']
