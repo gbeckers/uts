@@ -46,7 +46,6 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
     if firstaxis == 'time':
         framegenerator = (f.samples[:] for f in s.iter_frames(1024*100))
     elif firstaxis == 'channel':
-        print('am here')
         framegenerator = (np.expand_dims(ch.samples[:],0) for ch in s.iter_channels()) #
     elif firstaxis == 'epoch':
         framegenerator = (np.expand_dims(e.samples[:],0) for e in s.iter_epochs()) # FIXME check this!!
