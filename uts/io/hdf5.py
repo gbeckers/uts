@@ -200,7 +200,7 @@ def saveh5_itered(smodel, gen, name='/', filename=None, ntimesamples=None,
 
 @contextmanager
 def cacheh5(s, channelaxis=None, epochaxis=None,
-            extensible=False, expectedrows=None, dtype=None, complib='blosc',
+            extensible=True, expectedrows=None, dtype=None, complib='blosc',
             complevel=5, chunkshape=None, path=None, report=False,
             signalname='/cached', filename='cached.h5', warn=True, keep=False):
 
