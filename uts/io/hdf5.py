@@ -30,7 +30,6 @@ CHANNELTABLENAME = 'channels'
 
 def h5attr_to_geometry(attr, pointnames=None):
     from uts.core.geometry import RectangularLattice
-
     code = '%s(' % attr[0]  #class
     for key, item in attr[1].items():  #parameters
         code += '%s=%s,' % (key, item)
@@ -277,6 +276,7 @@ def _open(h5group, mode='r'):
         starttime = attrs.pop('starttime')
         if starttime != 0.0:
             startdatetime = np.datetime64(int(round(starttime * 1e9)), 'ns')
+            origintime = 0.0
         else:
             startdatetime = 'NaT'
     if len(h5array.shape) == 1:  # uts
@@ -294,8 +294,12 @@ def _open(h5group, mode='r'):
                 channeltable = f.get_node(h5group, CHANNELTABLENAME)
                 channels = channeltable[:]
                 channelnames = channels['channelname']
+                pointnames = None # necessary for backward compatibility
+                if 'geometrypoint' in channels.dtype.names:
+                    pointnames = channelnames[channels['geometrypoint']]
                 if "geometry" in channeltable.attrs._v_attrnames:
-                    pointnames = channeltable.attrs.pointnames
+                    if "pointnames" in channeltable.attrs._v_attrnames:
+                        pointnames = channeltable.attrs.pointnames
                     g = h5attr_to_geometry(channeltable.attrs.geometry,
                                            pointnames=pointnames)
                 else:
@@ -344,8 +348,12 @@ def _open(h5group, mode='r'):
             channeltable = f.get_node(h5group, CHANNELTABLENAME)
             channels = channeltable[:]
             channelnames = channels['channelname']
+            pointnames = None  # necessary for backward compatibility
+            if 'geometrypoint' in channels.dtype.names:
+                pointnames = channelnames[channels['geometrypoint']]
             if "geometry" in channeltable.attrs._v_attrnames:
-                pointnames = channeltable.attrs.pointnames
+                if "pointnames" in channeltable.attrs._v_attrnames:
+                    pointnames = channeltable.attrs.pointnames
                 g = h5attr_to_geometry(channeltable.attrs.geometry,
                                        pointnames=pointnames)
             else:
@@ -353,7 +361,7 @@ def _open(h5group, mode='r'):
         else:
             raise IOError("no channels found in %s" % h5array._v_pathname)
         signal = EpochedMultiChannelUniformTimeSeries(samples=samples,
-                                                      fs=fs, channelnames=channels,
+                                                      fs=fs, channelnames=channelnames,
                                                       origintime=origintime,
                                                       copy=False, dtype=None,
                                                       epochs=epochtable,
