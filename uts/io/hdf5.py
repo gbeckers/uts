@@ -81,10 +81,12 @@ def _create_h5savepoint(filename, h5path='/', overwrite=False, mode='a'):
         if h5path in f and overwrite:
             _remove(h5fileobject=f, h5path=h5path)
         grouppath = h5path.split('/')
-        '/'.join(grouppath[:-1])
-        h5group = f.create_group(where='/'.join(grouppath[:-1]),
-                                 name=grouppath[-1],
-                                 createparents=True)
+        if grouppath[-1] != '':
+            h5group = f.create_group(where='/'.join(grouppath[:-1]),
+                                     name=grouppath[-1],
+                                     createparents=True)
+        else:
+            h5group = f.root
         yield h5group
 
 def saveh5(s, signalname='/', filename=None, channelaxis=None,
