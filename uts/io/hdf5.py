@@ -280,14 +280,12 @@ def _open(h5group, mode='r'):
         else:
             startdatetime = 'NaT'
     if len(h5array.shape) == 1:  # uts
-        startdatetime = h5array.attrs.startdatetime
         signal = UniformTimeSeries(samples=samples, fs=fs, startdatetime=startdatetime,
                                    origintime=origintime, copy=False,
                                    dtype=None, attrs=attrs)
     #FIXME use the attr to find name of channel and epoch tables, not hard-code strings
     elif len(h5array.shape) == 2:  # euts or mcuts
         if "channelaxis" in h5array.attrs._v_attrnames:  # mcuts
-            startdatetime = h5array.attrs.startdatetime
             channelaxis = h5array.attrs.channelaxis
             attrs.pop('channelaxis')
             attrs.pop('channeltable')
