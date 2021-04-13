@@ -3,6 +3,12 @@ from .audio import *
 from .matlab import *
 from .darr import *
 
+try:
+    import pyedflib
+    from .edf import *
+except ImportError:
+    pass
+
 __all__ = ['open', 'save']
 
 open = opendarr
