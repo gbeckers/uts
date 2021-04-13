@@ -1553,11 +1553,10 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                                        metadata=self.metadata)
         return res
 
-    def __iter__(self):
+    def iter_epochs(self):
         for i in range(self.nepochs):
             yield self[:, :, i]
 
-    iter_epochs = __iter__
 
     def __str__(self):
         return "<EpochedMultiChannelUniformTimeSeries: " \
