@@ -20,12 +20,12 @@ def _meaniterframefunc(func, s, axis=None, framesize=1024*64, **kwargs):
     if axissize < 1:
         raise ValueError('signal has no samples along %s axis' % axis)
     if axissize <= framesize:
-        m = func(s.samples.get(copy=False), axis=s.samples.axes[axis],**kwargs)
+        m = func(s.samples.get(copy=False), axis=s.samples.axes[axis], **kwargs)
     else:
         ms = []
         weights = []
         for f in s.iter_frames(framesize=framesize, include_remainder=True):
-            m = func(f.samples.get(copy=False), axis=s.samples.axes[axis],**kwargs)
+            m = func(f.samples.get(copy=False), axis=s.samples.axes[axis], **kwargs)
             ms.append(m)
             weights.append(f.ntimesamples / float(framesize))
         ms = np.array(ms, dtype=np.float64)
@@ -111,7 +111,7 @@ def mad(s, axis=None, framesize=1024*128, c=0.6745):
     
     Examples
     --------
-    >>> s = ds.signalfromsamples([0.08418439,  0.28987414, -0.05445002,  1.6779827], 1.0)
+    >>> s = UniformTimeSignal([0.08418439,  0.28987414, -0.05445002,  1.6779827], 1.0)
     >>> mad(s)
     >>>
     0.25524400296515937
