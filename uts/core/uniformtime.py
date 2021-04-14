@@ -836,6 +836,8 @@ class EpochedUniformTimeSeries(Epoched, UniformTimeSeries):
                                    readonly=readonly, metadata=metadata, attrs=attrs)
         duration = self.samples.shape[self.samples.axes['time']] / self.fs
         nepochs = self.samples.shape[self.samples.axes['epoch']]
+        if not nepochs == len(epochs):
+            raise ValueError(f"epoch axis length ({nepochs}) not same as length epochs ({len(epochs)})")
         Epoched.__init__(self, duration=duration, epochs=epochs,
                          origintime=origintime)
 
@@ -1394,7 +1396,8 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                                attrs=attrs)
         duration = self.samples.shape[self.samples.axes['time']] / self.fs
         nepochs = self.samples.shape[self.samples.axes['epoch']]
-
+        if not nepochs == len(epochs):
+            raise ValueError(f"epoch axis length ({nepochs}) not same as length epochs ({len(epochs)})")
         Epoched.__init__(self, duration=duration, epochs=epochs,
                          origintime=origintime)
 
@@ -1456,9 +1459,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
 
     def __eq__(self, other):
         result = MultiChannelUniformTimeSeries.__eq__(self, other)
-        print(result)
         result &= np.all(self.epochs == other.epochs)
-        print(result)
         return result
 
     def _get_index(self, index):

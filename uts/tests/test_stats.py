@@ -21,8 +21,8 @@ class test_Mean(TestCase):
         samples=np.linspace(-1.,1.,1200).reshape(3,2,200), fs=200., 
         epochs=epochs, channelaxis=1, epochaxis=0)
     emctss2 = EpochedMultiChannelUniformTimeSeries(
-        samples=np.linspace(-1.,1.,1200).reshape(3,2,200), fs=200., 
-        epochs=epochs, channelaxis=0, epochaxis=1)
+        samples=np.linspace(-1.,1.,1200).reshape(3,2,200), fs=200.,
+        epochs=epochs[:2], channelaxis=0, epochaxis=1)
     emctss3 = EpochedMultiChannelUniformTimeSeries(
         samples=np.linspace(-1.,1.,1200).reshape(3,200,2), fs=200., 
         epochs=epochs, channelaxis=1, epochaxis=0)
