@@ -2,6 +2,7 @@ import numpy as np
 import tables as tb
 from .check_arg import check_arg, check_argarray
 
+
 class Epoched(object):
     """
     Represents an epoched time series.

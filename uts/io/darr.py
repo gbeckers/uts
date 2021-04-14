@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import darr
 import textwrap
 from darr.datadir import DataDir, create_datadir
@@ -9,7 +10,6 @@ from ..core.geometry import RectangularLattice
 from .._version import get_versions
 
 # FIXME Darr should become standard open and save
-
 
 __all__ = ['opendarr', 'savedarr']
 
@@ -24,34 +24,40 @@ readmetxt += wrap("The JSON text files 'metadata.json', 'channeldata.json', 'epo
                   "the numeric data array, and has its own README file detailing how it can be accessed.")
 readmetxt += "\n"
 
+
 def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
-             axisorder=None, readmetxt=readmetxt):
+             axisorder=None, float_format='%.16e'):
+    """Saves uts objects in a s self-explanatory and tool-independent format.
+
+    Note that sample information is written without any loss of precision. Epoch
+    information, however, is written as csv text file. Floating point numbers in
+    epoch tables will therefore only be represented with a given precision (see
+    `float_format` parameter).
+
+    path:
+    s:
+    accessmode:
+    dtype:
+    overwrite:
+    axisorder:
+    float_format: str
+      Float text format that is used to write the csv file with epoch information.
+      Note that all sample information is written in binary format and will not
+      lead to any loss of information. Epoch information, however is saved as text,
+      and precision of float numbers depends on this parameter. Default is '%.18e'.
+
+    """
     bdd = create_datadir(path, overwrite=overwrite)
     if overwrite:
         bdd._delete_files(('signaldata.json', 'channeldata.json',
                            'epochdata.json', 'metadata.json'))
-    # if iseuts(s) and s.timeaxis != 0:
-    #     axes = ['time','epoch']
-    # elif ismcuts(s) and s.timeaxis != 0:
-    #     axes = ['time','channel']
-    # elif isemcuts(s) and s.timeaxis != 0:
-    #     axes = list(s.samples.axisorder)
-    #     del(axes[axes.index('time')])
-    #     axes.insert(0, 'time')
-    # elif isuts(s): # isuts
-    #     axes = ['time']
     if axisorder is None:
         axisorder = s.samples.axisorder
-    firstaxis = axisorder[0]
-
-    if firstaxis == 'time':
+    if len(axisorder) > 1:
         framegenerator = (f.transpose(axisorder).samples[:] for f in s.iter_frames(1024*100))
-    elif firstaxis == 'channel':
-        framegenerator = (np.expand_dims(ch.transpose(axisorder).samples[:],0) for ch in s.iter_channels()) #
-    elif firstaxis == 'epoch':
-        framegenerator = (np.expand_dims(e.transpose(axisorder).samples[:],0) for e in s.iter_epochs()) # FIXME check this!!
     else:
-        raise ValueError(f"Do not understand last axis '{firstaxis}'")
+        framegenerator = (f.samples[:] for f in s.iter_frames(1024 * 100))
+
     metadata = dict(((k, i) if not hasattr(i, 'decode') else (k, i.decode("utf-8"))
                       for (k, i) in s.metadata.items()))
     signaldata = ({'fs': s.fs,
@@ -75,8 +81,11 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
     if hasattr(s, 'epochs'):
         signaldata['epochaxis'] = int(sel.epochaxis)
         signaldata['timeaxis'] = int(sel.timeaxis)
-        header = ",".join(s.epochs.dtype.names)
-        np.savetxt(bdd.path / 'epochs.csv', s.epochs, delimiter=',', header=header)
+        if not isinstance(s.epochs, pd.DataFrame):
+            epochs = pd.DataFrame(s.epochs)
+        else:
+            epochs = s.epochs
+        epochs.to_csv(bdd.path / 'epochs.csv', index=False, float_format=float_format)
     signaldata['utsversion'] = get_versions()['version']
     signaldata['utstype'] = type(s).__name__
     bdd.write_jsondict(filename='signaldata.json', d=signaldata,
@@ -130,7 +139,7 @@ def opendarr(path, accessmode='r'):
                                       starttime=sd.get('starttime', 0.0))
     elif utstype == 'EpochedUniformTimeSeries':
         sd = bdd.read_jsondict('signaldata.json')
-        epochs = np.genfromtxt(bdd._path / 'epochs.csv', names=True)
+        epochs = pd.read_csv(bdd._path / 'epochs.csv').to_records(index=False)
         return EpochedUniformTimeSeries(samples=a,
                                         fs=sd['fs'],
                                         origintime=sd['origintime'],
@@ -144,7 +153,7 @@ def opendarr(path, accessmode='r'):
         chd = bdd.read_jsondict('channeldata.json')
         channelnames = chd['channelnames']
         geometry = _darrmetadatatogeometry(chd)
-        epochs = np.genfromtxt(bdd._path / 'epochs.csv', names=True)
+        epochs = pd.read_csv(bdd._path / 'epochs.csv').to_records(index=False)
         return EpochedMultiChannelUniformTimeSeries(samples=a,
                                              fs=sd['fs'],
                                              channelnames=channelnames,

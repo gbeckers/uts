@@ -621,7 +621,8 @@ class UniformTimeSeries(UniformTime):
         result &= (self.__dtype == other.dtype)
         result &= (self.baseaxis == other.baseaxis)
         if result:  # we check samples
-            framesize = int(np.ceil(self.mb / 64.0))  # 64 Mb chunks
+            # framesize = 32 Mb chunks, min 2, max ntimesamples
+            framesize =  min(self.ntimesamples, max(2, (self.ntimesamples / (self.mb / 32.))))
             axisorder = self.samples.axisorder
             startindex = 0
             for frame in self.iter_frames(framesize=framesize,
@@ -1455,8 +1456,9 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
 
     def __eq__(self, other):
         result = MultiChannelUniformTimeSeries.__eq__(self, other)
+        print(result)
         result &= np.all(self.epochs == other.epochs)
-        # result &= (self.duration == other.duration)
+        print(result)
         return result
 
     def _get_index(self, index):
@@ -1552,6 +1554,45 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                                        channelaxis=self.channelaxis,
                                                        metadata=self.metadata)
         return res
+
+    def iter_frames(self, framesize, stepsize=None, include_remainder=True,
+                    startindex=None, endindex=None, channels=None, epochs=None):
+        """
+        Iterate over time axis.
+
+        Parameters
+        ----------
+
+        framesize: int
+            Size of the frame in timesamples. Note that the last frame may be
+            smaller than `framesize`, depending on the number of timesamples.
+        stepsize: <int, None>
+            Size of the shift in time per iteration in number of timesamples.
+            Default is None, which means that `stepsize` equals `framesize`.
+        startindex: <int, None>
+            Start sample number.
+            Default is None, which means to start at the beginning (sample 0)
+        endindex: <int, None>
+            End sample number.
+            Default is None, which means to end at the end.
+
+        Returns
+        -------
+        A generator that yields time frames of self.
+
+        """
+
+        if channels is None:
+            channels = range(self.nchannels)
+        if epochs is None:
+            epochs = range(self.nepochs)
+        for framestart, frameend in self.movingtimeframeindices(
+                framesize=framesize,
+                stepsize=stepsize,
+                include_remainder=include_remainder,
+                startindex=startindex,
+                endindex=endindex):
+            yield self[framestart:frameend, channels, epochs]
 
     def iter_epochs(self):
         for i in range(self.nepochs):
