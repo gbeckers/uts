@@ -1501,7 +1501,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
              super(self.__class__, self)._to_timeslice(axisslices['time'])
         # channels = self.channelnames[axisslices['channel']]
         epochs = np.array(self.epochs[axisslices['epoch']], ndmin=1)
-        samples = np.squeeze(self.samples[fullindex])
+        samples = self.samples[fullindex]
         # print samples, samples.shape, self.samples.axisorder, fullindex
         # print axisslices
         # print epochs
@@ -1515,13 +1515,14 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
             geometry = self.geometry
         else:
             geometry = None
-
         if (nselchannels==1) and (len(epochs)==1):
+            samples = np.squeeze(samples)
             res = UniformTimeSeries(samples=samples, fs=self.fs,
                                     startdatetime=startdatetime, origintime=origintime,
                                     copy=False,
                                     metadata=self.metadata)
         elif len(epochs)==1:
+            samples = np.squeeze(samples)
             if self.channelaxis > self.timeaxis:
                 channelaxis = 1
             else:
@@ -1534,6 +1535,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                                 channelaxis=channelaxis,
                                                 metadata=self.metadata)
         elif nselchannels==1:
+            samples = np.squeeze(samples)
             if self.epochaxis > self.timeaxis:
                 epochaxis = 1
             else:
