@@ -907,7 +907,7 @@ class EpochedUniformTimeSeries(Epoched, UniformTimeSeries):
                                      origintime=origintime, copy=False,
                                      metadata=self.metadata)
         else:
-            epochs = self.epochs[epochindex]
+            epochs = self._get_epochs(epochindex)
             return self._instantiatefromself(samples=samples, fs=self.fs,
                                              origintime=origintime,
                                              epochs=epochs, copy=True)
@@ -1500,7 +1500,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
         samplesindex, startdatetime, origintime = \
              super(self.__class__, self)._to_timeslice(axisslices['time'])
         # channels = self.channelnames[axisslices['channel']]
-        epochs = np.array(self.epochs[axisslices['epoch']], ndmin=1)
+        epochs = self._get_epochs(axisslices['epoch'])
         samples = self.samples[fullindex]
         # print samples, samples.shape, self.samples.axisorder, fullindex
         # print axisslices

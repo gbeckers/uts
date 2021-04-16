@@ -1,9 +1,10 @@
 import numpy as np
 import tables as tb
+import pandas as pd
 from .check_arg import check_arg, check_argarray
 
 
-class Epoched(object):
+class Epoched:
     """
     Represents an epoched time series.
 
@@ -50,7 +51,7 @@ class Epoched(object):
     def _to_epochsindex(self, index):
         index = np.index_exp[index]
         if len(index) != 1:
-            raise IndexError("index of epoch dimension is not equal to one")
+            raise IndexError("dimension of epoch index is not equal to one")
         index = index[0]
 
         # first see if index is an int
@@ -60,11 +61,20 @@ class Epoched(object):
         indices = np.arange(self.nepochs,dtype=np.int)[index]
         return indices
 
+    def _get_epochs(self, index):
+        if isinstance(self.epochs, (pd.DataFrame,)):
+            return self.epochs.iloc[index]
+        else:
+            return np.array(self.epochs[index], ndmin=1)
+
     def _check_epochs(self, epochs):
-        if not isinstance(epochs, (np.ndarray, tb.table.Table)) or (epochs.dtype.fields is None):
-            raise TypeError('epochs parameter is not a numpy structured array or h5 table')
-        if not 'starttime' in epochs.dtype.fields:
-            raise ValueError('epochs do not have a "starttime" field')
+        if not isinstance(epochs, (np.ndarray, tb.table.Table, pd.DataFrame)):
+            raise TypeError(f'epochs type ({type(epochs)}) is not a pandas dataframe, '
+                            'a numpy structured array, or h5 table')
+        if isinstance(epochs,np.ndarray) and (epochs.dtype.fields is None):
+            raise TypeError(f'epochs type ({type(epochs)}) is not '
+                            'a numpy structured array (or a pandas dataframe or h5 table)')
+
         return epochs
     
     def _check_starttimes(self, epochs):
@@ -75,7 +85,7 @@ class Epoched(object):
     
     def _append_epochs(self, epochs):
         epochs = self._check_epochs(epochs)
-        if isinstance(self.__epochs, tb.table.Table):
+        if isinstance(self.__epochs, (tb.table.Table, pd.DataFrame)):
             self.__epochs.append(epochs)
         else:
             self.__epochs = np.concatenate([self.epochs, epochs])
@@ -84,21 +94,21 @@ class Epoched(object):
         self.__endtimes = self.__starttimes + self.__duration
             
     
-    #this has not been tested
-    def append_recordcolumns(self, epochs):
-        if not isinstance(epochs, np.ndarray) or (epochs.dtype.fields is None):
-            raise TypeError('epochs parameter is not a numpy structured array')
-        if not len(epochs) == len(self.__epochs):
-            raise ValueError('number of epochs do not match (%s vs %s)' % (len(self.__epochs), len(epochs)))
-        newdescr = self.__epochs.dtype.descr + epochs.dtype.descr
-        size = len(self.__epochs)
-        newepochs = np.empty(size,dtype=newdescr)
-        for descr in self.__epochs.dtype.descr:
-            newepochs[descr[0]] = self.__epochs[descr[0]]
-        for descr in epochs.dtype.descr:
-            newepochs[descr[0]] = epochs[descr[0]]
-        self.__epochs = newepochs
-            
+    # #this has not been tested
+    # def append_recordcolumns(self, epochs):
+    #     if not isinstance(epochs, np.ndarray) or (epochs.dtype.fields is None):
+    #         raise TypeError('epochs parameter is not a numpy structured array')
+    #     if not len(epochs) == len(self.__epochs):
+    #         raise ValueError('number of epochs do not match (%s vs %s)' % (len(self.__epochs), len(epochs)))
+    #     newdescr = self.__epochs.dtype.descr + epochs.dtype.descr
+    #     size = len(self.__epochs)
+    #     newepochs = np.empty(size,dtype=newdescr)
+    #     for descr in self.__epochs.dtype.descr:
+    #         newepochs[descr[0]] = self.__epochs[descr[0]]
+    #     for descr in epochs.dtype.descr:
+    #         newepochs[descr[0]] = epochs[descr[0]]
+    #     self.__epochs = newepochs
+    #
         
         
         
