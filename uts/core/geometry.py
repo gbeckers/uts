@@ -148,7 +148,23 @@ class RectangularLattice(Geometry):
             for coln, pointname in enumerate(row):
                 pointdict[pointname] = (rown,coln)   
         return pointdict
-    
+
+    def coordinates(self, pointnames=None):
+        """
+        Returns the coordinates of points in the array.
+
+        Parameters
+        ----------
+        pointnames: sequence
+            The order of pointnames in which the coordinates should be provided. If None,
+            the normal order from top left to right bottom is used.
+
+        """
+        c = np.array([(x, y) for x in np.arange(0, self.nx) * self.dx for y in np.arange(0, self.ny) * self.dy])
+        if pointnames is not None:
+            c = c[self.indexfrom1Dto1D(pointnames)]
+        return c
+
     # FIXME check that this works for more dimensions!
     def mapfrom1Dto1D(self, array, pointnames):
         '''
