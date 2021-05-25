@@ -17,6 +17,7 @@ __all__ = ['UniformTime', 'UniformTimeSeries',
 import warnings
 
 import numpy as np
+import pandas as pd
 
 from .multichannel import MultiChannel
 from .epoched import Epoched
@@ -1515,13 +1516,13 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
             geometry = self.geometry
         else:
             geometry = None
-        if (nselchannels==1) and (len(epochs)==1):
+        if (nselchannels==1) and ((len(epochs)==1) or (isinstance(epochs, pd.Series))):
             samples = np.squeeze(samples)
             res = UniformTimeSeries(samples=samples, fs=self.fs,
                                     startdatetime=startdatetime, origintime=origintime,
                                     copy=False,
                                     metadata=self.metadata)
-        elif len(epochs)==1:
+        elif (len(epochs)==1) or (isinstance(epochs, pd.Series)):
             samples = np.squeeze(samples)
             if self.channelaxis > self.timeaxis:
                 channelaxis = 1
