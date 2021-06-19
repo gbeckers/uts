@@ -1463,6 +1463,7 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
         result &= np.all(self.epochs == other.epochs)
         return result
 
+    # FIXME this does not work with 3 index entries, advanced indexing
     def _get_index(self, index):
         index = np.index_exp[index]
         # index is now a tuple of max 3 with possibly slices, ints, lists, tuples arrays
