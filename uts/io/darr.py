@@ -168,6 +168,10 @@ def opendarr(path, accessmode='r'):
         raise TypeError(f'"Type of data is not understood or not supported"')
 
 
+def loaddarr(path):
+    return opendarr(path)[:]
+
+
 def _darrmetadatatogeometry(metadata):
     if not 'geometry' in metadata:
         return None
