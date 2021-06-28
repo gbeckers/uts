@@ -14,3 +14,4 @@ __all__ = ['open', 'save']
 open = opendarr
 save = savedarr
 load = loaddarr
+cache = cachedarr

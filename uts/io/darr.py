@@ -2,16 +2,19 @@ import numpy as np
 import pandas as pd
 import darr
 import textwrap
+from contextlib import contextmanager
 from darr.datadir import DataDir, create_datadir
+from pathlib import Path
 from ..core.uniformtime import UniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
     EpochedUniformTimeSeries, isuts, iseuts, ismcuts, isemcuts
 from ..core.geometry import RectangularLattice
 from .._version import get_versions
+from .utils import tempdir
 
 # FIXME Darr should become standard open and save
 
-__all__ = ['opendarr', 'savedarr', 'loaddarr']
+__all__ = ['opendarr', 'savedarr', 'loaddarr', 'cachedarr']
 
 def wrap(s):
     return textwrap.fill(s, width=78, replace_whitespace=False)
@@ -170,6 +173,18 @@ def opendarr(path, accessmode='r'):
 
 def loaddarr(path):
     return opendarr(path)[:]
+
+
+
+@contextmanager
+def cachedarr(s, axisorder=None, dtype=None, path=None, report=False,
+            filename='cached.darr', keep=False, float_format='%.16e'):
+    with tempdir(dir=path, keep=keep, report=report) as tempdirname:
+        filepath = Path(tempdirname) /  filename
+        s = savedarr(path=filepath, s=s, accessmode='r', dtype=dtype, overwrite=False,
+                 axisorder=axisorder, float_format=float_format)
+        yield s
+
 
 
 def _darrmetadatatogeometry(metadata):
