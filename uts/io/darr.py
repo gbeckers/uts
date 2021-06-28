@@ -11,7 +11,7 @@ from .._version import get_versions
 
 # FIXME Darr should become standard open and save
 
-__all__ = ['opendarr', 'savedarr']
+__all__ = ['opendarr', 'savedarr', 'loaddarr']
 
 def wrap(s):
     return textwrap.fill(s, width=78, replace_whitespace=False)

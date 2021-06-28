@@ -1,11 +1,10 @@
 from __future__ import print_function
-import sys, time
+import sys
 
 try:
     from IPython.display import clear_output
-    have_ipython = True
 except ImportError:
-    have_ipython = False
+    clear_output = lambda x: None
 
 class ProgressBar:
     def __init__(self, iterations):
@@ -14,13 +13,11 @@ class ProgressBar:
         self.fill_char = '*'
         self.width = 40
         self.__update_amount(0)
-        if have_ipython:
-            self.animate = self.animate_ipython
-        else:
-            self.animate = self.animate_noipython
 
-    def animate_ipython(self, iter):
-        print('\r', self,)
+    def animate(self, iter):
+        clear_output()
+        #print('\r', self,)
+        print(self, end="\r")
         sys.stdout.flush()
         self.update_iteration(iter + 1)
 
