@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import darr
 import textwrap
+import itertools
 from contextlib import contextmanager
 from darr.datadir import DataDir, create_datadir
 from pathlib import Path
@@ -15,6 +16,14 @@ from .utils import tempdir
 # FIXME Darr should become standard open and save
 
 __all__ = ['opendarr', 'savedarr', 'loaddarr', 'cachedarr']
+
+def _isgenerator(iterable):
+    return hasattr(iterable, '__iter__') and not hasattr(iterable, '__len__')
+
+def peek_iterable(iterable):
+    gen = (i for i in iterable)
+    first = next(gen)
+    return first, itertools.chain([first], gen)
 
 def wrap(s):
     return textwrap.fill(s, width=78, replace_whitespace=False)
@@ -54,13 +63,27 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
     if overwrite:
         bdd._delete_files(('signaldata.json', 'channeldata.json',
                            'epochdata.json', 'metadata.json'))
-    if axisorder is None:
-        axisorder = s.samples.axisorder
-    if len(axisorder) > 1:
-        framegenerator = (f.transpose(axisorder).samples[:] for f in s.iter_frames(1024*100))
+    # first see if we have a generator of signals
+    if not _isgenerator(s):
+        if axisorder is None:
+            axisorder = s.samples.axisorder
+        if len(axisorder) == 1: # uts
+            framegenerator = (f.samples[:] for f in s.iter_frames(1024 * 100))
+        elif len(axisorder) == 2: # mcuts or euts
+            if axisorder[0] == 'time':
+                framegenerator = (f.transpose(axisorder).samples[:] for f in s.iter_frames(1024*100))
+            elif axisorder[0] == 'channel':
+                framegenerator = (f.samples[:].reshape(1,-1) for f in s.iter_channels())
+            elif axisorder[0] == 'epoch':
+                framegenerator = (f.samples[:].reshape(1,-1) for f in s.iter_epochs())
+        else:
+            #check!!!
+            framegenerator = (f.samples[:] for f in s.iter_frames(1024 * 100))
     else:
-        framegenerator = (f.samples[:] for f in s.iter_frames(1024 * 100))
-
+        s, siter = peek_iterable(s)
+        if axisorder is None:
+            axisorder = s.samples.axisorder
+        framegenerator = (f.transpose(axisorder).samples[:] for f in siter)
     metadata = dict(((k, i) if not hasattr(i, 'decode') else (k, i.decode("utf-8"))
                       for (k, i) in s.metadata.items()))
     signaldata = ({'fs': s.fs,
@@ -122,17 +145,18 @@ def opendarr(path, accessmode='r'):
     #     (bdd.path / 'attrs.json').unlink()
     utstype = sd['utstype']
     if utstype == 'UniformTimeSeries':
-        return UniformTimeSeries(samples=a, fs=sd['fs'],
+        s = UniformTimeSeries(samples=a, fs=sd['fs'],
                                  startdatetime=sd.get('startdatetime', 'NaT'),
                                  origintime=sd['origintime'], copy=False,
                                  dtype=a.dtype, metadata=metadata,
                                  starttime=sd.get('starttime', 0.0))
+
     elif utstype == 'MultiChannelUniformTimeSeries':
         sd = bdd.read_jsondict('signaldata.json')
         chd = bdd.read_jsondict('channeldata.json')
         channelnames = chd['channelnames']
         geometry = _darrmetadatatogeometry(chd)
-        return MultiChannelUniformTimeSeries(samples=a,
+        s =  MultiChannelUniformTimeSeries(samples=a,
                                       fs=sd['fs'], channelnames=channelnames,
                                       channelaxis=sd['channelaxis'],
                                       startdatetime=sd.get('startdatetime','NaT'),
@@ -143,7 +167,7 @@ def opendarr(path, accessmode='r'):
     elif utstype == 'EpochedUniformTimeSeries':
         sd = bdd.read_jsondict('signaldata.json')
         epochs = pd.read_csv(bdd._path / 'epochs.csv').to_records(index=False)
-        return EpochedUniformTimeSeries(samples=a,
+        s = EpochedUniformTimeSeries(samples=a,
                                         fs=sd['fs'],
                                         origintime=sd['origintime'],
                                         epochs=epochs,
@@ -157,7 +181,7 @@ def opendarr(path, accessmode='r'):
         channelnames = chd['channelnames']
         geometry = _darrmetadatatogeometry(chd)
         epochs = pd.read_csv(bdd._path / 'epochs.csv').to_records(index=False)
-        return EpochedMultiChannelUniformTimeSeries(samples=a,
+        s = EpochedMultiChannelUniformTimeSeries(samples=a,
                                              fs=sd['fs'],
                                              channelnames=channelnames,
                                              channelaxis=sd['channelaxis'],
@@ -170,6 +194,10 @@ def opendarr(path, accessmode='r'):
     else:
         raise TypeError(f'"Type of data is not understood or not supported"')
 
+    # TODO make this a property
+    s.datadir = bdd
+    return s
+
 
 def loaddarr(path):
     return opendarr(path)[:]
@@ -181,7 +209,7 @@ def cachedarr(s, axisorder=None, dtype=None, path=None, report=False,
             filename='cached.darr', keep=False, float_format='%.16e'):
     with tempdir(dir=path, keep=keep, report=report) as tempdirname:
         filepath = Path(tempdirname) /  filename
-        s = savedarr(path=filepath, s=s, accessmode='r', dtype=dtype, overwrite=False,
+        s = savedarr(path=filepath, s=s, accessmode='r+', dtype=dtype, overwrite=False,
                  axisorder=axisorder, float_format=float_format)
         yield s
 

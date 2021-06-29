@@ -15,7 +15,7 @@ def tempdir(dir='.', keep=False, report=False):
     try:
         tempdirname = tempfile.mkdtemp(dir=dir)
         if report:
-            print('created cache file {}'.format(tempdirname))
+            print('created cache dir {}'.format(tempdirname))
         yield tempdirname
     except:
         raise
@@ -23,7 +23,7 @@ def tempdir(dir='.', keep=False, report=False):
         if not keep:
             shutil.rmtree(tempdirname)
             if report:
-                print('removed cache file {}'.format(tempdirname))
+                print('removed cache dir {}'.format(tempdirname))
 
 def make_dirs(path, mode=0o777, existserror=False):
     from os import makedirs
