@@ -14,7 +14,7 @@ __all__ = ['add', 'power', 'scale', 'abs', 'sin', 'cos', 'tan',
            'sinh', 'cosh', 'tanh',
            'arcsinh', 'arccosh', 'arctanh', 
            'log', 'log10', 'log1p',
-           'exp', 'expm1', 'sqrt',
+           'exp', 'expm1', 'sqrt', 'subtract',
            'real','imag', 'eval_expr']
 
 ## Functions that are applied on element-wise on samples
@@ -51,6 +51,14 @@ def add(s, val, out=None):
     if val.size == 1:
         val = val[0]
     expr = "a+val"
+    return eval_expr(s=s, expr=expr, out=out, val=val)
+
+
+def subtract(s, val, out=None):
+    val = np.array(val,ndmin=1)
+    if val.size == 1:
+        val = val[0]
+    expr = "a-val"
     return eval_expr(s=s, expr=expr, out=out, val=val)
 
 

@@ -4,8 +4,8 @@ Tests for class UniformTime
 """
 # TODO clean up asserts etc to test asserts
 
-from __future__ import print_function
 # FIXME: saveh5 tests (now uncommented should be moved to io test module
+import unittest
 from unittest import TestCase
 
 import os

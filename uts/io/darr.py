@@ -90,7 +90,9 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
                  'startdatetime': str(s.startdatetime),
                  'origintime': s.origintime,
                  })
-    sel = s[:2].transpose(axisorder) # two timesamples
+    sel = s[:2] # two timesamples
+    if sel.samples.axisorder != axisorder:
+        sel = sel.transpose(axisorder)
     if hasattr(s, 'channelnames'):
         signaldata['channelaxis'] =  int(sel.channelaxis)
         signaldata['timeaxis'] = int(sel.timeaxis)
