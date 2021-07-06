@@ -11,7 +11,7 @@ EpochedUniformTimeSeries, EpochedMultiChannelUniformTimeSeries
 __all__ = ['UniformTime', 'UniformTimeSeries',
            'MultiChannelUniformTimeSeries', 'EpochedUniformTimeSeries',
            'EpochedMultiChannelUniformTimeSeries',
-           'isuts', 'iseuts', 'ismcuts', 'isemcuts', 'concatenate',
+           'isuts', 'iseuts', 'ismcuts', 'isemcuts', 'concatenate_time',
            'assert_signal', 'istimealigned']
 
 import warnings
@@ -1715,13 +1715,16 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                          epochaxis=samples.axes['epoch'])
 
 
-def concatenate(sequence):
-    if not len(sequence) > 0:
-        raise ValueError('signal sequence cannot be empty')
-    sig = sequence[0].copy()
-    for frame in sequence[1:]:
-        sig.append(frame)
-    return sig
+# TODO checks during loop
+def concatenate_time(sequence):
+    gen = (i for i in sequence)
+    sig = next(gen).copy()
+    if not sig.samples.axisorder[0] == 'time':
+        raise ValueError('time should be on the first axis for concatenation')
+    samples = [sig.samples[:]]
+    for frame in gen:
+        samples.append(frame.samples[:])
+    return sig._instantiatefromself(samples=np.concatenate(samples))
 
 def isuts(s):
     return type(s) is UniformTimeSeries

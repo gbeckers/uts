@@ -1,4 +1,5 @@
 import numpy as np
+import itertools
 from uts.core.check_arg import check_arg, check_int
 
 eps = np.power(2.0, -52.0)
@@ -139,3 +140,11 @@ def timeparams(ntimesamples=None, fs=None, duration=None):
             else:
                 ntimesamples = int(ntimesamples)
     return (ntimesamples, fs, duration)
+
+def isgenerator(iterable):
+    return hasattr(iterable, '__iter__') and not hasattr(iterable, '__len__')
+
+def peek_iterable(iterable):
+    gen = (i for i in iterable)
+    first = next(gen)
+    return first, itertools.chain([first], gen)

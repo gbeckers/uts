@@ -4,7 +4,7 @@ from numpy.testing import TestCase, assert_raises, run_module_suite, \
 import numpy as np
 from uts import UniformTime, UniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
-    noise, argmax, convolve, iter_convolve, iter_convolve_info, concatenate, \
+    noise, argmax, convolve, iter_convolve, iter_convolve_info, concatenate_time, \
     decimate, crosscorrelatetime
 
 
@@ -77,7 +77,7 @@ class TestIterconvolve(TestCase):
                         assert frames[0].ntimesamples == info['firstchunksize']
                         assert info['nmidframes'] == len(frames) - 2
                         assert info['lastchunksize'] == frames[-1].ntimesamples
-                        iterres = concatenate(frames)
+                        iterres = concatenate_time(frames)
                         normalres = convolve(s, kernel, mode=mode)
                         assert (normalres.samples.get(copy=True) == iterres.samples.get(copy=True)).all()
                         assert normalres.origintime == iterres.origintime
@@ -102,7 +102,7 @@ class TestIterconvolve(TestCase):
                         assert frames[0].ntimesamples == info['firstchunksize']
                         assert info['nmidframes'] == len(frames) - 2
                         assert info['lastchunksize'] == frames[-1].ntimesamples
-                        iterres = concatenate(frames)
+                        iterres = concatenate_time(frames)
                         normalres = convolve(s, kernel, mode=mode)
                         assert (normalres.samples.get(copy=True).flatten() == iterres.samples.get(copy=True).flatten()).all()
                         assert normalres.origintime == iterres.origintime

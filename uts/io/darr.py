@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import darr
 import textwrap
-import itertools
 from contextlib import contextmanager
 from darr.datadir import DataDir, create_datadir
 from pathlib import Path
@@ -12,18 +11,12 @@ from ..core.uniformtime import UniformTimeSeries, \
 from ..core.geometry import RectangularLattice
 from .._version import get_versions
 from .utils import tempdir
+from uts.core.utils import isgenerator, peek_iterable
 
 # FIXME Darr should become standard open and save
 
 __all__ = ['opendarr', 'savedarr', 'loaddarr', 'cachedarr']
 
-def _isgenerator(iterable):
-    return hasattr(iterable, '__iter__') and not hasattr(iterable, '__len__')
-
-def peek_iterable(iterable):
-    gen = (i for i in iterable)
-    first = next(gen)
-    return first, itertools.chain([first], gen)
 
 def wrap(s):
     return textwrap.fill(s, width=78, replace_whitespace=False)
@@ -64,7 +57,7 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
         bdd._delete_files(('signaldata.json', 'channeldata.json',
                            'epochdata.json', 'metadata.json'))
     # first see if we have a generator of signals
-    if not _isgenerator(s):
+    if not isgenerator(s):
         if axisorder is None:
             axisorder = s.samples.axisorder
         if len(axisorder) == 1: # uts
@@ -207,7 +200,7 @@ def loaddarr(path):
 
 
 @contextmanager
-def cachedarr(s, axisorder=None, dtype=None, path=None, report=False,
+def cachedarr(s, axisorder=None, dtype=None, path=None, report=True,
             filename='cached.darr', keep=False, float_format='%.16e'):
     with tempdir(dir=path, keep=keep, report=report) as tempdirname:
         filepath = Path(tempdirname) /  filename

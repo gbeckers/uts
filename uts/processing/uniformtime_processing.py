@@ -1275,29 +1275,7 @@ def ibp(uts, freqs=(400., 6000.), width=300., ntaps=257, chunksize=1024 * 64,
                          reportprogress=reportprogress, channels=channels,
                          dtype=dtype, threads=threads)
 
-def bp_old(uts, lfreq=500., hfreq=6000., transband=200, ntaps=257):
-    '''
-    defaults are good for action potentials
-    '''
-    filterkern = signalprocessing.design_bp_filter(ntaps=ntaps, lfreq=lfreq,
-                                                   hfreq=hfreq,
-                                                   fs=uts.fs,
-                                                   transband=transband)
-    return convolve(uts, filterkern, mode='same')
 
-def ibp_old(uts, lfreq=500., hfreq=6000., transband=200, ntaps=257,
-            chunksize=1024 * 64, reportprogress=True, channels=None,
-            dtype=None):
-    t1 = time.time()
-    filterkern = signalprocessing.design_bp_filter(ntaps=ntaps, lfreq=lfreq,
-                                                   hfreq=hfreq,
-                                                   fs=uts.fs,
-                                                   transband=transband)
-    t2 = time.time()
-    #print 'ibp in %.3f s.' % (t2-t1)
-    return iter_convolve(uts, filterkern, mode='same', chunksize=chunksize,
-                         reportprogress=reportprogress, channels=channels,
-                         dtype=dtype)
 
 def fftconvolve(signal, kernellist, mode='same'):
     '''
@@ -1426,3 +1404,6 @@ def diff(s, n=1):
     origintime = s.origintime - s.dt / 2.0
     ds = s._instantiatefromself(samples=d, origintime=origintime, copy=False)
     return ds
+
+
+#TODO create an iterframes
