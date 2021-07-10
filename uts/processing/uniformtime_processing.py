@@ -365,7 +365,7 @@ def pmcconvolve2(mcuts, kernel, mode='same', threads=4):
 
 def iter_convolve(uts, kernel, mode='same', chunksize=1024 * 64,
                   reportprogress=False, channels=None, dtype=None,
-                  threads=None):
+                  axisorder=None, threads=None):
     '''
     Convolves uts with kernel in chunks instead of the whole signal at
     once. This may be necessary if the signal is too long to fit in memory.
@@ -421,12 +421,14 @@ def iter_convolve(uts, kernel, mode='same', chunksize=1024 * 64,
     if channels is None:
         gen = enumerate(uts.iter_frames(framesize=chunksize,
                                         stepsize=stepsize,
-                                        include_remainder=True))
+                                        include_remainder=True,
+                                        axisorder=axisorder))
     else:
         gen = enumerate(uts.iter_frames(framesize=chunksize,
                                         stepsize=stepsize,
                                         channels=channels,
-                                        include_remainder=True))
+                                        include_remainder=True,
+                                        axisorder=axisorder))
     #print "chunksize, stepsize", chunksize, stepsize
     for i, ss in gen:
         #print 'frame', i, ss.samples[slice(None,None,None)]
@@ -434,7 +436,6 @@ def iter_convolve(uts, kernel, mode='same', chunksize=1024 * 64,
         # print i, ss, ss.samples[:]
         if reportprogress:
             p.animate(i)
-
         if (i == 0) and (mode != 'valid'):
             if mode == 'same':
                 head = (kernel.size - 1) // 2

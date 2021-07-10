@@ -1240,7 +1240,7 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
                                          geometry=None)
 
     def iter_frames(self, framesize, stepsize=None, include_remainder=True,
-                    startindex=None, endindex=None, channels=None):
+                    startindex=None, endindex=None, channels=None, axisorder=None):
         """
         Iterate over time axis.
 
@@ -1274,7 +1274,10 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
                 include_remainder=include_remainder,
                 startindex=startindex,
                 endindex=endindex):
-            yield self[framestart:frameend, channels]
+            if axisorder is None:
+                yield self[framestart:frameend, channels]
+            else:
+                yield self[framestart:frameend, channels].transpose(axes=axisorder)
 
     def iter_channels(self):
         for i in range(self.nchannels):
@@ -1561,7 +1564,8 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
         return res
 
     def iter_frames(self, framesize, stepsize=None, include_remainder=True,
-                    startindex=None, endindex=None, channels=None, epochs=None):
+                    startindex=None, endindex=None, channels=None, epochs=None,
+                    axisorder=None):
         """
         Iterate over time axis.
 
@@ -1597,7 +1601,10 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                 include_remainder=include_remainder,
                 startindex=startindex,
                 endindex=endindex):
-            yield self[framestart:frameend, channels, epochs]
+            if axisorder is None:
+                yield self[framestart:frameend, channels, epochs]
+            else:
+                yield self[framestart:frameend, channels, epochs].transpose(axes=axisorder)
 
     def iter_epochs(self):
         for i in range(self.nepochs):
