@@ -569,7 +569,7 @@ def iter_convolve_info(uts, kernel, mode='same', chunksize=1024 * 64):
     return info
 
 def iter_decimate(uts, q, trunc='tail', chunksize=1024 * 64,
-                  reportprogress=False, dtype=None):
+                  reportprogress=False, dtype=None, axisorder=None):
     assert_signal(uts)
     if not trunc in ('tail', 'head'):
         raise ValueError("trunc parameter can only be 'tail' or 'head'")
@@ -596,7 +596,8 @@ def iter_decimate(uts, q, trunc='tail', chunksize=1024 * 64,
 
     gen = enumerate(uts.iter_frames(framesize=chunksize,
                                     stepsize=stepsize,
-                                    include_remainder=True))
+                                    include_remainder=True,
+                                    axisorder=axisorder))
     #print "chunksize, stepsize", chunksize, stepsize
     for i, frame in gen:
         if reportprogress:
