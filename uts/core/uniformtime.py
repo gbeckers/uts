@@ -802,13 +802,13 @@ class UniformTimeSeries(UniformTime):
         if (starttimes is None) and (epochs is None):
             raise ValueError(
                 "Either 'starttimes' or 'epochs' should not be None")
-        elif (not starttimes is None) and (not epochs is None):
-            warnings.warn(
-                "Both 'starttimes' and 'epochs' are provided; using only 'epochs'")
-        elif epochs is None:  # starttimes have been provided
+        if starttimes is not None:
+            startsamples = self.time_to_index(starttimes)
+        else:
+            startsamples = self.time_to_index(epochs['starttime'])
+        if epochs is None:
             epochs = np.array(list(starttimes),
                               dtype=[('starttime', np.float64)])
-        startsamples = self.time_to_index(epochs['starttime'])
         nsamples = int(np.round(duration * self.fs))
         ar = np.empty((len(startsamples), nsamples),
                       dtype=self.samples.dtype)
@@ -1293,13 +1293,12 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
 
         """
         nepochs = check_int(nepochs, positive=True, zero=False, negative=False)
-        samples = self.samples.get(copy=False)
-        if self.timeaxis == 0:
-            samples = samples.T
         channelaxis = 0
         nepochsamples = self.ntimesamples // nepochs
-        samples = samples.reshape(self.nchannels, nepochsamples, nepochs)
-        epochaxis = 2
+        nsamples = nepochs * nepochsamples
+        samples = self[:nsamples].transpose(('channel','time')).samples.get(copy=True)
+        samples = samples.reshape(self.nchannels, nepochs, nepochsamples)
+        epochaxis = 1
         fs = self.fs
         channelnames = self.channelnames
         origintime = self.origintime
@@ -1353,13 +1352,13 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
         if (starttimes is None) and (epochs is None):
             raise ValueError(
                 "Either 'starttimes' or 'epochs' should not be None")
-        elif (not starttimes is None) and (not epochs is None):
-            warnings.warn(
-                "Both 'starttimes' and 'epochs' are provided; using only 'epochs'")
-        elif epochs is None:  # starttimes have been provided
+        if starttimes is not None:
+            startsamples = self.time_to_index(starttimes)
+        else:
+            startsamples = self.time_to_index(epochs['starttime'])
+        if epochs is None:
             epochs = np.array(list(starttimes),
                               dtype=[('starttime', np.float64)])
-        startsamples = self.time_to_index(epochs['starttime'])
         nsamples = int(np.round(duration * self.fs))
         ar = np.empty((len(startsamples), self.nchannels, nsamples),
                       dtype=self.samples.dtype)

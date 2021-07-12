@@ -88,9 +88,9 @@ class Epoched:
         if isinstance(self.__epochs, (tb.table.Table, pd.DataFrame)):
             self.__epochs.append(epochs)
         else:
-            self.__epochs = np.concatenate_time([self.epochs, epochs])
+            self.__epochs = np.concatenate([self.epochs, epochs])
         self.__nepochs = len(self.__epochs)
-        self.__starttimes = np.concatenate_time([self.__starttimes, self._check_starttimes(epochs)])
+        self.__starttimes = np.concatenate([self.__starttimes, self._check_starttimes(epochs)])
         self.__endtimes = self.__starttimes + self.__duration
             
     
