@@ -237,6 +237,17 @@ class UniformTime(object):
         return ((np.arange(self.__ntimesamples + 1, dtype=np.float64))
                 / self.__fs) - self.__origintime
 
+    def set_origintime(self, origintime):
+        """"Sets origin time.
+
+        Parameter
+        ---------
+        origintime: float64
+            Time of origin relative to beginning of the first sample. Defaults to 0.0.
+
+        """
+        self.__origintime = check_arg(origintime, 'time')
+
     def time_to_index(self, time, nearest_boundary=False):
         """
         Converts a time, or array of times, to their corresponding sample
