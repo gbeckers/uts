@@ -69,6 +69,7 @@ class RectangularLattice(Geometry):
     npoints = property(lambda self: self.__npoints, None, None, "")
     pointnames = property(lambda self: self.__pointnames,
                                  None, None, "")
+    pointdict = property(lambda self: self.__pointdict, None, None, "")
     
     def info(self):
         s = ''
@@ -98,7 +99,7 @@ class RectangularLattice(Geometry):
         #     item = str(index)
         # except:
         #     raise TypeError("cannot convert index to string")
-        if not index in self.pointnames:
+        if not index in self.__pointdict:
             raise IndexError(f"no point with name '{index}' exists "
                              f"({self.pointnames})")
         return self.__pointdict[index]
@@ -304,7 +305,11 @@ class RectangularLattice(Geometry):
         neighbors = [(y-1, x), (y+1, x), (y, x-1), (y, x+1)] 
         return [self.pointnames[y, x] for y, x in neighbors if (0 <= x < self.nx) and (0 <= y < self.ny)]
                 
-        
+    def transpose(self):
+        self.__pointnames = list(map(list, zip(*self.__pointnames))) # transpose names matrix
+        self.__pointdict = self._to_dict(self.__pointnames)
+        self.__nx, self.__ny = self.__ny, self.__nx
+        self.__dx, self.__dy = self.__dy, self.__dx
 
 
 
