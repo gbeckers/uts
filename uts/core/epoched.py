@@ -58,7 +58,7 @@ class Epoched:
         if isinstance(index, int):
             return index
 
-        indices = np.arange(self.nepochs,dtype=np.int)[index]
+        indices = np.arange(self.nepochs,dtype=np.int64)[index]
         return indices
 
     def _get_epochs(self, index):
