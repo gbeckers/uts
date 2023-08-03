@@ -69,4 +69,5 @@ setup(
     project_urls={  # Optional
         'Source': 'https://github.com/gbeckers/',
     },
+    zip_safe=False,
 )
