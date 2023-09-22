@@ -9,7 +9,7 @@ import unittest
 from unittest import TestCase
 
 import os
-from numpy.testing import assert_raises, run_module_suite, \
+from numpy.testing import assert_raises, \
     assert_almost_equal, assert_array_almost_equal, assert_equal
 import numpy as np
 import tables

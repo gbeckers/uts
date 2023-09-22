@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from numpy.testing import assert_raises, run_module_suite
+from numpy.testing import assert_raises
 import numpy as np
 from uts.core.samplesource import Samples
 

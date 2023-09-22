@@ -1,7 +1,7 @@
 import numpy as np
 cimport numpy as np
 
-from signalprocessing import fit_frames, segment_axis, eps
+from uts.processing.signalprocessing import fit_frames, segment_axis, eps
 
 DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t

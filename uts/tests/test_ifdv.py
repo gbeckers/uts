@@ -1,6 +1,6 @@
 import os
 import time
-from numpy.testing import TestCase, assert_raises, run_module_suite, \
+from numpy.testing import TestCase, assert_raises, \
      assert_almost_equal
 from scipy.io import loadmat
 import uts

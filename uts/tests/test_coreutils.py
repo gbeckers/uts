@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from numpy.testing import assert_raises, run_module_suite, \
+from numpy.testing import assert_raises, \
      assert_almost_equal, assert_array_almost_equal
 import numpy as np
 from uts.core.utils import round_nextradix2, round_nearestradix2, \

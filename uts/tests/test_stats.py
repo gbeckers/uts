@@ -1,4 +1,4 @@
-from numpy.testing import TestCase, assert_raises, run_module_suite, \
+from numpy.testing import TestCase, assert_raises, \
      assert_array_almost_equal, assert_almost_equal, assert_equal, \
      assert_array_equal
 

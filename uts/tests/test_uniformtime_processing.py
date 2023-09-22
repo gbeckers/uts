@@ -1,5 +1,5 @@
 import os
-from numpy.testing import TestCase, assert_raises, run_module_suite, \
+from numpy.testing import TestCase, assert_raises, \
      assert_almost_equal, assert_array_almost_equal
 import numpy as np
 from uts import UniformTime, UniformTimeSeries, \
