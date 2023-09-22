@@ -161,12 +161,12 @@ def coherency(a,b):
         # shuffle-corrected cross-correlogram
         #resultaa[tau] = np.mean((1/float(dt))*(1/fcomplen)*(np.sum(ra*ra,1) - np.sum(ra*ras,1)))
         #resultbb[tau] = np.mean((1/float(dt))*(1/fcomplen)*(np.sum(rb*rb,1) - np.sum(rb*sb,1)))
-    print resultab
-    print resultaa
-    print resultbb
-    print fft(resultab)
-    print fft(resultaa)
-    print fft(resultbb)
+    # print(resultab)
+    # print(resultaa)
+    # print(resultbb)
+    # print(fft(resultab))
+    # print(fft(resultaa))
+    # print(fft(resultbb))
     div = (fft(resultaa)*fft(resultbb))**0.5
     div[div==0+0j] = np.power(2.0,-52.0)+0j
     return ifft(fft(resultab)/div)
