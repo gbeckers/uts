@@ -24,7 +24,11 @@ channel list (if it is already appended, then the next is still safe): ::
 
 In a terminal, use the following to create an environment called "sl2020a": ::
 
-    $  conda create -n Sl2020a python=3.8 scipy darr cython h5py pytables pandas
+    $  conda create -n Sl2020a python=3.10 numpy=1.26.4 scipy darr cython h5py pytables pandas
+
+We need an older version of setuptools because of old install system: ::
+
+    $  conda install setuptools=58.0.4
 
 You can do the above also in the Anaconda GUI, but you need the terminal for the next anyway:
 
