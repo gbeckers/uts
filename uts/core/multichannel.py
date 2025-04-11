@@ -156,7 +156,7 @@ class MultiChannel(object):
                    channelindex.dtype == np.bool):
                     raise ChannelIndexError("channel index (%s) is of wrong type (%s)" \
                                             % (channelindex, channelindex.dtype))
-                channelindices = np.arange(self.nchannels, dtype=np.int)[channelindex]
+                channelindices = np.arange(self.nchannels, dtype=int)[channelindex]
             if len(channelindices) == 1:
                 channelindices = channelindices[0]
             else:
