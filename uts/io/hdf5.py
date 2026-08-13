@@ -8,7 +8,7 @@ from ..core.uniformtime import UniformTimeSeries, EpochedUniformTimeSeries, \
     isuts, iseuts, ismcuts, isemcuts
 from ..core.multichannel import MultiChannel
 from ..core.geometry import Geometry
-from ..core.epoched import Epoched
+from ..core.epoched import Epoched, epochs_to_array
 from ..core.check_arg import check_arg, check_int
 from ..core.utils import fit_frames
 from ..core.utils import timeparams
@@ -1037,8 +1037,11 @@ def _save_epoched(epoched, h5group, name, overwrite=False, attrs={}):
     if overwrite and (name in h5group):
         h5group._v_children[name]._f_remove()
         h5file.flush()
+    # create_table needs a structured array; epochs may also be held in a
+    # pandas DataFrame or a pytables Table.
     table = h5file.create_table(where=h5group, name=name,
-                                description=epoched.epochs)
+                                description=epochs_to_array(epoched.epochs))
+    attrs = dict(attrs)  # do not write into the caller's dict, or the default
     attrs['origintime'] = epoched.origintime
     attrs['duration'] = epoched.duration
     for attrname, value in attrs.items():
