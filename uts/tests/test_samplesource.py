@@ -29,7 +29,7 @@ class test_Samples(TestCase):
             s = Samples(dtype=np.float32, shape=shape, sampletype=np.ndarray, 
                     axes=axes)
             assert s.shape == shape
-            assert s.size == np.product(shape)
+            assert s.size == np.prod(shape)
         shapes = [(None,),(10.1,),(10,10,10.1),(10.0,)]
         for shape in shapes:
             axes = {}

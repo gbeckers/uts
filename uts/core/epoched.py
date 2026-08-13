@@ -15,9 +15,10 @@ def epochs_to_array(epochs):
     each container.
 
     Text columns are returned as fixed-width bytes ('S'), not as object or
-    unicode columns. pandas represents text as object dtype, which pytables
-    cannot store, and the rest of the package already stores text as bytes
-    (see `_save_multichannel` in uts.io.hdf5).
+    unicode columns. pandas represents text as object dtype (or, from pandas
+    3, as its own StringDtype), neither of which pytables can store, and the
+    rest of the package already stores text as bytes (see `_save_multichannel`
+    in uts.io.hdf5).
 
     Parameter
     ---------
@@ -27,8 +28,12 @@ def epochs_to_array(epochs):
     if isinstance(epochs, pd.DataFrame):
         columndtypes = {}
         for name in epochs.columns:
-            dtype = epochs[name].dtype
-            if (dtype == object) or np.issubdtype(dtype, np.str_):
+            # `kind` is defined both by numpy dtypes and by pandas extension
+            # dtypes, so it covers object columns (pandas 1 and 2), StringDtype
+            # (pandas 3, whose kind is also 'O') and numpy unicode alike.
+            # np.issubdtype cannot be used: it raises TypeError on a pandas
+            # extension dtype, which it cannot interpret as a numpy dtype.
+            if getattr(epochs[name].dtype, 'kind', 'O') in ('O', 'U'):
                 if len(epochs) == 0:
                     width = 1
                 else:

@@ -2,17 +2,14 @@
 # Replaces the old distutils / numpy.distutils build, which cannot run on
 # Python 3.12 or later.
 #
-# numpy is capped below 2 here as well as in the runtime dependencies. A build
-# isolated from the environment would otherwise pull numpy 2 to compile the
-# extensions against, while they would then be imported alongside the numpy 1
-# the package requires, which is an ABI mismatch. Building with
-# --no-build-isolation, so that the pinned environment's numpy is used, avoids
-# the question entirely and is what environment.yml and the README describe.
+# Build with --no-build-isolation so the extensions compile against the numpy
+# already in the environment. An isolated build fetches its own numpy, and
+# extensions built against numpy 2 cannot be imported alongside numpy 1.
 requires = [
     "setuptools>=64",
     "setuptools-scm>=8",
-    "cython>=3.0",
-    "numpy>=1.22,<2",
+    "cython>=3.0.10",
+    "numpy>=1.22",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -30,7 +27,7 @@ dynamic = ["version"]
 # Everything imported at package import time. cython is a build dependency and
 # belongs in [build-system], not here, which is where the old setup.py had it.
 dependencies = [
-    "numpy>=1.22,<2",
+    "numpy>=1.22",
     "scipy",
     "pandas",
     "tables",
@@ -44,6 +41,9 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
     "Development Status :: 3 - Alpha",

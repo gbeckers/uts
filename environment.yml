@@ -12,13 +12,10 @@
 # that were numpy 2 the compiled extensions would not match the numpy they are
 # imported alongside.
 #
-# Note on the pins:
-#  - numpy is held below 2. uts still uses several APIs that NumPy 2 removed
-#    (np.product, np.unicode_, np.string_, and np.array(..., copy=False)
-#    semantics). Lifting this pin requires the NumPy 2 migration.
-#  - python is held at 3.11 because numpy 1.25.2 has no 3.12 wheels. The
-#    packaging itself no longer restricts the python version: the distutils
-#    build that did has been replaced.
+# These pins record the environment analyses were run in. They are not upper
+# limits on what uts supports: it has been tested to build and pass its suite
+# on python 3.14 with numpy 2.5 and pandas 3.0 as well. Pin here what you want
+# to reproduce; use looser versions for new work.
 
 name: uts
 

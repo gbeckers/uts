@@ -38,15 +38,16 @@ darr is on conda-forge, so that channel may need appending (safe to repeat): ::
 
 Create an environment and install the dependencies: ::
 
-    $ conda create -n uts python=3.11 "numpy<2" scipy pandas pytables h5py numexpr darr cython
+    $ conda create -n uts python=3.11 numpy scipy pandas pytables h5py numexpr darr cython
     $ conda activate uts
 
 Then install the latest uts from GitHub: ::
 
     $ pip install git+https://github.com/gbeckers/uts@master
 
-numpy must currently be below version 2; the package still uses several APIs
-that numpy 2 removed.
+Both numpy 1 and numpy 2 work. The suite is run against python 3.11 with
+numpy 1.25 and pandas 2.0, and against python 3.14 with numpy 2.5 and
+pandas 3.0.
 
 Running the tests
 -----------------

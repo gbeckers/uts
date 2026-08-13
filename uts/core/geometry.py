@@ -123,7 +123,7 @@ class RectangularLattice(Geometry):
             #s = 'point_%%.%dd' % max(1, int(np.ceil(np.log10(npoints))))
             #pointnames = [s % i for i in range(npoints)]
         try:
-            pointnames = np.array(pointnames, dtype=np.unicode_)
+            pointnames = np.array(pointnames, dtype=np.str_)
         except:
             raise TypeError("cannot convert pointnames to unicode array")
         try:
@@ -133,7 +133,7 @@ class RectangularLattice(Geometry):
             raise GeometryError("pointnames (size=%d) not congruent with lattice structure (shape=%dx%d)" \
                                 % (pointnames.size, self.ny, self.nx))
 
-        if not np.issubdtype(pointnames.dtype, np.unicode_):
+        if not np.issubdtype(pointnames.dtype, np.str_):
             raise GeometryError("pointnames name(s) not of string type")
         if not np.unique(pointnames).size == pointnames.size:
             raise GeometryError("pointnames not unique")

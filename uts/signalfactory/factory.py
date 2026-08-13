@@ -565,7 +565,7 @@ def impulse(duration=None, ntimesamples=None, fs=44100., dtype=None,
 def modfreq(freqpattern, fs, dtype=None, peakamp=None, rmsamp=None):
     if dtype is None:
         dtype = np.float64
-    freqpattern = np.array(freqpattern, copy=False)
+    freqpattern = np.asarray(freqpattern)
     assert freqpattern.ndim == 1, \
         "frequency pattern should be a 1-dimensional array"
     assert (freqpattern < (fs / 2.0)).all(), \

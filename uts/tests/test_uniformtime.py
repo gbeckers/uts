@@ -258,11 +258,16 @@ def test_UniformTime_index_to_time():
         # outside time range
         assert_raises(ValueError, s.index_to_time, index=-1)
         assert_raises(ValueError, s.index_to_time, index=2)
-        assert_raises(ValueError, s.index_to_time, index=[testtype(-1), testtype(0)])
-        assert_raises(ValueError, s.index_to_time, index=[testtype(-2), testtype(-1)])
         assert_raises(ValueError, s.index_to_time, index=[testtype(0), testtype(2)])
         assert_raises(ValueError, s.index_to_time, index=[testtype(2), testtype(3)])
-        assert_raises(ValueError, s.index_to_time, index=[testtype(-1), testtype(3)])
+
+    # negative indices only for the int types that can hold them: from numpy 2
+    # an out-of-bound conversion such as np.uint8(-1) is an OverflowError,
+    # where numpy 1 wrapped it around to 255 with a DeprecationWarning.
+    for ntesttype in nints:
+        assert_raises(ValueError, s.index_to_time, index=[ntesttype(-1), ntesttype(0)])
+        assert_raises(ValueError, s.index_to_time, index=[ntesttype(-2), ntesttype(-1)])
+        assert_raises(ValueError, s.index_to_time, index=[ntesttype(-1), ntesttype(3)])
 
     # all floats should fail
     for testtype in floats:
@@ -324,11 +329,14 @@ def test_movingtimeframeindices():
                      [(0, 1), (1, 2), (2, 3), (3, 4)])
 
         assert_raises(ValueError, list, s.movingtimeframeindices(framesize=testtype(1), startindex=testtype(5)))
-        assert_raises(ValueError, list, s.movingtimeframeindices(framesize=testtype(1), startindex=testtype(-1)))
-        assert_raises(ValueError, list, s.movingtimeframeindices(framesize=testtype(1), endindex=testtype(-1)))
         assert_raises(ValueError, list, s.movingtimeframeindices(framesize=testtype(1), endindex=testtype(6)))
         assert_raises(ValueError, list,
                       s.movingtimeframeindices(framesize=testtype(1), startindex=testtype(4), endindex=testtype(3)))
+
+    # see the note above: only signed types can represent -1
+    for ntesttype in nints:
+        assert_raises(ValueError, list, s.movingtimeframeindices(framesize=1, startindex=ntesttype(-1)))
+        assert_raises(ValueError, list, s.movingtimeframeindices(framesize=1, endindex=ntesttype(-1)))
 
     s = UniformTime(ntimesamples=20, fs=5.0)
     assert_equal(list(s.movingtimeframeindices(framesize=5, stepsize=4, include_remainder=True)),
@@ -733,7 +741,7 @@ class test_MultiChannelUniformTimeSeries(TestCase):
             assert s[:5].nchannels == 3
             assert s[:5, :2].ntimesamples == 5
             assert s[:5, :2].nchannels == 2
-            assert (s.channelnames == np.array(channelnames, dtype=np.unicode_)).all()
+            assert (s.channelnames == np.array(channelnames, dtype=np.str_)).all()
             assert (s[:, [2, 1]].samples.get() == s[:, ['c', 'b']].samples.get()).all()
             assert (s[:, :].samples.get() == s.__getitem__(
                 (slice(None, None, None), slice(None, None, None))).samples.get()).all()
@@ -853,7 +861,7 @@ class test_MultiChannelUniformTimeSeries(TestCase):
         fs = 48.443798
         startdatetime = '2020-12-24T09:52:25.0'
         origintime = 0.02353585
-        channelnames = np.array(['ch1', 'ch2'], dtype=np.unicode_)
+        channelnames = np.array(['ch1', 'ch2'], dtype=np.str_)
         for dtype in dtypes:
             for readonly in [True, False]:
                 for channelaxis in [0, 1]:
@@ -949,11 +957,11 @@ class test_EpochedMultiChannelUniformTimeSeries(TestCase):
             assert s[:, :, :3].nepochs == 3
             assert s[:, :2, :3].nepochs == 3
             assert s[:5, :2, :3].nepochs == 3
-            assert (s.channelnames == np.array(channelnames, dtype=np.unicode_)).all()
+            assert (s.channelnames == np.array(channelnames, dtype=np.str_)).all()
             assert s[:, [2, 1]].nchannels == 2
             assert (s[:, [2, 1]].samples.get() == s[:, ['c', 'b']].samples.get()).all()
             assert (s[:, [2, 1, 0]][:, [2, 1, 0]].samples.get() == s.samples.get()).all()
-            assert (s[:, :, [4, 3]].epochs['event'] == np.array(['z', 'y'], dtype=np.string_)).all()
+            assert (s[:, :, [4, 3]].epochs['event'] == np.array(['z', 'y'], dtype=np.bytes_)).all()
 
             assert (s[:, :, :].samples.get() == s.__getitem__(
                 (slice(None, None, None), slice(None, None, None), slice(None, None, None))).samples.get()).all()

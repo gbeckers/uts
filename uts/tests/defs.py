@@ -1,7 +1,7 @@
 import numpy as np
 
-nan = np.NaN
-inf = np.Inf
+nan = np.nan
+inf = np.inf
 
 eps = np.power(2.0,-52.0)
 

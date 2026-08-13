@@ -307,7 +307,9 @@ def convolve(uts, kernel, mode='same', threads=None,
     else:
         uts = uts.astype(dtype)
         dtype = uts.dtype
-    kernel = np.array(kernel, copy=False, dtype=dtype)
+    # asarray, not array(copy=False): in NumPy 2 copy=False means "never copy,
+    # raise if a copy is needed", and a dtype change needs one.
+    kernel = np.asarray(kernel, dtype=dtype)
     #print(uts.dtype, kernel.dtype)
     ## is the following necessary?? We want to be flexible and upcast
     #if kernel.dtype != uts.dtype:
