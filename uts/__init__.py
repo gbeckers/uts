@@ -18,18 +18,6 @@ del _version, _PackageNotFoundError
 
 
 from .core.uniformtime import *
-
-try:
-    from .core.uniformtime import *
-except Exception as e:  # pragma: no cover
-    if 'No module named' in str(e):
-        raise ImportError('C extensions not built: if you installed already '
-                          'verify that you are not importing from the source '
-                          'directory')
-    else:
-        raise
-
-from .core.uniformtime import *
 from .core.uniformfrequency import *
 from .core.utils import *
 from .io import *
