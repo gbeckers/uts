@@ -83,11 +83,6 @@ cdef np.ndarray[DOUBLEDTYPE_t, ndim=1] _crosscovariance_sc(
         np.ndarray[DOUBLEDTYPE_t, ndim=2] a,
         np.ndarray[DOUBLEDTYPE_t, ndim=2] b, 
         int nlag, bool normalize=True):
-    """
-    It is assumed that s1 and s2 are 2-d float64 arrays, identical in shape, 
-    and have time on the last axis.
-
-    """
     # we move b along a; hence b needs to be shorter
     if nlag > 0:
         b = b[:,nlag:-nlag]
@@ -95,7 +90,6 @@ cdef np.ndarray[DOUBLEDTYPE_t, ndim=1] _crosscovariance_sc(
     s = arange(b.shape[0])
     shuffle(s)
     sb = b[s]
-
     cdef int complen = min(a.shape[1], b.shape[1])
     cdef DOUBLEDTYPE_t fcomplen = np.float64(complen)
     cdef int ntau = a.shape[1] - b.shape[1] + 1
@@ -116,7 +110,7 @@ cdef np.ndarray[DOUBLEDTYPE_t, ndim=1] _crosscovariance_sc(
             result[tau] = corr
     return result
 
-# Does this work??
+
 def coherency(a,b):
     """
     s1 and s2 should be 2-d with time on the last axis
