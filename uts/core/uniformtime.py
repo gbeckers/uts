@@ -562,21 +562,55 @@ class UniformTimeSeries(UniformTime):
         self.__sampletype = self.__samples.sampletype
         self.__dtype = self.__samples.dtype
         ntimesamples = self.__samples.shape[self.__samples.axes['time']]
-        if metadata is None:
-            self.metadata = {}
-        else:
-            if not isinstance(metadata, dict):
-                raise TypeError('metadata should be a dictionary')
-            self.metadata = metadata
-        if attrs is not None:
-            self.metadata.update(attrs)
-        self.attrs = self.metadata # attrs is to stay compatible with older versions
+        self.metadata = self._check_metadata(metadata=metadata, attrs=attrs)
         UniformTime.__init__(self, ntimesamples=ntimesamples, fs=fs,
                              startdatetime=startdatetime, origintime=origintime,
                              **kwargs)
 
+    @staticmethod
+    def _check_metadata(metadata, attrs=None):
+        """
+        Validates `metadata` and `attrs` and returns the dictionary that the
+        signal will own.
+
+        The returned dictionary is always a new one. A signal must own its
+        metadata: every derived signal (a slice, a frame from `iter_frames`,
+        a `copy`) is constructed with `metadata=self.metadata`, so storing the
+        argument itself would alias every signal in a derivation chain to a
+        single dictionary, and annotating one of them would silently annotate
+        all the others.
+
+        Note that the copy is shallow. Rebinding keys on one signal does not
+        affect any other, but a *mutable value* stored under a key is still
+        shared, and changing it in place will be visible from every signal
+        that was derived from the same metadata.
+
+        """
+        if metadata is None:
+            md = {}
+        elif isinstance(metadata, dict):
+            md = dict(metadata)
+        else:
+            raise TypeError('metadata should be a dictionary')
+        if attrs is not None:
+            if not isinstance(attrs, dict):
+                raise TypeError('attrs should be a dictionary')
+            md.update(attrs)
+        return md
+
     samples = s = property(lambda self: self.__samples, None, None,
                        "Samples object")
+
+    # `attrs` is a genuine alias of `metadata`, not a second dictionary, and is
+    # kept for compatibility with older versions. It is a property rather than
+    # the plain instance attribute it used to be so that the two cannot drift
+    # apart when `metadata` is rebound.
+    attrs = property(lambda self: self.metadata,
+                     lambda self, value: setattr(
+                         self, 'metadata', self._check_metadata(value)),
+                     None,
+                     "alias of `metadata`, for compatibility with older "
+                     "versions")
 
     dtype = property(lambda self: self.__samples.dtype, None, None,
                      "")

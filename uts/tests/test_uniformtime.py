@@ -960,6 +960,91 @@ class test_EpochedMultiChannelUniformTimeSeries(TestCase):
             slice(None, None, None), slice(None, None, None), slice(None, None, None), slice(None, None, None)))
 
 
+class TestMetadata(TestCase):
+    """A signal must own its metadata: deriving a signal carries the values
+    forward but must not alias the dictionary."""
+
+    def _signal(self, metadata=None, attrs=None):
+        return UniformTimeSeries(samples=np.arange(20.), fs=1.0,
+                                 metadata=metadata, attrs=attrs)
+
+    def test_callers_dict_not_captured(self):
+        "metadata: the caller's dictionary is neither stored nor mutated"
+        d = {'subject': 'a'}
+        s = self._signal(metadata=d)
+        assert s.metadata is not d
+        s.metadata['added'] = True
+        assert d == {'subject': 'a'}
+        d['elsewhere'] = True
+        assert 'elsewhere' not in s.metadata
+
+    def test_attrs_argument_does_not_mutate_caller(self):
+        "metadata: the attrs argument is merged without mutating either dict"
+        md = {'subject': 'a'}
+        at = {'extra': 1}
+        s = self._signal(metadata=md, attrs=at)
+        assert s.metadata == {'subject': 'a', 'extra': 1}
+        assert md == {'subject': 'a'}
+        assert at == {'extra': 1}
+
+    def test_slice_metadata_independent(self):
+        "metadata: a slice does not share its parent's metadata"
+        s = self._signal(metadata={'subject': 'a'})
+        sub = s[0:10]
+        assert sub.metadata == {'subject': 'a'}
+        assert sub.metadata is not s.metadata
+        sub.metadata['injected'] = True
+        assert s.metadata == {'subject': 'a'}
+
+    def test_copy_metadata_independent(self):
+        "metadata: copy() does not share metadata with the original"
+        s = self._signal(metadata={'subject': 'a'})
+        c = s.copy()
+        assert c.metadata == {'subject': 'a'}
+        assert c.metadata is not s.metadata
+        c.metadata['injected'] = True
+        assert s.metadata == {'subject': 'a'}
+
+    def test_frames_metadata_independent(self):
+        "metadata: frames from iter_frames do not share the parent's metadata"
+        s = self._signal(metadata={'subject': 'a'})
+        for frame in s.iter_frames(framesize=5):
+            assert frame.metadata == {'subject': 'a'}
+            frame.metadata['injected'] = True
+        assert s.metadata == {'subject': 'a'}
+
+    def test_multichannel_metadata_independent(self):
+        "metadata: multichannel slices do not share the parent's metadata"
+        s = MultiChannelUniformTimeSeries(
+            samples=np.arange(60.).reshape(3, 20), fs=1.0, channelaxis=0,
+            metadata={'subject': 'a'})
+        s[0:5, :].metadata['injected'] = True
+        assert s.metadata == {'subject': 'a'}
+
+    def test_attrs_is_alias_of_metadata(self):
+        "metadata: attrs is a live alias, not a second dictionary"
+        s = self._signal(metadata={'subject': 'a'})
+        assert s.attrs is s.metadata
+        s.attrs['viaattrs'] = 1
+        assert s.metadata['viaattrs'] == 1
+        # rebinding metadata must not leave attrs pointing at the old dict
+        s.metadata = {'rebound': True}
+        assert s.attrs == {'rebound': True}
+
+    def test_default_metadata_not_shared_between_signals(self):
+        "metadata: signals created without metadata get separate dictionaries"
+        s1 = self._signal()
+        s2 = self._signal()
+        s1.metadata['only_s1'] = True
+        assert s2.metadata == {}
+
+    def test_rejects_non_dict(self):
+        "metadata: non-dictionary metadata and attrs are rejected"
+        assert_raises(TypeError, self._signal, [('subject', 'a')])
+        assert_raises(TypeError, UniformTimeSeries, np.arange(20.), 1.0,
+                      **{'attrs': [('subject', 'a')]})
+
+
 class TestConcatenateTime(TestCase):
 
     def test_roundtrip_singlechannel(self):
