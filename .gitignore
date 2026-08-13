@@ -1,6 +1,19 @@
+# Cython / C extension build products
 *.c
+*.so
+*.pyd
+
+# Python bytecode
 *.pyc
+__pycache__/
+
+# Build and packaging
 build/
 dist/
-.idea/
 uts.egg-info/
+
+# Editors
+.idea/
+
+# Test tooling
+.pytest_cache/

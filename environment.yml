@@ -1,0 +1,36 @@
+# Reference environment for uts.
+#
+# These are the versions the test suite is known to pass with. They are pinned
+# exactly so that results produced with uts can be reproduced by others.
+#
+#     conda env create -f environment.yml
+#     conda activate uts
+#     pip install -e . --no-build-isolation
+#
+# Note on the pins:
+#  - numpy is held below 2.0. uts still uses several APIs that NumPy 2 removed
+#    (np.product, np.unicode_, np.string_, and np.array(..., copy=False)
+#    semantics). Lifting this pin requires the NumPy 2 migration.
+#  - python is held at 3.11. setup.py still builds through distutils, which was
+#    removed from the standard library in Python 3.12.
+# Both pins are intended to be temporary.
+
+name: uts
+
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.11.5
+  - numpy=1.25.2
+  - scipy=1.11.1
+  - pandas=2.0.3
+  - pytables=3.8.0
+  - h5py=3.9.0
+  - cython=3.0.0
+  - matplotlib=3.7.2
+  - setuptools=68.0.0
+  - darr=0.5.5
+  # test tooling
+  - pytest=7.4.0
