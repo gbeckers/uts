@@ -121,8 +121,13 @@ class PointProcess(object):
         if not isinstance(timings, numpy.ndarray):
             try:
                 timings = numpy.array(timings, dtype=dtype)
-            except:
-                TypeError, "input type cannot be converted to numpy array"
+            except (TypeError, ValueError) as e:
+                # This used to read `TypeError, "..."`, python 2 syntax for
+                # raising with a message. Without the `raise` python 3 reads it
+                # as a tuple expression that does nothing, so the conversion
+                # failure was swallowed and the unconverted input passed on.
+                raise TypeError(
+                    "input type cannot be converted to numpy array") from e
         else:
             if copy:
                 timings = numpy.array(timings, dtype=dtype)

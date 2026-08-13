@@ -38,7 +38,11 @@ def foreach(f,l,threads=3,return_=False, args=()):
                         d[n] = f(x,*args)
                     else:
                         f(v,*args)
-                except:
+                except Exception:
+                    # Deliberately broad: a worker must not die silently, or
+                    # the caller would see a partial result and no error. Only
+                    # Exception though, so KeyboardInterrupt and SystemExit
+                    # still end the run rather than being collected.
                     e = sys.exc_info()
                     iteratorlock.acquire()
                     try:
@@ -52,8 +56,12 @@ def foreach(f,l,threads=3,return_=False, args=()):
         for t in threadlist:
             t.join()
         if exceptions:
-            a, b, c = exceptions[0]
-            raise(a, b, c)
+            # `raise (type, value, traceback)` is python 2 syntax. In python 3
+            # it passes a tuple to raise, which fails with "exceptions must
+            # derive from BaseException", so every worker failure surfaced as
+            # that TypeError instead of the actual error.
+            exctype, excvalue, exctraceback = exceptions[0]
+            raise excvalue.with_traceback(exctraceback)
         if return_:
             r = sorted(d.items())
             return [v for (n,v) in r]

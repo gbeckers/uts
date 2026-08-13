@@ -12,13 +12,14 @@ def tempdir(dir='.', keep=False, report=False):
     '''
     import tempfile
     import shutil
+    # Created before the try: if mkdtemp itself fails there is nothing to clean
+    # up, and running the finally block would raise NameError on the unbound
+    # tempdirname, hiding the real error.
+    tempdirname = tempfile.mkdtemp(dir=dir)
+    if report:
+        print('created cache dir {}'.format(tempdirname))
     try:
-        tempdirname = tempfile.mkdtemp(dir=dir)
-        if report:
-            print('created cache dir {}'.format(tempdirname))
         yield tempdirname
-    except:
-        raise
     finally:
         if not keep:
             shutil.rmtree(tempdirname)
