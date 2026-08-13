@@ -438,7 +438,7 @@ class UniformTime(object):
         startindex = check_arg(startindex, 'startindex')
         if endindex is None:
             endindex = self.ntimesamples
-        endindex = check_arg(endindex, 'startindex')
+        endindex = check_arg(endindex, 'endindex')
 
         if startindex > (self.ntimesamples - 1):
             raise ValueError("startindex too high")
@@ -460,6 +460,36 @@ class UniformTime(object):
         if include_remainder and (remainder > 0) and (
             framestart < self.ntimesamples):
             yield framestart, self.ntimesamples
+
+
+def _comparisonframesize(ntimesamples, mb, chunkmb=32.):
+    """
+    Number of time samples to compare at a time, so that comparing two signals
+    reads about `chunkmb` megabytes at a time rather than the whole signal.
+
+    Returns at least 2 time samples and at most `ntimesamples`.
+
+    The result must be an int: `iter_frames` validates `framesize` as an
+    integer type and rejects a float. The division here produces a float
+    whenever the signal is larger than `chunkmb`, so without the conversion
+    comparison raised TypeError for exactly the large signals that this
+    chunking exists to handle.
+
+    Parameters
+    ----------
+    ntimesamples: int
+        Number of time samples in the signal.
+    mb: float
+        Size of the signal in megabytes.
+    chunkmb: float
+        Size to aim for per chunk, in megabytes. Defaults to 32.
+
+    """
+    if mb > 0.:
+        framesize = int(ntimesamples * (chunkmb / mb))
+    else:  # nothing to chunk, and no size to divide by
+        framesize = ntimesamples
+    return min(ntimesamples, max(2, framesize))
 
 
 class UniformTimeSeries(UniformTime):
@@ -666,9 +696,8 @@ class UniformTimeSeries(UniformTime):
         result = UniformTime.__eq__(self, other)
         result &= (self.__dtype == other.dtype)
         result &= (self.baseaxis == other.baseaxis)
-        if result:  # we check samples
-            # framesize = 32 Mb chunks, min 2, max ntimesamples
-            framesize =  min(self.ntimesamples, max(2, (self.ntimesamples / (self.mb / 32.))))
+        if result and (self.ntimesamples > 0):  # we check samples
+            framesize = _comparisonframesize(self.ntimesamples, self.mb)
             axisorder = self.samples.axisorder
             startindex = 0
             for frame in self.iter_frames(framesize=framesize,

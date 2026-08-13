@@ -17,6 +17,7 @@ import tables
 from uts import UniformTime, UniformTimeSeries, EpochedUniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
     concatenate_time
+from uts.core.uniformtime import _comparisonframesize
 # from uts.core.defs import DimensionError
 # from uts.core.check_arg import argtypes
 # from uts.core.errors import WriteError
@@ -958,6 +959,82 @@ class test_EpochedMultiChannelUniformTimeSeries(TestCase):
                 (slice(None, None, None), slice(None, None, None), slice(None, None, None))).samples.get()).all()
             assert_raises(IndexError, s.__getitem__, (
             slice(None, None, None), slice(None, None, None), slice(None, None, None), slice(None, None, None)))
+
+
+class TestComparisonFrameSize(TestCase):
+    """Comparing two signals is chunked so that a signal too large to hold in
+    memory is never read in one go."""
+
+    def test_always_an_int(self):
+        "_comparisonframesize: the result is always an int"
+        # iter_frames rejects a float framesize, and the division produces one
+        # as soon as the signal is larger than a chunk.
+        for ntimesamples, mb in ((100, 0.0008), (1000, 32.),
+                                 (5000000, 38.1), (100000000, 762.9)):
+            r = _comparisonframesize(ntimesamples, mb)
+            assert isinstance(r, int), (ntimesamples, mb, type(r))
+
+    def test_within_bounds(self):
+        "_comparisonframesize: at least 2 samples, at most the whole signal"
+        for ntimesamples, mb in ((100, 0.0008), (5000000, 38.1),
+                                 (10, 1000.), (3, 0.1)):
+            r = _comparisonframesize(ntimesamples, mb)
+            assert r <= ntimesamples
+            assert r >= min(2, ntimesamples)
+
+    def test_smaller_than_signal_when_over_chunk(self):
+        "_comparisonframesize: a signal over the chunk size is split up"
+        r = _comparisonframesize(5000000, 38.1, chunkmb=32.)
+        assert r < 5000000
+
+    def test_whole_signal_when_under_chunk(self):
+        "_comparisonframesize: a signal under the chunk size is not split"
+        assert _comparisonframesize(1000, 0.008, chunkmb=32.) == 1000
+
+    def test_zero_size(self):
+        "_comparisonframesize: a zero-sized signal does not divide by zero"
+        assert _comparisonframesize(10, 0.0) == 10
+
+    def test_equality_of_signal_larger_than_chunk(self):
+        "__eq__: signals larger than the 32 Mb chunk size can be compared"
+        # This raised TypeError, because framesize was a float. Comparison
+        # therefore worked only for signals below 32 Mb -- that is, it failed
+        # for exactly the large signals the chunking is for.
+        samples = np.arange(4200000, dtype=np.float64)  # ~32.04 Mb
+        s = UniformTimeSeries(samples=samples, fs=1000., copy=False)
+        assert s.mb > 32.
+        assert s == s
+
+    def test_equality_of_empty_signal(self):
+        "__eq__: empty signals can be compared"
+        # framesize used to come out as 0 here, which check_arg rejects.
+        s = UniformTimeSeries(samples=np.zeros(0), fs=1.0)
+        assert s == UniformTimeSeries(samples=np.zeros(0), fs=1.0)
+
+
+class TestMovingTimeFrameIndices(TestCase):
+
+    def test_endindex_reported_as_endindex(self):
+        "movingtimeframeindices: an invalid endindex is reported as endindex"
+        # endindex was validated under the name 'startindex', so a bad
+        # endindex produced an error message naming the wrong argument.
+        s = UniformTimeSeries(samples=np.arange(20.), fs=1.0)
+        try:
+            list(s.movingtimeframeindices(framesize=5, endindex=-1))
+        except ValueError as e:
+            assert 'endindex' in str(e), str(e)
+        else:
+            raise AssertionError('expected a ValueError')
+
+    def test_startindex_still_reported_as_startindex(self):
+        "movingtimeframeindices: an invalid startindex is reported as such"
+        s = UniformTimeSeries(samples=np.arange(20.), fs=1.0)
+        try:
+            list(s.movingtimeframeindices(framesize=5, startindex=-1))
+        except ValueError as e:
+            assert 'startindex' in str(e), str(e)
+        else:
+            raise AssertionError('expected a ValueError')
 
 
 class TestMetadata(TestCase):
