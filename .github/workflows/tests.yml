@@ -76,16 +76,7 @@ jobs:
 
       - name: Run pytest
         # pytest collects ten module-level test functions that uts.test() does
-        # not, because that runner loads only TestCase subclasses.
-        #
-        # Two of those fail and are excluded by name. Both date from an earlier
-        # version of the time API and are not regressions:
-        #   test_UniformTime_endtime   expects the pre-origintime-relative
-        #                              definition of endtime
-        #   test_UniformTime_starttime passes an int to the deprecated
-        #                              starttime argument, which takes floats
-        # Remove them from this filter once those two are settled.
-        run: >-
-          pytest --pyargs uts -q
-          -k "not test_UniformTime_endtime and not test_UniformTime_starttime"
+        # not, because that runner loads only TestCase subclasses. All of them
+        # are expected to pass; nothing is excluded.
+        run: pytest --pyargs uts -q
         working-directory: ${{ runner.temp }}

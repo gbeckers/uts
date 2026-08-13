@@ -95,11 +95,16 @@ def test_UniformTime_fs():
 def test_UniformTime_starttime():
     "UniformTime: starttime parameter"
 
-    # parameter defaults to 0.0 and should be seen as startdatetime NaT
-    assert_equal(np.isnat(UniformTime(ntimesamples=10, fs=10.0, starttime=0).startdatetime), True)
+    # zero means "no start datetime given", so startdatetime stays NaT
+    assert_equal(np.isnat(UniformTime(ntimesamples=10, fs=10.0, starttime=0.0).startdatetime), True)
     # non-zero starttimes are considered seconds since epoch, at ns resolution
-    assert_equal(np.isnat(UniformTime(ntimesamples=10, fs=10.0, starttime=10000.).startdatetime),
+    assert_equal(UniformTime(ntimesamples=10, fs=10.0, starttime=10000.).startdatetime,
                  np.datetime64(int(round(10000.*1e9)), 'ns'))
+    # starttime takes floats, like every other time argument. See the
+    # equivalent assertion for origintime in test_UniformTime_origintime.
+    for testtype in ints:
+        assert_raises(TypeError, UniformTime, ntimesamples=10, fs=10.0,
+                      starttime=testtype(0))
 
 
 def test_UniformTime_origintime():
@@ -168,8 +173,11 @@ def test_UniformTime_endtime():
 
     assert_equal(UniformTime(ntimesamples=2, fs=2.0).endtime, 1.0)
     assert_equal(type(UniformTime(ntimesamples=2, fs=2.0).endtime), np.float64)
-    # origintime matters
-    assert_equal(UniformTime(ntimesamples=2, fs=2.0, origintime=10.0).endtime, 11.0)
+    # origintime matters. starttime and endtime are *relative to origintime*,
+    # so with an origintime of 10.0 the signal starts at -10.0 and ends one
+    # second later, at -9.0. Compare test_UniformTime_timerange, which asserts
+    # the same pair as (starttime, endtime).
+    assert_equal(UniformTime(ntimesamples=2, fs=2.0, origintime=10.0).endtime, -9.0)
     # starttime and startdatetime do not
     assert_equal(UniformTime(ntimesamples=2, fs=2.0, starttime=10.0).endtime, 1.0)
     assert_equal(UniformTime(ntimesamples=2, fs=2.0, startdatetime='2020-12-24T09:52:25.0').endtime, 1.0)
