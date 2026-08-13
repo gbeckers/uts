@@ -89,3 +89,38 @@ packages = [
 # after.
 version_scheme = "no-guess-dev"
 local_scheme = "node-and-date"
+
+[tool.cibuildwheel]
+# Kept here rather than in the workflow so that a local `cibuildwheel` run
+# builds the same set as CI does.
+#
+# The wheels are built in isolation, against whatever numpy pip resolves for
+# each interpreter. That is deliberate and is the opposite of the advice in
+# [build-system] above: an extension compiled against numpy 2 headers stays
+# importable under numpy >= 1.19 at runtime, while one compiled against
+# numpy 1 does not work under numpy 2. Building against the newer numpy is
+# therefore the only direction that serves both the pinned analysis
+# environment and current installs from a single wheel.
+build = "cp39-* cp310-* cp311-* cp312-* cp313-* cp314-*"
+
+# PyPy has no numpy/tables wheels worth relying on here, and musllinux would
+# double the Linux matrix for a platform this package has never targeted.
+#
+# 32-bit Windows is excluded because the wheel would be a lie: numpy still
+# publishes win32 wheels, so the build would succeed, but scipy, pandas,
+# tables and h5py do not, so nothing could actually install it.
+skip = "pp* *-musllinux_* *-win32"
+
+# Importing uts pulls in scipy, pandas and tables, so a wheel that imports at
+# all has already proved the extensions load against the numpy the resolver
+# picked. The suite then exercises the compiled code itself.
+test-requires = "pytest"
+test-command = [
+    "python -c \"import uts; print('uts', uts.__version__)\"",
+    "pytest --pyargs uts -q",
+]
+
+[tool.cibuildwheel.macos]
+# Both architectures from one runner; the arm64 wheels cannot be tested on an
+# x86_64 host, which cibuildwheel skips on its own.
+archs = ["x86_64", "arm64"]

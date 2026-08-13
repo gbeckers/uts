@@ -1,0 +1,146 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  # Lets the whole thing be rehearsed on a branch without cutting a tag:
+  # everything is built and checked as usual, only the publish job is skipped.
+  workflow_dispatch:
+
+jobs:
+  sdist:
+    name: sdist
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # setuptools-scm derives the version from the git tags, and a shallow
+          # clone fetches none. Without this the release would be published as
+          # 0.0.post1.dev1+g<hash>.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build
+
+      - name: Build the sdist
+        # Isolated on purpose: an sdist needs no compiled extensions, so the
+        # numpy ABI concern that makes the test workflow use
+        # --no-build-isolation does not apply here.
+        run: python -m build --sdist
+
+      - name: Check the version matches the tag
+        # setuptools-scm reads the version from git, so a mismatch here means
+        # the tag is not what it looks like (unfetched tags, a dirty tree)
+        # rather than a typo. Cheaper to catch now than after publishing.
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          built=$(ls dist/ | sed -n 's/^uts-\(.*\)\.tar\.gz$/\1/p')
+          echo "tag=$tag built=$built"
+          test "$tag" = "$built"
+
+      - name: Install the sdist in a clean environment
+        # The failure that motivated this workflow only shows up outside a git
+        # repository, so the check has to happen somewhere without .git. This
+        # is exactly what a user typing `pip install uts-x.y.z.tar.gz` does.
+        run: |
+          python -m venv "$RUNNER_TEMP/sdist-venv"
+          "$RUNNER_TEMP/sdist-venv/bin/pip" install dist/*.tar.gz
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/sdist-venv/bin/python" -c "import uts; print('uts', uts.__version__)"
+
+      - name: Install a git archive in a clean environment
+        # GitHub builds its "Source code (zip)" release asset with git archive,
+        # and people install that instead of the sdist. It carries no .git, so
+        # it only resolves a version through the $Format:$ placeholders in
+        # .git_archival.txt. This proves those placeholders still expand.
+        run: |
+          git archive --format=zip --prefix=uts-archive/ \
+            "${{ github.ref_name }}" -o "$RUNNER_TEMP/archive.zip"
+          unzip -q "$RUNNER_TEMP/archive.zip" -d "$RUNNER_TEMP/archive"
+          test ! -e "$RUNNER_TEMP/archive/uts-archive/.git"
+          grep -q 'describe-name: v' "$RUNNER_TEMP/archive/uts-archive/.git_archival.txt"
+          python -m venv "$RUNNER_TEMP/archive-venv"
+          "$RUNNER_TEMP/archive-venv/bin/pip" install "$RUNNER_TEMP/archive/uts-archive"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/archive-venv/bin/python" -c "import uts; print('uts', uts.__version__)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-sdist
+          path: dist/*.tar.gz
+
+  wheels:
+    name: wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform failing should not hide whether the others are healthy.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-14]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Same reason as the sdist job: no tags, wrong version, except here
+          # it would be baked into every wheel filename.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build wheels
+        # Run from PyPI rather than through pypa/cibuildwheel's action so the
+        # version in use is visible in the log and pinnable here. Which
+        # interpreters and platforms get built is configured in
+        # [tool.cibuildwheel] in pyproject.toml, so a local run matches.
+        run: |
+          python -m pip install --upgrade pip cibuildwheel==4.2.0
+          python -m cibuildwheel --output-dir wheelhouse
+
+      - uses: actions/upload-artifact@v4
+        with:
+          # Artifact names have to be unique across the matrix; the publish job
+          # merges them back into one directory.
+          name: dist-wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  publish:
+    name: upload to the release
+    needs: [sdist, wheels]
+    # Only a tag has a release to upload to, and only if every wheel and the
+    # sdist built: a release with a platform silently missing is worse than a
+    # failed workflow.
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      # gh release upload writes to the repository's releases.
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: dist-*
+          merge-multiple: true
+
+      - name: List what is about to be published
+        run: ls -l dist/
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Creating a release from the web UI pushes the tag, so the release
+        # usually exists by the time this runs. A tag pushed straight from a
+        # terminal has no release yet, hence the fallback.
+        run: |
+          tag="$GITHUB_REF_NAME"
+          gh release view "$tag" >/dev/null 2>&1 \
+            || gh release create "$tag" --title "$tag" --generate-notes
+          gh release upload "$tag" dist/* --clobber
