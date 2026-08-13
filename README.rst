@@ -5,8 +5,8 @@ UTS
    :target: https://github.com/gbeckers/uts/actions/workflows/tests.yml
    :alt: test status
 
-A python package for uniform time series manipulation and analysis. Works efficiently
-with very large signals that may be multichannel and/or epoched.
+A python package for uniform time series analysis. Works efficiently with very large
+signals that may be multichannel and/or epoched.
 
 Installation
 ------------
@@ -42,10 +42,6 @@ Running the tests
 ::
 
     $ pytest --pyargs uts
-
-pytest is the fuller run: it collects ten module-level test functions that
-``uts.test()`` skips, because that runner loads only ``TestCase`` subclasses.
-Both runs should be entirely green.
 
 Every push runs the suite in three configurations: the exact pins in
 ``environment.yml``, the same python with current numpy 2 and pandas 3, and
