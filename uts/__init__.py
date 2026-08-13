@@ -2,6 +2,20 @@
 from __future__ import absolute_import
 __docformat__ = 'restructuredtext'
 
+# The version is written by setuptools-scm at build/install time and read back
+# from the installed package metadata, replacing the generated _version.py that
+# versioneer used to keep in the source tree. It is determined before the
+# submodules are imported, because uts.io.darr records it in saved signals and
+# so needs it to already exist.
+from importlib.metadata import version as _version, \
+    PackageNotFoundError as _PackageNotFoundError
+
+try:
+    __version__ = _version('uts')
+except _PackageNotFoundError:  # running from a source tree, never installed
+    __version__ = 'unknown'
+del _version, _PackageNotFoundError
+
 
 from .core.uniformtime import *
 
@@ -35,7 +49,3 @@ from .processing.elementwise_math import *
 from .processing.stats import *
 
 from .tests import test
-
-from ._version import get_versions
-__version__ = get_versions()['version']
-del get_versions

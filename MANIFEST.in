@@ -1,30 +1,24 @@
 include MANIFEST.in
 include LICENSE
-include RELEASE.rst
 include README.rst
 include TODO.rst
 include setup.py
-include setupegg.py
-include uts/exampledata/examples.h5
-include uts/fonts/*
+include pyproject.toml
+include environment.yml
 
 graft doc
 prune doc/build
 
 graft uts
 
+# Cython sources are shipped so that an sdist can be rebuilt; the generated C
+# and the compiled extensions are not.
 global-exclude *.so
 global-exclude *.pyd
 global-exclude *.pyc
+global-exclude __pycache__
 global-exclude .git*
 global-exclude .DS_Store
 global-exclude *.png
-global-exclude *.pyx
-global-exclude *.pyx~
 global-exclude *.c
 global-exclude *.h
-
-prune utils
-
-include versioneer.py
-include uts/_version.py

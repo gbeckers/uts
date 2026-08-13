@@ -1,0 +1,91 @@
+[build-system]
+# Replaces the old distutils / numpy.distutils build, which cannot run on
+# Python 3.12 or later.
+#
+# numpy is capped below 2 here as well as in the runtime dependencies. A build
+# isolated from the environment would otherwise pull numpy 2 to compile the
+# extensions against, while they would then be imported alongside the numpy 1
+# the package requires, which is an ABI mismatch. Building with
+# --no-build-isolation, so that the pinned environment's numpy is used, avoids
+# the question entirely and is what environment.yml and the README describe.
+requires = [
+    "setuptools>=64",
+    "setuptools-scm>=8",
+    "cython>=3.0",
+    "numpy>=1.22,<2",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uts"
+description = "A python package for uniform time series manipulation and analysis"
+readme = "README.rst"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Gabriel J.L. Beckers", email = "gabriel@gbeckers.nl" },
+]
+requires-python = ">=3.9"
+dynamic = ["version"]
+
+# Everything imported at package import time. cython is a build dependency and
+# belongs in [build-system], not here, which is where the old setup.py had it.
+dependencies = [
+    "numpy>=1.22,<2",
+    "scipy",
+    "pandas",
+    "tables",
+    "h5py",
+    "darr",
+    "numexpr",
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+]
+
+[project.optional-dependencies]
+# Imported lazily, inside the functions that need them, so the package works
+# without them.
+edf = ["pyedflib"]
+audio = ["scikits.audiolab"]
+progressbar = ["ipython"]
+test = ["pytest"]
+
+[project.urls]
+Source = "https://github.com/gbeckers/uts"
+
+[tool.setuptools]
+packages = [
+    "uts",
+    "uts.core",
+    "uts.processing",
+    "uts.tests",
+    "uts.signalfactory",
+    "uts.helper",
+    "uts.io",
+    "uts.exampledata",
+    "uts.testdata",
+]
+
+[tool.setuptools.package-data]
+"uts.exampledata" = ["*.h5"]
+"uts.testdata" = ["*.mat"]
+
+[tool.setuptools_scm]
+# Replaces versioneer 0.16, which imported distutils and so was itself a
+# blocker for Python 3.12. The 25 existing v-prefixed tags are read as they
+# are. "no-guess-dev" keeps the version anchored to the last real tag instead
+# of guessing the next one, so a version still says which release it came
+# after.
+version_scheme = "no-guess-dev"
+local_scheme = "node-and-date"
