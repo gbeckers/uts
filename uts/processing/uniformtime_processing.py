@@ -831,10 +831,6 @@ def stft(tss, windowtype='gaussian', windowduration=None, fftduration=None,
         raise ValueError("symmetric must be either True or False")
 
 
-
-        #stft = strft(a=tss.samples.get(copy=False), windowsize=windowsize,
-        #stepsize=stepsize, windowtype=windowtype, fftsize=fftsize,
-        #symmetric=symmetric, power=False)
     stft, firstsamplecenter = signalprocessing.stft(
         s=tss.samples.get(copy=False),
         windowsize=windowsize, stepsize=stepsize,

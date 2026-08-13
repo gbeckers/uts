@@ -10,13 +10,14 @@ from . import test_ifdv
 from . import test_iodarr
 from . import test_multichannel
 from . import test_samplesource
+from . import test_signatures
 from . import test_stats
 from . import test_uniformtime
 from . import test_uniformtime_processing
 
 modules = [create_testarrays, defs, test_checkarg, test_coreutils, test_epoched,
            test_geometry, test_ifdv, test_iodarr, test_multichannel,
-           test_samplesource, test_stats, test_uniformtime,
+           test_samplesource, test_signatures, test_stats, test_uniformtime,
            test_uniformtime_processing]
 
 def test(verbosity=1):

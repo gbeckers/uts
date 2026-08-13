@@ -32,7 +32,7 @@ def h5fill_new(signalname, filename=None, value=0.0, ntimesamples=None,
              fs=None, duration=None, nchannels=None, 
              nepochs=None, starttime=0.0, origintime=0.0, channelaxis=None,
              epochaxis=None, channels=None, epochs=None, dtype=np.float64,
-             readonly=False, geometry=None, attrs={}, 
+             readonly=False, geometry=None, attrs=None, 
              overwrite=False, extensible=False, expectedrows=None, 
              complib='zlib', chunkshape=None, complevel=5):
     """
@@ -67,6 +67,8 @@ def h5fill_new(signalname, filename=None, value=0.0, ntimesamples=None,
     chunkshape : {None, sequence of ints}, optional
 
     """
+    if attrs is None:
+        attrs = {}
     ## check time params
     (ntimesamples, fs, duration) = timeparams(ntimesamples=ntimesamples, fs=fs,
                                                duration=duration)
@@ -186,8 +188,10 @@ def h5fill_new(signalname, filename=None, value=0.0, ntimesamples=None,
 def h5fill_like(s, name='/', filename=None, value=0.0, dtype=None, channelaxis=None,
                    epochaxis=None, overwrite=False, extensible=False, 
                    expectedrows=None, filters=None, chunkshape=None, complib=None, 
-                   complevel=None, attrs={}):
+                   complevel=None, attrs=None):
 
+    if attrs is None:
+        attrs = {}
     with _create_h5savepoint(filename=filename, h5path=name, overwrite=overwrite) as h5group:    
         if isuts(s):
             yield  _uts_fill_like(s, value=value, h5group=h5group, dtype=dtype, 
@@ -209,7 +213,9 @@ def h5fill_like(s, name='/', filename=None, value=0.0, dtype=None, channelaxis=N
 
 def _uts_fill_like(s, value=0.0, h5group='/', dtype=None, 
                  overwrite=False, extensible=False, expectedrows=None, 
-                 chunkshape=None, complib=None, complevel=None, attrs={}):
+                 chunkshape=None, complib=None, complevel=None, attrs=None):
+    if attrs is None:
+        attrs = {}
     if dtype is None:
         dtype = s.dtype
     else:
@@ -238,7 +244,9 @@ def _uts_fill_like(s, value=0.0, h5group='/', dtype=None,
 def _euts_fill_like(s, value=0.0, h5group='/', dtype=None, epochaxis=None,
                    overwrite=False, extensible=False, expectedrows=None, 
                    chunkshape=None, complib=None, 
-                   complevel=None, attrs={}):
+                   complevel=None, attrs=None):
+    if attrs is None:
+        attrs = {}
     if epochaxis is None:
         epochaxis = s.epochaxis
     if dtype is None:
@@ -266,7 +274,9 @@ def _euts_fill_like(s, value=0.0, h5group='/', dtype=None, epochaxis=None,
 def _mcuts_fill_like(s, value=0.0, h5group='/', dtype=None, channelaxis=None,
                    overwrite=False, extensible=False, expectedrows=None, 
                    chunkshape=None, complib=None, 
-                   complevel=None, attrs={}):
+                   complevel=None, attrs=None):
+    if attrs is None:
+        attrs = {}
     if channelaxis is None:
         channelaxis = s.channelaxis
     if dtype is None:
@@ -296,7 +306,9 @@ def _mcuts_fill_like(s, value=0.0, h5group='/', dtype=None, channelaxis=None,
 def _emcuts_fill_like(s, value=0.0, h5group='/', dtype=None, channelaxis=None,
                    epochaxis=None, overwrite=False, extensible=False, 
                    expectedrows=None, chunkshape=None, complib=None, 
-                   complevel=None, attrs={}):
+                   complevel=None, attrs=None):
+    if attrs is None:
+        attrs = {}
     if channelaxis is None:
         channelaxis = s.channelaxis
     if epochaxis is None:

@@ -23,7 +23,6 @@ series objects."""
 include_dirs = numpy.distutils.misc_util.get_numpy_include_dirs()
 
 extensionfiles = (
-    ('uts.processing.cstft', 'uts/processing/cstft.pyx'),
     ('uts.processing.ifdv', 'uts/processing/ifdv.pyx'),
     ('uts.processing.correlate', 'uts/processing/correlate.pyx'),
 )

@@ -280,8 +280,10 @@ def singlechannelaudio_to_multichannelaudio(filenames, newfilename):
 def convert_audiotoh5(filename, h5group, h5arrayname, origintime=0.0,
                       starttime=0.0, channelaxis=1, overwrite=False, 
                       extensible=False, expectedrows=None, filters=None, 
-                      chunkshape=None, attrs={}, readsize=4096):
+                      chunkshape=None, attrs=None, readsize=4096):
     
+    if attrs is None:
+        attrs = {}
     from uts.io.hdf5 import loadh5
 
     import scikits.audiolab as audiolab
