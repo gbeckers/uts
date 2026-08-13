@@ -24,10 +24,10 @@ def savemat(s, filename, appendmat=True, format='5', do_compression=False,
     '''
     try:
         import scipy.io
-    except:
+    except ImportError as e:
         raise ImportError(
             "could not import 'scipy.io' module, which is needed " \
-            "to write matlab files")
+            "to write matlab files") from e
     if os.path.exists(filename):
         if overwrite:
             os.remove(filename)

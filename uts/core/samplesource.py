@@ -123,8 +123,8 @@ class Samples(object):
     def _set_dtype(self, dtype):
         try:
             dtype = np.dtype(dtype)
-        except:
-            raise TypeError('dtype parameter is not a numpy dtype')
+        except TypeError as e:
+            raise TypeError('dtype parameter is not a numpy dtype') from e
         self.__dtype = dtype
 
     # FIXME: it would be nice to have a parameter that would get the samples
@@ -362,8 +362,8 @@ class NumpyArraySamples(Samples):
                 raise ValueError("copy argument cannot be False if samples is not a numpy array")
             try:
                 array = np.array(array)
-            except:
-                raise TypeError("input type cannot be converted to np array")
+            except (TypeError, ValueError) as e:
+                raise TypeError("input type cannot be converted to np array") from e
         else:
             if copy:
                 #array = np.array(array, copy=True)

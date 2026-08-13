@@ -124,14 +124,14 @@ class RectangularLattice(Geometry):
             #pointnames = [s % i for i in range(npoints)]
         try:
             pointnames = np.array(pointnames, dtype=np.str_)
-        except:
-            raise TypeError("cannot convert pointnames to unicode array")
+        except (TypeError, ValueError) as e:
+            raise TypeError("cannot convert pointnames to unicode array") from e
         try:
             pointnames = pointnames.flatten()
             pointnames = pointnames.reshape(self.ny, self.nx)
-        except:
+        except ValueError as e:
             raise GeometryError("pointnames (size=%d) not congruent with lattice structure (shape=%dx%d)" \
-                                % (pointnames.size, self.ny, self.nx))
+                                % (pointnames.size, self.ny, self.nx)) from e
 
         if not np.issubdtype(pointnames.dtype, np.str_):
             raise GeometryError("pointnames name(s) not of string type")

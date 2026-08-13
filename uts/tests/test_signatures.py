@@ -9,6 +9,37 @@ from unittest import TestCase
 import uts
 
 
+def _sourcefiles():
+    root = pathlib.Path(uts.__file__).parent
+    for path in sorted(root.rglob('*.py')):
+        yield path, path.relative_to(root.parent), ast.parse(path.read_text())
+
+
+def _bare_excepts():
+    """Yields (path, lineno, funcname) for every `except:` with no exception
+    type."""
+    for _, relpath, tree in _sourcefiles():
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ExceptHandler) and node.type is None:
+                yield relpath, node.lineno
+
+
+class TestNoBareExcepts(TestCase):
+
+    def test_no_bare_except_clauses(self):
+        "no except clause catches everything unconditionally"
+        # A bare `except:` also catches KeyboardInterrupt and SystemExit, so it
+        # swallows an interrupt as though it were a normal error. It also hides
+        # what actually went wrong: two of the ones that used to be here were
+        # covering python 2 leftovers that had been broken since the port.
+        #
+        # Catching broadly on purpose is fine, but it should say so by catching
+        # Exception, as uts.processing.parallel does for its worker threads.
+        found = list(_bare_excepts())
+        message = '\n'.join(f'{p}:{line}' for p, line in found)
+        assert not found, 'bare except clauses found:\n' + message
+
+
 def _mutable_defaults():
     """Yields (path, lineno, funcname, argname) for every function argument
     whose default is a mutable literal."""
