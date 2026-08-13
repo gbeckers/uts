@@ -136,6 +136,11 @@ jobs:
       - name: Upload to the release
         env:
           GH_TOKEN: ${{ github.token }}
+          # This job deliberately does not check the repository out; it only
+          # needs the artifacts the other two jobs built. Without a checkout
+          # gh has no git remote to infer the repository from and fails with
+          # "not a git repository", so name it outright.
+          GH_REPO: ${{ github.repository }}
         # Creating a release from the web UI pushes the tag, so the release
         # usually exists by the time this runs. A tag pushed straight from a
         # terminal has no release yet, hence the fallback.
