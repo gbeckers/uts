@@ -10,11 +10,13 @@ from unittest import TestCase
 
 import os
 from numpy.testing import assert_raises, \
-    assert_almost_equal, assert_array_almost_equal, assert_equal
+    assert_almost_equal, assert_array_almost_equal, assert_array_equal, \
+    assert_equal
 import numpy as np
 import tables
 from uts import UniformTime, UniformTimeSeries, EpochedUniformTimeSeries, \
-    MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries
+    MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
+    concatenate_time
 # from uts.core.defs import DimensionError
 # from uts.core.check_arg import argtypes
 # from uts.core.errors import WriteError
@@ -956,6 +958,58 @@ class test_EpochedMultiChannelUniformTimeSeries(TestCase):
                 (slice(None, None, None), slice(None, None, None), slice(None, None, None))).samples.get()).all()
             assert_raises(IndexError, s.__getitem__, (
             slice(None, None, None), slice(None, None, None), slice(None, None, None), slice(None, None, None)))
+
+
+class TestConcatenateTime(TestCase):
+
+    def test_roundtrip_singlechannel(self):
+        "concatenate_time: iter_frames round-trips a single-channel signal"
+        samples = np.arange(20.)
+        s = UniformTimeSeries(samples=samples, fs=1.0)
+        for framesize in (1, 6, 20):
+            r = concatenate_time(list(s.iter_frames(framesize=framesize)))
+            assert_array_equal(r.samples.get(True), samples)
+            assert r.fs == s.fs
+            assert r.origintime == s.origintime
+
+    def test_roundtrip_anytimeaxis(self):
+        "concatenate_time: time axis may be at any position"
+        # channelaxis=0 puts time on axis 1, which concatenate_time used to
+        # reject outright.
+        for channelaxis, shape in ((0, (3, 20)), (1, (20, 3))):
+            samples = np.arange(60.).reshape(shape)
+            s = MultiChannelUniformTimeSeries(samples=samples, fs=1.0,
+                                              channelaxis=channelaxis)
+            r = concatenate_time(list(s.iter_frames(framesize=6)))
+            assert_array_equal(r.samples.get(True), samples)
+            assert r.samples.axisorder == s.samples.axisorder
+            assert r.channelaxis == channelaxis
+            assert r.nchannels == 3
+            assert r.ntimesamples == 20
+
+    def test_attributes_taken_from_first_signal(self):
+        "concatenate_time: timing attributes come from the first signal"
+        s = UniformTimeSeries(samples=np.arange(20.), fs=4.0, origintime=1.5)
+        r = concatenate_time(list(s.iter_frames(framesize=6)))
+        assert r.fs == 4.0
+        assert r.origintime == 1.5
+        assert r.starttime == s.starttime
+
+    def test_mismatched_axisorder(self):
+        "concatenate_time: refuses signals with differing axis order"
+        samples = np.arange(60.).reshape(3, 20)
+        s0 = MultiChannelUniformTimeSeries(samples=samples, fs=1.0,
+                                           channelaxis=0)
+        s1 = MultiChannelUniformTimeSeries(samples=samples.T.copy(), fs=1.0,
+                                           channelaxis=1)
+        assert_raises(ValueError, concatenate_time, [s0, s1])
+
+    def test_mismatched_fs(self):
+        "concatenate_time: refuses signals with differing sampling rate"
+        samples = np.arange(20.)
+        s0 = UniformTimeSeries(samples=samples, fs=1.0)
+        s1 = UniformTimeSeries(samples=samples, fs=2.0)
+        assert_raises(ValueError, concatenate_time, [s0, s1])
 
 
 def iter_arnodes(testarrays, dimension=None):

@@ -1749,16 +1749,48 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                          epochaxis=samples.axes['epoch'])
 
 
-# TODO checks during loop
 def concatenate_time(sequence):
+    """
+    Concatenates a sequence of uniform time series along their time axis.
+
+    The time axis may be at any position in the sample array, but all signals
+    in the sequence must have the same axis order and the same sampling rate.
+    Their sizes along the other axes must match, as for `numpy.concatenate`.
+
+    Every attribute other than the number of time samples -- `fs`,
+    `startdatetime`, `origintime`, `channelnames`, `metadata` -- is taken from
+    the first signal in the sequence.
+
+    Parameter
+    ---------
+    sequence: an iterable of uniform time series
+
+    Returns
+    -------
+    A single uniform time series, of the same type as the first signal in the
+    sequence.
+
+    """
     gen = (i for i in sequence)
     sig = next(gen).copy()
-    if not sig.samples.axisorder[0] == 'time':
-        raise ValueError('time should be on the first axis for concatenation')
+    axisorder = sig.samples.axisorder
+    timeaxis = sig.samples.axes['time']
     samples = [sig.samples[:]]
-    for frame in gen:
+    for i, frame in enumerate(gen, start=1):
+        # Without these checks a mismatch either concatenates the wrong axis
+        # silently or fails deep inside numpy, and the result would still carry
+        # the first signal's fs and timing.
+        if frame.samples.axisorder != axisorder:
+            raise ValueError(
+                "signal %d has axis order %s, which differs from that of the "
+                "first signal (%s)" % (i, frame.samples.axisorder, axisorder))
+        if frame.fs != sig.fs:
+            raise ValueError(
+                "signal %d has sampling rate %s, which differs from that of "
+                "the first signal (%s)" % (i, frame.fs, sig.fs))
         samples.append(frame.samples[:])
-    return sig._instantiatefromself(samples=np.concatenate(samples))
+    return sig._instantiatefromself(
+        samples=np.concatenate(samples, axis=timeaxis))
 
 def isuts(s):
     return type(s) is UniformTimeSeries
