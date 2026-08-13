@@ -19,24 +19,7 @@ https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019
 You only need the "Build Tools for Visual Studio 2019", but installing the whole
 studio is fine as well.
 
-Reproducing an analysis
-^^^^^^^^^^^^^^^^^^^^^^^
-
-``environment.yml`` pins the exact versions the test suite passes with. Use it
-if you want the same environment an analysis was run in: ::
-
-    $ conda env create -f environment.yml
-    $ conda activate uts
-    $ pip install -e . --no-build-isolation
-
-``--no-build-isolation`` makes the extensions compile against the numpy pinned
-in the environment. Without it, the build fetches its own numpy, which may be a
-different major version from the one the extensions are then imported alongside.
-
-Installing normally
-^^^^^^^^^^^^^^^^^^^
-
-darr is on conda-forge, so that channel may need appending (safe to repeat): ::
+`darr` is on conda-forge, so that channel may need appending (safe to repeat): ::
 
     $ conda config --append channels conda-forge
 
@@ -57,11 +40,6 @@ Running the tests
 -----------------
 
 ::
-
-    >>> import uts
-    >>> uts.test()
-
-pytest also works: ::
 
     $ pytest --pyargs uts
 
