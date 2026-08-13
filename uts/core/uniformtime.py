@@ -750,7 +750,7 @@ class UniformTimeSeries(UniformTime):
                                              metadata=self.metadata)
 
     def iter_frames(self, framesize, stepsize=None, include_remainder=True,
-                    startindex=None, endindex=None):
+                    startindex=None, endindex=None, axisorder=None):
         """
         Iterate over time axis.
 
@@ -761,7 +761,7 @@ class UniformTimeSeries(UniformTime):
             Size of the frame in timesamples. Note that the last frame may be
             smaller than `framesize`, depending on the number of timesamples.
         stepsize: <int, None>
-            Size of the shift in time per iteration in number of timesamples. 
+            Size of the shift in time per iteration in number of timesamples.
             Default is None, which means that `stepsize` equals `framesize`.
         startindex: <int, None>
             Start sample number.
@@ -769,12 +769,29 @@ class UniformTimeSeries(UniformTime):
         endindex: <int, None>
             End sample number.
             Default is None, which means to end at the end.
+        axisorder: <sequence of str, None>
+            Order of the sample axes of the yielded frames. Default is None,
+            which means to keep the current order.
+
+            A single-channel series has only a 'time' axis, so ['time'] is the
+            only order it can produce. This parameter exists so that calling
+            code can iterate over single- and multichannel signals in the same
+            way (see MultiChannelUniformTimeSeries.iter_frames, which has the
+            same parameter). Axis names that this signal does not have, such as
+            'channel', are therefore ignored rather than rejected.
 
         Returns
         -------
         A generator that yields time frames of self.
 
         """
+        if axisorder is not None:
+            requested = [ax for ax in axisorder if ax in self.samples.axes]
+            if requested != ['time']:
+                raise ValueError(
+                    "axisorder (%s) is not a valid axis order for a "
+                    "single-channel series, which has only a 'time' axis"
+                    % (list(axisorder),))
 
         for framestart, frameend in self.movingtimeframeindices(
                 framesize=framesize,
