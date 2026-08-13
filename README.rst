@@ -65,11 +65,9 @@ pytest also works: ::
 
     $ pytest --pyargs uts
 
-Note that pytest collects ten more tests than ``uts.test()`` does, because the
-latter loads only ``TestCase`` subclasses and so skips module-level test
-functions. Two of those extra tests currently fail; both date from an earlier
-version of the time API and have not yet been reconciled with it. They are
-excluded by name in CI, and listed in ``.github/workflows/tests.yml``.
+pytest is the fuller run: it collects ten module-level test functions that
+``uts.test()`` skips, because that runner loads only ``TestCase`` subclasses.
+Both runs should be entirely green.
 
 Every push runs the suite in three configurations: the exact pins in
 ``environment.yml``, the same python with current numpy 2 and pandas 3, and
