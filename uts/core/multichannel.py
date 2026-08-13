@@ -153,7 +153,7 @@ class MultiChannel(object):
                     channelindices.append(chindnumbers[self.channelnames == channelname].item())
             else:
                 if not ((channelindex.dtype in defined_integers) or \
-                   channelindex.dtype == np.bool):
+                   channelindex.dtype == np.bool_):
                     raise ChannelIndexError("channel index (%s) is of wrong type (%s)" \
                                             % (channelindex, channelindex.dtype))
                 channelindices = np.arange(self.nchannels, dtype=int)[channelindex]

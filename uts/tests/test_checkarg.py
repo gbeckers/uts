@@ -13,7 +13,7 @@ class TestCheck_bool(TestCase):
 
     def test_correctinput(self):
         "bool argument: correct input"
-        for val in (True, False, np.bool(1), np.bool(0)):
+        for val in (True, False, bool(1), bool(0)):
             assert check_bool(val) == val
 
     def test_incorrectinputtype(self):
@@ -163,12 +163,12 @@ def nochar(func):
 
 def nocomplex(func):
     # Complex numbers are not allowed as input
-    for val in (1+5j, np.complex(1,5)):
+    for val in (1+5j, complex(1,5)):
         assert_raises(TypeError, func, val)
 
 def nobool(func):
     # Booleans are not allowed as input
-    for val in (True, False, np.bool(1.0),np.bool(0.0)):
+    for val in (True, False, bool(1.0),bool(0.0)):
         assert_raises(TypeError, func, val)
 
 def noint(func):

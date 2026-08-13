@@ -920,7 +920,7 @@ class test_EpochedMultiChannelUniformTimeSeries(TestCase):
         channelnames = ['a', 'b', 'c']
         samples = np.arange(150.).reshape(3, 5, 10)
         axes = np.array(['channel', 'epoch', 'time'])
-        epochs = np.zeros(5, dtype={'names': ['starttime', 'event'], 'formats': [np.float, '|S1']})
+        epochs = np.zeros(5, dtype={'names': ['starttime', 'event'], 'formats': [float, '|S1']})
         epochs['starttime'] = np.linspace(0., 10., 5)
         epochs['event'] = ['v', 'w', 'x', 'y', 'z']
 

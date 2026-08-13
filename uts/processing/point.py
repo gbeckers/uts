@@ -173,7 +173,7 @@ def interpointintervals(p1, p2, maxintervaldur, excludesimultaneous=False):
 def interpointintervalhist(p1,p2, maxintervaldur, nbins=100,excludesimultaneous=False):
     intervals = interpointintervals(p1, p2, maxintervaldur,excludesimultaneous=excludesimultaneous)
     rows = len(intervals)
-    hist = numpy.empty((rows,nbins), dtype=numpy.int)
+    hist = numpy.empty((rows,nbins), dtype=int)
     for i,interval in enumerate(intervals):
         hist[i,:] = numpy.histogram(interval,bins=nbins,
                         range=(-maxintervaldur,maxintervaldur))[0]

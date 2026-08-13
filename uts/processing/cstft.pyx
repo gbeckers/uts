@@ -37,7 +37,7 @@ FLOATDTYPE = np.float32
 ctypedef np.float32_t FLOATDTYPE_t
 DOUBLEDTYPE = np.float64
 ctypedef np.float64_t DOUBLEDTYPE_t
-INTDTYPE = np.int
+INTDTYPE = np.int_
 ctypedef np.int_t INTDTYPE_t
 COMPLEXTYPE = np.complex128
 ctypedef np.complex128_t COMPLEX_t

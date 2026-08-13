@@ -1309,9 +1309,9 @@ def fftconvolve(signal, kernellist, mode='same'):
     for kernel in kernellist:
         kernel = np.array(kernel)
         assert kernel.ndim == 1
-        complex_result |= np.issubdtype(kernel.dtype, np.complex)
+        complex_result |= np.issubdtype(kernel.dtype, np.complexfloating)
         kernellengths.append(kernel.size)
-    complex_result |= np.issubdtype(signal.dtype, np.complex)
+    complex_result |= np.issubdtype(signal.dtype, np.complexfloating)
 
     kernellengths = np.array(kernellengths)
 
