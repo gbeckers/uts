@@ -72,3 +72,21 @@ Both runs should be entirely green.
 Every push runs the suite in three configurations: the exact pins in
 ``environment.yml``, the same python with current numpy 2 and pandas 3, and
 the newest python with everything current. Linux only.
+
+Authors
+-------
+
+The `uts` library has been written by *Gabriel Beckers* up to version 2.4.5. That
+version has been audited by *Claude Opus 5* with the request to identify and fix
+any bugs, one by one after inspection and approval by Gabriel. Further, the
+library was made compatible with modern versions of Numpy and Python. Each change
+was inspected by Gabriel. The library had an extensive tests suite before the
+audit, which ran fine after the changes by Claude. After this version 2.5.0 was
+released.
+
+AI Statement
+------------
+Starting with version 2.5.0 Claude is used to audit the human-designed and -written
+code for bugs and compatibility. Identified issues are fixed, with regression tests,
+by Claude after approval and under supervision of the human programmer who wrote the
+code.
