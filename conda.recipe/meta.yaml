@@ -1,28 +1,35 @@
+# The version comes from the git tag, matching setuptools-scm. It cannot be
+# read from setup.py any more: the packaging metadata moved to pyproject.toml.
 package:
   name: uts
-  version: "2.1"
+  version: {{ environ.get('GIT_DESCRIBE_TAG', '0.0.0') | replace('v', '') }}
 
 source:
   path: ..
 
+build:
+  script: {{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv
+
 requirements:
   build:
+    - {{ compiler('c') }}
+  host:
     - python
-    - setuptools
-    - cython
-    - numpy
-#    - libpython
-
+    - pip
+    - setuptools >=64
+    - setuptools-scm >=8
+    - cython >=3.0
+    - numpy >=1.22,<2
   run:
     - python
-    - numpy
-    - pytables
+    - {{ pin_compatible('numpy', max_pin='x') }}
     - scipy
+    - pandas
+    - pytables
     - h5py
-    - darr >=0.3.1
+    - numexpr
+    - darr
 
 test:
   imports:
     - uts
-
-

@@ -10,11 +10,14 @@ from unittest import TestCase
 
 import os
 from numpy.testing import assert_raises, \
-    assert_almost_equal, assert_array_almost_equal, assert_equal
+    assert_almost_equal, assert_array_almost_equal, assert_array_equal, \
+    assert_equal
 import numpy as np
 import tables
 from uts import UniformTime, UniformTimeSeries, EpochedUniformTimeSeries, \
-    MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries
+    MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
+    concatenate_time
+from uts.core.uniformtime import _comparisonframesize
 # from uts.core.defs import DimensionError
 # from uts.core.check_arg import argtypes
 # from uts.core.errors import WriteError
@@ -255,11 +258,16 @@ def test_UniformTime_index_to_time():
         # outside time range
         assert_raises(ValueError, s.index_to_time, index=-1)
         assert_raises(ValueError, s.index_to_time, index=2)
-        assert_raises(ValueError, s.index_to_time, index=[testtype(-1), testtype(0)])
-        assert_raises(ValueError, s.index_to_time, index=[testtype(-2), testtype(-1)])
         assert_raises(ValueError, s.index_to_time, index=[testtype(0), testtype(2)])
         assert_raises(ValueError, s.index_to_time, index=[testtype(2), testtype(3)])
-        assert_raises(ValueError, s.index_to_time, index=[testtype(-1), testtype(3)])
+
+    # negative indices only for the int types that can hold them: from numpy 2
+    # an out-of-bound conversion such as np.uint8(-1) is an OverflowError,
+    # where numpy 1 wrapped it around to 255 with a DeprecationWarning.
+    for ntesttype in nints:
+        assert_raises(ValueError, s.index_to_time, index=[ntesttype(-1), ntesttype(0)])
+        assert_raises(ValueError, s.index_to_time, index=[ntesttype(-2), ntesttype(-1)])
+        assert_raises(ValueError, s.index_to_time, index=[ntesttype(-1), ntesttype(3)])
 
     # all floats should fail
     for testtype in floats:
@@ -321,11 +329,14 @@ def test_movingtimeframeindices():
                      [(0, 1), (1, 2), (2, 3), (3, 4)])
 
         assert_raises(ValueError, list, s.movingtimeframeindices(framesize=testtype(1), startindex=testtype(5)))
-        assert_raises(ValueError, list, s.movingtimeframeindices(framesize=testtype(1), startindex=testtype(-1)))
-        assert_raises(ValueError, list, s.movingtimeframeindices(framesize=testtype(1), endindex=testtype(-1)))
         assert_raises(ValueError, list, s.movingtimeframeindices(framesize=testtype(1), endindex=testtype(6)))
         assert_raises(ValueError, list,
                       s.movingtimeframeindices(framesize=testtype(1), startindex=testtype(4), endindex=testtype(3)))
+
+    # see the note above: only signed types can represent -1
+    for ntesttype in nints:
+        assert_raises(ValueError, list, s.movingtimeframeindices(framesize=1, startindex=ntesttype(-1)))
+        assert_raises(ValueError, list, s.movingtimeframeindices(framesize=1, endindex=ntesttype(-1)))
 
     s = UniformTime(ntimesamples=20, fs=5.0)
     assert_equal(list(s.movingtimeframeindices(framesize=5, stepsize=4, include_remainder=True)),
@@ -730,7 +741,7 @@ class test_MultiChannelUniformTimeSeries(TestCase):
             assert s[:5].nchannels == 3
             assert s[:5, :2].ntimesamples == 5
             assert s[:5, :2].nchannels == 2
-            assert (s.channelnames == np.array(channelnames, dtype=np.unicode_)).all()
+            assert (s.channelnames == np.array(channelnames, dtype=np.str_)).all()
             assert (s[:, [2, 1]].samples.get() == s[:, ['c', 'b']].samples.get()).all()
             assert (s[:, :].samples.get() == s.__getitem__(
                 (slice(None, None, None), slice(None, None, None))).samples.get()).all()
@@ -850,7 +861,7 @@ class test_MultiChannelUniformTimeSeries(TestCase):
         fs = 48.443798
         startdatetime = '2020-12-24T09:52:25.0'
         origintime = 0.02353585
-        channelnames = np.array(['ch1', 'ch2'], dtype=np.unicode_)
+        channelnames = np.array(['ch1', 'ch2'], dtype=np.str_)
         for dtype in dtypes:
             for readonly in [True, False]:
                 for channelaxis in [0, 1]:
@@ -920,7 +931,7 @@ class test_EpochedMultiChannelUniformTimeSeries(TestCase):
         channelnames = ['a', 'b', 'c']
         samples = np.arange(150.).reshape(3, 5, 10)
         axes = np.array(['channel', 'epoch', 'time'])
-        epochs = np.zeros(5, dtype={'names': ['starttime', 'event'], 'formats': [np.float, '|S1']})
+        epochs = np.zeros(5, dtype={'names': ['starttime', 'event'], 'formats': [float, '|S1']})
         epochs['starttime'] = np.linspace(0., 10., 5)
         epochs['event'] = ['v', 'w', 'x', 'y', 'z']
 
@@ -946,16 +957,229 @@ class test_EpochedMultiChannelUniformTimeSeries(TestCase):
             assert s[:, :, :3].nepochs == 3
             assert s[:, :2, :3].nepochs == 3
             assert s[:5, :2, :3].nepochs == 3
-            assert (s.channelnames == np.array(channelnames, dtype=np.unicode_)).all()
+            assert (s.channelnames == np.array(channelnames, dtype=np.str_)).all()
             assert s[:, [2, 1]].nchannels == 2
             assert (s[:, [2, 1]].samples.get() == s[:, ['c', 'b']].samples.get()).all()
             assert (s[:, [2, 1, 0]][:, [2, 1, 0]].samples.get() == s.samples.get()).all()
-            assert (s[:, :, [4, 3]].epochs['event'] == np.array(['z', 'y'], dtype=np.string_)).all()
+            assert (s[:, :, [4, 3]].epochs['event'] == np.array(['z', 'y'], dtype=np.bytes_)).all()
 
             assert (s[:, :, :].samples.get() == s.__getitem__(
                 (slice(None, None, None), slice(None, None, None), slice(None, None, None))).samples.get()).all()
             assert_raises(IndexError, s.__getitem__, (
             slice(None, None, None), slice(None, None, None), slice(None, None, None), slice(None, None, None)))
+
+
+class TestComparisonFrameSize(TestCase):
+    """Comparing two signals is chunked so that a signal too large to hold in
+    memory is never read in one go."""
+
+    def test_always_an_int(self):
+        "_comparisonframesize: the result is always an int"
+        # iter_frames rejects a float framesize, and the division produces one
+        # as soon as the signal is larger than a chunk.
+        for ntimesamples, mb in ((100, 0.0008), (1000, 32.),
+                                 (5000000, 38.1), (100000000, 762.9)):
+            r = _comparisonframesize(ntimesamples, mb)
+            assert isinstance(r, int), (ntimesamples, mb, type(r))
+
+    def test_within_bounds(self):
+        "_comparisonframesize: at least 2 samples, at most the whole signal"
+        for ntimesamples, mb in ((100, 0.0008), (5000000, 38.1),
+                                 (10, 1000.), (3, 0.1)):
+            r = _comparisonframesize(ntimesamples, mb)
+            assert r <= ntimesamples
+            assert r >= min(2, ntimesamples)
+
+    def test_smaller_than_signal_when_over_chunk(self):
+        "_comparisonframesize: a signal over the chunk size is split up"
+        r = _comparisonframesize(5000000, 38.1, chunkmb=32.)
+        assert r < 5000000
+
+    def test_whole_signal_when_under_chunk(self):
+        "_comparisonframesize: a signal under the chunk size is not split"
+        assert _comparisonframesize(1000, 0.008, chunkmb=32.) == 1000
+
+    def test_zero_size(self):
+        "_comparisonframesize: a zero-sized signal does not divide by zero"
+        assert _comparisonframesize(10, 0.0) == 10
+
+    def test_equality_of_signal_larger_than_chunk(self):
+        "__eq__: signals larger than the 32 Mb chunk size can be compared"
+        # This raised TypeError, because framesize was a float. Comparison
+        # therefore worked only for signals below 32 Mb -- that is, it failed
+        # for exactly the large signals the chunking is for.
+        samples = np.arange(4200000, dtype=np.float64)  # ~32.04 Mb
+        s = UniformTimeSeries(samples=samples, fs=1000., copy=False)
+        assert s.mb > 32.
+        assert s == s
+
+    def test_equality_of_empty_signal(self):
+        "__eq__: empty signals can be compared"
+        # framesize used to come out as 0 here, which check_arg rejects.
+        s = UniformTimeSeries(samples=np.zeros(0), fs=1.0)
+        assert s == UniformTimeSeries(samples=np.zeros(0), fs=1.0)
+
+
+class TestMovingTimeFrameIndices(TestCase):
+
+    def test_endindex_reported_as_endindex(self):
+        "movingtimeframeindices: an invalid endindex is reported as endindex"
+        # endindex was validated under the name 'startindex', so a bad
+        # endindex produced an error message naming the wrong argument.
+        s = UniformTimeSeries(samples=np.arange(20.), fs=1.0)
+        try:
+            list(s.movingtimeframeindices(framesize=5, endindex=-1))
+        except ValueError as e:
+            assert 'endindex' in str(e), str(e)
+        else:
+            raise AssertionError('expected a ValueError')
+
+    def test_startindex_still_reported_as_startindex(self):
+        "movingtimeframeindices: an invalid startindex is reported as such"
+        s = UniformTimeSeries(samples=np.arange(20.), fs=1.0)
+        try:
+            list(s.movingtimeframeindices(framesize=5, startindex=-1))
+        except ValueError as e:
+            assert 'startindex' in str(e), str(e)
+        else:
+            raise AssertionError('expected a ValueError')
+
+
+class TestMetadata(TestCase):
+    """A signal must own its metadata: deriving a signal carries the values
+    forward but must not alias the dictionary."""
+
+    def _signal(self, metadata=None, attrs=None):
+        return UniformTimeSeries(samples=np.arange(20.), fs=1.0,
+                                 metadata=metadata, attrs=attrs)
+
+    def test_callers_dict_not_captured(self):
+        "metadata: the caller's dictionary is neither stored nor mutated"
+        d = {'subject': 'a'}
+        s = self._signal(metadata=d)
+        assert s.metadata is not d
+        s.metadata['added'] = True
+        assert d == {'subject': 'a'}
+        d['elsewhere'] = True
+        assert 'elsewhere' not in s.metadata
+
+    def test_attrs_argument_does_not_mutate_caller(self):
+        "metadata: the attrs argument is merged without mutating either dict"
+        md = {'subject': 'a'}
+        at = {'extra': 1}
+        s = self._signal(metadata=md, attrs=at)
+        assert s.metadata == {'subject': 'a', 'extra': 1}
+        assert md == {'subject': 'a'}
+        assert at == {'extra': 1}
+
+    def test_slice_metadata_independent(self):
+        "metadata: a slice does not share its parent's metadata"
+        s = self._signal(metadata={'subject': 'a'})
+        sub = s[0:10]
+        assert sub.metadata == {'subject': 'a'}
+        assert sub.metadata is not s.metadata
+        sub.metadata['injected'] = True
+        assert s.metadata == {'subject': 'a'}
+
+    def test_copy_metadata_independent(self):
+        "metadata: copy() does not share metadata with the original"
+        s = self._signal(metadata={'subject': 'a'})
+        c = s.copy()
+        assert c.metadata == {'subject': 'a'}
+        assert c.metadata is not s.metadata
+        c.metadata['injected'] = True
+        assert s.metadata == {'subject': 'a'}
+
+    def test_frames_metadata_independent(self):
+        "metadata: frames from iter_frames do not share the parent's metadata"
+        s = self._signal(metadata={'subject': 'a'})
+        for frame in s.iter_frames(framesize=5):
+            assert frame.metadata == {'subject': 'a'}
+            frame.metadata['injected'] = True
+        assert s.metadata == {'subject': 'a'}
+
+    def test_multichannel_metadata_independent(self):
+        "metadata: multichannel slices do not share the parent's metadata"
+        s = MultiChannelUniformTimeSeries(
+            samples=np.arange(60.).reshape(3, 20), fs=1.0, channelaxis=0,
+            metadata={'subject': 'a'})
+        s[0:5, :].metadata['injected'] = True
+        assert s.metadata == {'subject': 'a'}
+
+    def test_attrs_is_alias_of_metadata(self):
+        "metadata: attrs is a live alias, not a second dictionary"
+        s = self._signal(metadata={'subject': 'a'})
+        assert s.attrs is s.metadata
+        s.attrs['viaattrs'] = 1
+        assert s.metadata['viaattrs'] == 1
+        # rebinding metadata must not leave attrs pointing at the old dict
+        s.metadata = {'rebound': True}
+        assert s.attrs == {'rebound': True}
+
+    def test_default_metadata_not_shared_between_signals(self):
+        "metadata: signals created without metadata get separate dictionaries"
+        s1 = self._signal()
+        s2 = self._signal()
+        s1.metadata['only_s1'] = True
+        assert s2.metadata == {}
+
+    def test_rejects_non_dict(self):
+        "metadata: non-dictionary metadata and attrs are rejected"
+        assert_raises(TypeError, self._signal, [('subject', 'a')])
+        assert_raises(TypeError, UniformTimeSeries, np.arange(20.), 1.0,
+                      **{'attrs': [('subject', 'a')]})
+
+
+class TestConcatenateTime(TestCase):
+
+    def test_roundtrip_singlechannel(self):
+        "concatenate_time: iter_frames round-trips a single-channel signal"
+        samples = np.arange(20.)
+        s = UniformTimeSeries(samples=samples, fs=1.0)
+        for framesize in (1, 6, 20):
+            r = concatenate_time(list(s.iter_frames(framesize=framesize)))
+            assert_array_equal(r.samples.get(True), samples)
+            assert r.fs == s.fs
+            assert r.origintime == s.origintime
+
+    def test_roundtrip_anytimeaxis(self):
+        "concatenate_time: time axis may be at any position"
+        # channelaxis=0 puts time on axis 1, which concatenate_time used to
+        # reject outright.
+        for channelaxis, shape in ((0, (3, 20)), (1, (20, 3))):
+            samples = np.arange(60.).reshape(shape)
+            s = MultiChannelUniformTimeSeries(samples=samples, fs=1.0,
+                                              channelaxis=channelaxis)
+            r = concatenate_time(list(s.iter_frames(framesize=6)))
+            assert_array_equal(r.samples.get(True), samples)
+            assert r.samples.axisorder == s.samples.axisorder
+            assert r.channelaxis == channelaxis
+            assert r.nchannels == 3
+            assert r.ntimesamples == 20
+
+    def test_attributes_taken_from_first_signal(self):
+        "concatenate_time: timing attributes come from the first signal"
+        s = UniformTimeSeries(samples=np.arange(20.), fs=4.0, origintime=1.5)
+        r = concatenate_time(list(s.iter_frames(framesize=6)))
+        assert r.fs == 4.0
+        assert r.origintime == 1.5
+        assert r.starttime == s.starttime
+
+    def test_mismatched_axisorder(self):
+        "concatenate_time: refuses signals with differing axis order"
+        samples = np.arange(60.).reshape(3, 20)
+        s0 = MultiChannelUniformTimeSeries(samples=samples, fs=1.0,
+                                           channelaxis=0)
+        s1 = MultiChannelUniformTimeSeries(samples=samples.T.copy(), fs=1.0,
+                                           channelaxis=1)
+        assert_raises(ValueError, concatenate_time, [s0, s1])
+
+    def test_mismatched_fs(self):
+        "concatenate_time: refuses signals with differing sampling rate"
+        samples = np.arange(20.)
+        s0 = UniformTimeSeries(samples=samples, fs=1.0)
+        s1 = UniformTimeSeries(samples=samples, fs=2.0)
+        assert_raises(ValueError, concatenate_time, [s0, s1])
 
 
 def iter_arnodes(testarrays, dimension=None):

@@ -9,7 +9,6 @@ from ..core.uniformtime import UniformTimeSeries, \
     MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries, \
     EpochedUniformTimeSeries, isuts, iseuts, ismcuts, isemcuts
 from ..core.geometry import RectangularLattice
-from .._version import get_versions
 from .utils import tempdir
 from uts.core.utils import isgenerator, peek_iterable
 
@@ -107,7 +106,10 @@ def savedarr(path, s, accessmode='r', dtype=None, overwrite=False,
         else:
             epochs = s.epochs
         epochs.to_csv(bdd.path / 'epochs.csv', index=False, float_format=float_format)
-    signaldata['utsversion'] = get_versions()['version']
+    # Imported here rather than at module level: uts/__init__.py imports this
+    # module, so a top-level import would be circular.
+    from .. import __version__
+    signaldata['utsversion'] = __version__
     signaldata['utstype'] = type(s).__name__
     bdd.write_jsondict(filename='signaldata.json', d=signaldata,
                         overwrite=overwrite)

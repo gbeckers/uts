@@ -16,9 +16,9 @@ are allowed and may cast to different types.
 
 """
 
-from numpy import array, any, float32, float64, floating, integer, isnan, \
-    isinf, issubdtype, ndarray, uint8, int8, uint16, int16, uint32, int32, \
-    uint64, int64
+from numpy import array, any, asarray, atleast_1d, float32, float64, \
+    floating, integer, isnan, isinf, issubdtype, ndarray, uint8, int8, \
+    uint16, int16, uint32, int32, uint64, int64
 
 from .defs import defined_integers
 from .defs import defined_floats
@@ -194,7 +194,12 @@ def check_floatarray(arg, positive=True, zero=True, negative=True, nan=True,
     if not cast in defined_floats:
         raise ValueError("cast argument should be a float type")
     if not isinstance(arg, ndarray):
-        arg = array(arg, ndmin=1, copy=copy)
+        # `copy` has no effect here: this branch only runs when arg is not an
+        # array yet, so converting it always produces a new one either way.
+        # asarray rather than array(copy=...) because in NumPy 2 copy=False
+        # means "never copy, raise if a copy is needed" instead of
+        # "copy only if needed".
+        arg = atleast_1d(asarray(arg))
     if not issubdtype(arg.dtype, floating):
         raise TypeError("arg is not a float or sequence of defined_floats")
     if arg.dtype != cast:
@@ -227,7 +232,8 @@ def check_intarray(arg, positive=True, zero=True, negative=True, cast=int64,
     if not cast in defined_integers:
         raise ValueError("cast argument should be an int type")
     if not isinstance(arg, ndarray):
-        arg = array(arg, ndmin=1, copy=copy)
+        # see the note in check_floatarray
+        arg = atleast_1d(asarray(arg))
     if not issubdtype(arg.dtype, integer):
         raise TypeError("arg is not an int or sequence of defined_integers")
     if arg.dtype != cast:

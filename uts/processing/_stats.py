@@ -59,7 +59,7 @@ def moment(distribution, order, axis=-1, startval=0.0, endval=1.0):
     '''
     d = np.asarray(distribution, np.float64)
     variable = np.linspace(startval, endval, d.shape[axis])
-    shape = np.ones(len(d.shape), np.int).tolist()
+    shape = np.ones(len(d.shape), int).tolist()
     shape[axis] = d.shape[axis]
     variable.shape = shape
     moment = (d * np.power(variable, order)).sum(axis=axis) / d.sum(axis=axis)

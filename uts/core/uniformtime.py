@@ -438,7 +438,7 @@ class UniformTime(object):
         startindex = check_arg(startindex, 'startindex')
         if endindex is None:
             endindex = self.ntimesamples
-        endindex = check_arg(endindex, 'startindex')
+        endindex = check_arg(endindex, 'endindex')
 
         if startindex > (self.ntimesamples - 1):
             raise ValueError("startindex too high")
@@ -460,6 +460,36 @@ class UniformTime(object):
         if include_remainder and (remainder > 0) and (
             framestart < self.ntimesamples):
             yield framestart, self.ntimesamples
+
+
+def _comparisonframesize(ntimesamples, mb, chunkmb=32.):
+    """
+    Number of time samples to compare at a time, so that comparing two signals
+    reads about `chunkmb` megabytes at a time rather than the whole signal.
+
+    Returns at least 2 time samples and at most `ntimesamples`.
+
+    The result must be an int: `iter_frames` validates `framesize` as an
+    integer type and rejects a float. The division here produces a float
+    whenever the signal is larger than `chunkmb`, so without the conversion
+    comparison raised TypeError for exactly the large signals that this
+    chunking exists to handle.
+
+    Parameters
+    ----------
+    ntimesamples: int
+        Number of time samples in the signal.
+    mb: float
+        Size of the signal in megabytes.
+    chunkmb: float
+        Size to aim for per chunk, in megabytes. Defaults to 32.
+
+    """
+    if mb > 0.:
+        framesize = int(ntimesamples * (chunkmb / mb))
+    else:  # nothing to chunk, and no size to divide by
+        framesize = ntimesamples
+    return min(ntimesamples, max(2, framesize))
 
 
 class UniformTimeSeries(UniformTime):
@@ -562,21 +592,55 @@ class UniformTimeSeries(UniformTime):
         self.__sampletype = self.__samples.sampletype
         self.__dtype = self.__samples.dtype
         ntimesamples = self.__samples.shape[self.__samples.axes['time']]
-        if metadata is None:
-            self.metadata = {}
-        else:
-            if not isinstance(metadata, dict):
-                raise TypeError('metadata should be a dictionary')
-            self.metadata = metadata
-        if attrs is not None:
-            self.metadata.update(attrs)
-        self.attrs = self.metadata # attrs is to stay compatible with older versions
+        self.metadata = self._check_metadata(metadata=metadata, attrs=attrs)
         UniformTime.__init__(self, ntimesamples=ntimesamples, fs=fs,
                              startdatetime=startdatetime, origintime=origintime,
                              **kwargs)
 
+    @staticmethod
+    def _check_metadata(metadata, attrs=None):
+        """
+        Validates `metadata` and `attrs` and returns the dictionary that the
+        signal will own.
+
+        The returned dictionary is always a new one. A signal must own its
+        metadata: every derived signal (a slice, a frame from `iter_frames`,
+        a `copy`) is constructed with `metadata=self.metadata`, so storing the
+        argument itself would alias every signal in a derivation chain to a
+        single dictionary, and annotating one of them would silently annotate
+        all the others.
+
+        Note that the copy is shallow. Rebinding keys on one signal does not
+        affect any other, but a *mutable value* stored under a key is still
+        shared, and changing it in place will be visible from every signal
+        that was derived from the same metadata.
+
+        """
+        if metadata is None:
+            md = {}
+        elif isinstance(metadata, dict):
+            md = dict(metadata)
+        else:
+            raise TypeError('metadata should be a dictionary')
+        if attrs is not None:
+            if not isinstance(attrs, dict):
+                raise TypeError('attrs should be a dictionary')
+            md.update(attrs)
+        return md
+
     samples = s = property(lambda self: self.__samples, None, None,
                        "Samples object")
+
+    # `attrs` is a genuine alias of `metadata`, not a second dictionary, and is
+    # kept for compatibility with older versions. It is a property rather than
+    # the plain instance attribute it used to be so that the two cannot drift
+    # apart when `metadata` is rebound.
+    attrs = property(lambda self: self.metadata,
+                     lambda self, value: setattr(
+                         self, 'metadata', self._check_metadata(value)),
+                     None,
+                     "alias of `metadata`, for compatibility with older "
+                     "versions")
 
     dtype = property(lambda self: self.__samples.dtype, None, None,
                      "")
@@ -632,9 +696,8 @@ class UniformTimeSeries(UniformTime):
         result = UniformTime.__eq__(self, other)
         result &= (self.__dtype == other.dtype)
         result &= (self.baseaxis == other.baseaxis)
-        if result:  # we check samples
-            # framesize = 32 Mb chunks, min 2, max ntimesamples
-            framesize =  min(self.ntimesamples, max(2, (self.ntimesamples / (self.mb / 32.))))
+        if result and (self.ntimesamples > 0):  # we check samples
+            framesize = _comparisonframesize(self.ntimesamples, self.mb)
             axisorder = self.samples.axisorder
             startindex = 0
             for frame in self.iter_frames(framesize=framesize,
@@ -750,7 +813,7 @@ class UniformTimeSeries(UniformTime):
                                              metadata=self.metadata)
 
     def iter_frames(self, framesize, stepsize=None, include_remainder=True,
-                    startindex=None, endindex=None):
+                    startindex=None, endindex=None, axisorder=None):
         """
         Iterate over time axis.
 
@@ -761,7 +824,7 @@ class UniformTimeSeries(UniformTime):
             Size of the frame in timesamples. Note that the last frame may be
             smaller than `framesize`, depending on the number of timesamples.
         stepsize: <int, None>
-            Size of the shift in time per iteration in number of timesamples. 
+            Size of the shift in time per iteration in number of timesamples.
             Default is None, which means that `stepsize` equals `framesize`.
         startindex: <int, None>
             Start sample number.
@@ -769,12 +832,29 @@ class UniformTimeSeries(UniformTime):
         endindex: <int, None>
             End sample number.
             Default is None, which means to end at the end.
+        axisorder: <sequence of str, None>
+            Order of the sample axes of the yielded frames. Default is None,
+            which means to keep the current order.
+
+            A single-channel series has only a 'time' axis, so ['time'] is the
+            only order it can produce. This parameter exists so that calling
+            code can iterate over single- and multichannel signals in the same
+            way (see MultiChannelUniformTimeSeries.iter_frames, which has the
+            same parameter). Axis names that this signal does not have, such as
+            'channel', are therefore ignored rather than rejected.
 
         Returns
         -------
         A generator that yields time frames of self.
 
         """
+        if axisorder is not None:
+            requested = [ax for ax in axisorder if ax in self.samples.axes]
+            if requested != ['time']:
+                raise ValueError(
+                    "axisorder (%s) is not a valid axis order for a "
+                    "single-channel series, which has only a 'time' axis"
+                    % (list(axisorder),))
 
         for framestart, frameend in self.movingtimeframeindices(
                 framesize=framesize,
@@ -1732,16 +1812,48 @@ class EpochedMultiChannelUniformTimeSeries(Epoched,
                                          epochaxis=samples.axes['epoch'])
 
 
-# TODO checks during loop
 def concatenate_time(sequence):
+    """
+    Concatenates a sequence of uniform time series along their time axis.
+
+    The time axis may be at any position in the sample array, but all signals
+    in the sequence must have the same axis order and the same sampling rate.
+    Their sizes along the other axes must match, as for `numpy.concatenate`.
+
+    Every attribute other than the number of time samples -- `fs`,
+    `startdatetime`, `origintime`, `channelnames`, `metadata` -- is taken from
+    the first signal in the sequence.
+
+    Parameter
+    ---------
+    sequence: an iterable of uniform time series
+
+    Returns
+    -------
+    A single uniform time series, of the same type as the first signal in the
+    sequence.
+
+    """
     gen = (i for i in sequence)
     sig = next(gen).copy()
-    if not sig.samples.axisorder[0] == 'time':
-        raise ValueError('time should be on the first axis for concatenation')
+    axisorder = sig.samples.axisorder
+    timeaxis = sig.samples.axes['time']
     samples = [sig.samples[:]]
-    for frame in gen:
+    for i, frame in enumerate(gen, start=1):
+        # Without these checks a mismatch either concatenates the wrong axis
+        # silently or fails deep inside numpy, and the result would still carry
+        # the first signal's fs and timing.
+        if frame.samples.axisorder != axisorder:
+            raise ValueError(
+                "signal %d has axis order %s, which differs from that of the "
+                "first signal (%s)" % (i, frame.samples.axisorder, axisorder))
+        if frame.fs != sig.fs:
+            raise ValueError(
+                "signal %d has sampling rate %s, which differs from that of "
+                "the first signal (%s)" % (i, frame.fs, sig.fs))
         samples.append(frame.samples[:])
-    return sig._instantiatefromself(samples=np.concatenate(samples))
+    return sig._instantiatefromself(
+        samples=np.concatenate(samples, axis=timeaxis))
 
 def isuts(s):
     return type(s) is UniformTimeSeries

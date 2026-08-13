@@ -40,23 +40,23 @@ class test_MultiChannel(TestCase):
         # sequences
         goodchannels = [["channel1","channel2","channel3"],
                         ("channel1","channel2","channel3"),
-                        np.array(["channel1","channel2","channel3"], dtype=np.unicode_),
-                        np.array(["channel1","channel2","channel3"], dtype=np.string_)]
+                        np.array(["channel1","channel2","channel3"], dtype=np.str_),
+                        np.array(["channel1","channel2","channel3"], dtype=np.bytes_)]
         # # structured arrays
         for channels in goodchannels:
             mc = MultiChannel(nchannels=nchannels, channelnames=channels,
                               geometry=None)
             assert mc.nchannels == nchannels
-            assert (mc.channelnames == np.array(channels, dtype=np.unicode_)).all()
+            assert (mc.channelnames == np.array(channels, dtype=np.str_)).all()
             assert mc.channelnames.size == nchannels
 
         # duplicate names, or nchannels != channelname.size
         badchannels = [["channel1","channel1","channel3"],
                        ("channel1","channel1","channel3"),
-                       np.array(["channel1","channel1","channel3"], dtype=np.unicode_),
+                       np.array(["channel1","channel1","channel3"], dtype=np.str_),
                        ["channel1","channel3"],
                        ("channel1","channel3"),
-                       np.array(["channel1","channel3"], dtype=np.unicode_)]
+                       np.array(["channel1","channel3"], dtype=np.str_)]
         for channelnames in badchannels:
             assert_raises(ChannelFormatError, MultiChannel, nchannels=nchannels,
                           channelnames=channelnames, geometry=None)

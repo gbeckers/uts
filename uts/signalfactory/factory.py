@@ -92,7 +92,7 @@ def fill_new(value=0.0, ntimesamples=None, fs=None, duration=None,
              nchannels=None,
              nepochs=None, starttime=0.0, origintime=0.0, channelaxis=None,
              epochaxis=None, channels=None, epochs=None, dtype=np.float64,
-             readonly=False, geometry=None, name=None, h5group=None, attrs={},
+             readonly=False, geometry=None, name=None, h5group=None, attrs=None,
              overwrite=False, extensible=False, expectedrows=None,
              complib='zlib', chunkshape=None, complevel=5):
     """
@@ -127,6 +127,8 @@ def fill_new(value=0.0, ntimesamples=None, fs=None, duration=None,
     chunkshape : {None, sequence of ints}, optional
 
     """
+    if attrs is None:
+        attrs = {}
     ## check time params
     (ntimesamples, fs, duration) = timeparams(ntimesamples=ntimesamples, fs=fs,
                                               duration=duration)
@@ -304,7 +306,9 @@ def fill_like(s, value=0.0, h5group=None, name=None, dtype=None,
               channelaxis=None,
               epochaxis=None, overwrite=False, extensible=False,
               expectedrows=None, filters=None, chunkshape=None, complib=None,
-              complevel=None, attrs={}):
+              complevel=None, attrs=None):
+    if attrs is None:
+        attrs = {}
     if isuts(s):
         return _uts_fill_like(s, value=value, h5group=h5group, name=name,
                               dtype=dtype,
@@ -339,7 +343,9 @@ def fill_like(s, value=0.0, h5group=None, name=None, dtype=None,
 ## FIXME if h5 array set default parameters (comlib etc) same
 def _uts_fill_like(s, value=0.0, h5group=None, name=None, dtype=None,
                    overwrite=False, extensible=False, expectedrows=None,
-                   chunkshape=None, complib=None, complevel=None, attrs={}):
+                   chunkshape=None, complib=None, complevel=None, attrs=None):
+    if attrs is None:
+        attrs = {}
     if dtype is None:
         dtype = s.dtype
     else:
@@ -376,7 +382,9 @@ def _euts_fill_like(s, value=0.0, h5group=None, name=None, dtype=None,
                     epochaxis=None,
                     overwrite=False, extensible=False, expectedrows=None,
                     chunkshape=None, complib=None,
-                    complevel=None, attrs={}):
+                    complevel=None, attrs=None):
+    if attrs is None:
+        attrs = {}
     if epochaxis is None:
         epochaxis = s.epochaxis
     if dtype is None:
@@ -413,7 +421,9 @@ def _mcuts_fill_like(s, value=0.0, h5group=None, name=None, dtype=None,
                      channelaxis=None,
                      overwrite=False, extensible=False, expectedrows=None,
                      chunkshape=None, complib=None,
-                     complevel=None, attrs={}):
+                     complevel=None, attrs=None):
+    if attrs is None:
+        attrs = {}
     if channelaxis is None:
         channelaxis = s.channelaxis
     if dtype is None:
@@ -454,7 +464,9 @@ def _emcuts_fill_like(s, value=0.0, h5group=None, name=None, dtype=None,
                       channelaxis=None,
                       epochaxis=None, overwrite=False, extensible=False,
                       expectedrows=None, chunkshape=None, complib=None,
-                      complevel=None, attrs={}):
+                      complevel=None, attrs=None):
+    if attrs is None:
+        attrs = {}
     if channelaxis is None:
         channelaxis = s.channelaxis
     if epochaxis is None:
@@ -553,7 +565,7 @@ def impulse(duration=None, ntimesamples=None, fs=44100., dtype=None,
 def modfreq(freqpattern, fs, dtype=None, peakamp=None, rmsamp=None):
     if dtype is None:
         dtype = np.float64
-    freqpattern = np.array(freqpattern, copy=False)
+    freqpattern = np.asarray(freqpattern)
     assert freqpattern.ndim == 1, \
         "frequency pattern should be a 1-dimensional array"
     assert (freqpattern < (fs / 2.0)).all(), \

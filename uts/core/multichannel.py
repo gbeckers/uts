@@ -68,9 +68,9 @@ class MultiChannel(object):
         # we first take care of the channels
         if channelnames is None:
             s = 'channel_%%.%dd' % max(1, int(np.ceil(np.log10(nchannels))))
-            channelnames = np.array([s % i for i in range(nchannels)], dtype=np.unicode_)
+            channelnames = np.array([s % i for i in range(nchannels)], dtype=np.str_)
         else: # fixme do we want to check if first entry is string? else raise error
-            channelnames = np.array(channelnames, dtype=np.unicode_)
+            channelnames = np.array(channelnames, dtype=np.str_)
         if not channelnames.ndim == 1:
             raise ChannelFormatError("channel names not a 1-dimensional sequence" \
                                      ", %s" % channelnames)
@@ -104,7 +104,7 @@ class MultiChannel(object):
         channelnames = np.array(channels)
         if not channelnames.ndim == 1:
             raise DimensionError("channel names not a 1-dimensional sequence")
-        if not np.issubdtype(channelnames.dtype, np.unicode_):
+        if not np.issubdtype(channelnames.dtype, np.str_):
             raise ChannelIndexError("channel name(s) not of string type")
         if np.union1d(channelnames, self.channelnames).size > self.channelnames.size:
             raise ChannelIndexError("not all requested channels exist (requested: %s, available: %s)" \
@@ -144,23 +144,26 @@ class MultiChannel(object):
             return int(channelindex)
         else: # channelindex probably a sequence
             channelindex = np.array(channelindex, ndmin=1)
-            if np.issubdtype(channelindex.dtype, np.unicode_):
-                channelindex = np.array(channelindex, dtype=np.unicode_)
-            if np.issubdtype(channelindex.dtype, np.unicode_):
+            if np.issubdtype(channelindex.dtype, np.str_):
+                channelindex = np.array(channelindex, dtype=np.str_)
+            if np.issubdtype(channelindex.dtype, np.str_):
                 channelindices = []
                 chindnumbers = np.arange(self.nchannels)
                 for channelname in self._channels_exist(channelindex):
                     channelindices.append(chindnumbers[self.channelnames == channelname].item())
             else:
                 if not ((channelindex.dtype in defined_integers) or \
-                   channelindex.dtype == np.bool):
+                   channelindex.dtype == np.bool_):
                     raise ChannelIndexError("channel index (%s) is of wrong type (%s)" \
                                             % (channelindex, channelindex.dtype))
                 channelindices = np.arange(self.nchannels, dtype=int)[channelindex]
             if len(channelindices) == 1:
                 channelindices = channelindices[0]
             else:
-                channelindices = np.array(channelindices, copy=False, ndmin=1)
+                # asarray, not array(copy=False): in NumPy 2 copy=False means
+                # "never copy, raise if a copy is needed" rather than
+                # "copy only if needed".
+                channelindices = np.atleast_1d(np.asarray(channelindices))
                 # see if we can make a slice to speed things up down the road (e.g. hdf5)
                 if (np.diff(channelindices)==1).all():
                     channelindices = slice(channelindices[0],channelindices[-1]+1)

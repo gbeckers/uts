@@ -8,7 +8,7 @@ from ..core.uniformtime import UniformTimeSeries, EpochedUniformTimeSeries, \
     isuts, iseuts, ismcuts, isemcuts
 from ..core.multichannel import MultiChannel
 from ..core.geometry import Geometry
-from ..core.epoched import Epoched
+from ..core.epoched import Epoched, epochs_to_array
 from ..core.check_arg import check_arg, check_int
 from ..core.utils import fit_frames
 from ..core.utils import timeparams
@@ -1032,13 +1032,17 @@ def _save_emcuts(emcuts, h5group, overwrite=False,
                                        dtype=dtype, channelaxis=channelaxis,
                                        copy=False)
 
-def _save_epoched(epoched, h5group, name, overwrite=False, attrs={}):
+def _save_epoched(epoched, h5group, name, overwrite=False, attrs=None):
+    attrs = {} if attrs is None else dict(attrs)
     h5file = h5group._v_file
     if overwrite and (name in h5group):
         h5group._v_children[name]._f_remove()
         h5file.flush()
+    # create_table needs a structured array; epochs may also be held in a
+    # pandas DataFrame or a pytables Table.
     table = h5file.create_table(where=h5group, name=name,
-                                description=epoched.epochs)
+                                description=epochs_to_array(epoched.epochs))
+    attrs = dict(attrs)  # do not write into the caller's dict, or the default
     attrs['origintime'] = epoched.origintime
     attrs['duration'] = epoched.duration
     for attrname, value in attrs.items():
@@ -1056,7 +1060,9 @@ def geometry_to_h5attr(node, geometry):
     node.set_attr('pointnames', geometry.pointnames.flatten())
     node._v_file.flush()
 
-def _save_multichannel(multichannel, h5group, name, overwrite=False, attrs={}):
+def _save_multichannel(multichannel, h5group, name, overwrite=False, attrs=None):
+    if attrs is None:
+        attrs = {}
     h5file = h5group._v_file
     dtypedescr = multichannel.channelnames.dtype.descr
     dtypedescr[0] = ('channelname', dtypedescr[0][1].replace('U', 'S'))
@@ -1077,7 +1083,7 @@ def h5fillnew(signalname, filename=None, value=0.0, ntimesamples=None,
               fs=None, duration=None, nchannels=None,
               nepochs=None, startdatetime='NaT', origintime=0.0, channelaxis=None,
               epochaxis=None, channels=None, epochs=None, dtype=np.float64,
-              readonly=False, geometry=None, attrs={},
+              readonly=False, geometry=None, attrs=None,
               overwrite=False, extensible=False, expectedrows=None,
               complib='zlib', chunkshape=None, complevel=5):
     """
@@ -1112,6 +1118,8 @@ def h5fillnew(signalname, filename=None, value=0.0, ntimesamples=None,
     chunkshape : {None, sequence of ints}, optional
 
     """
+    if attrs is None:
+        attrs = {}
     ## check time params
     (ntimesamples, fs, duration) = timeparams(ntimesamples=ntimesamples, fs=fs,
                                               duration=duration)
@@ -1308,7 +1316,9 @@ def h5filllike(s, name='/', filename=None, value=0.0, ntimesamples=None,
 def _uts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
                    dtype=None,
                    overwrite=False, extensible=False, expectedrows=None,
-                   chunkshape=None, complib=None, complevel=None, attrs={}):
+                   chunkshape=None, complib=None, complevel=None, attrs=None):
+    if attrs is None:
+        attrs = {}
     if ntimesamples is None:
         ntimesamples = s.ntimesamples
     if fs is None:
@@ -1341,7 +1351,9 @@ def _euts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
                     dtype=None, epochaxis=None,
                     overwrite=False, extensible=False, expectedrows=None,
                     chunkshape=None, complib=None,
-                    complevel=None, attrs={}):
+                    complevel=None, attrs=None):
+    if attrs is None:
+        attrs = {}
     if ntimesamples is None:
         ntimesamples = s.ntimesamples
     if epochaxis is None:
@@ -1376,7 +1388,9 @@ def _mcuts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
                      dtype=None, channelaxis=None,
                      overwrite=False, extensible=False, expectedrows=None,
                      chunkshape=None, complib=None,
-                     complevel=None, attrs={}):
+                     complevel=None, attrs=None):
+    if attrs is None:
+        attrs = {}
     if ntimesamples is None:
         ntimesamples = s.ntimesamples
     if channelaxis is None:
@@ -1414,7 +1428,9 @@ def _emcuts_fill_like(s, value=0.0, h5group='/', ntimesamples=None, fs=None,
                       dtype=None, channelaxis=None,
                       epochaxis=None, overwrite=False, extensible=False,
                       expectedrows=None, chunkshape=None, complib=None,
-                      complevel=None, attrs={}):
+                      complevel=None, attrs=None):
+    if attrs is None:
+        attrs = {}
     if ntimesamples is None:
         ntimesamples = s.ntimesamples
     if channelaxis is None:

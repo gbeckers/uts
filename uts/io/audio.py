@@ -177,7 +177,7 @@ def load_wav(filename, dtype=np.int16, starttime=0.0):
         fs = f.getframerate()
         conv_code, audiotofloatfactor = packing_code(samplewidth)
         data = np.frombuffer(f.readframes(f.getnframes()), dtype=conv_code)
-        if np.issubdtype(dtype, np.float_):
+        if np.issubdtype(dtype, np.float64):
             data = (data / audiotofloatfactor).astype(dtype)
         if nchannels == 1:
             return UniformTimeSeries(samples=data, fs=float(fs), starttime=starttime)
@@ -221,7 +221,7 @@ def save_wav(tss, filename, override_fs=None,
         for frame in tss.iter_frames(framesize=writesize,
                                      startindex=start, endindex=end):
             samples = frame.samples.get(copy=False)
-            if np.issubdtype(samples.dtype, np.float_):
+            if np.issubdtype(samples.dtype, np.float64):
                 if np.any((samples >= 1.0) | (samples <= -1.0)):
                     warnings.warn('not all samples are > -1.0 and < 1.0')
                 samples *= floattoaudiofactor
@@ -280,8 +280,10 @@ def singlechannelaudio_to_multichannelaudio(filenames, newfilename):
 def convert_audiotoh5(filename, h5group, h5arrayname, origintime=0.0,
                       starttime=0.0, channelaxis=1, overwrite=False, 
                       extensible=False, expectedrows=None, filters=None, 
-                      chunkshape=None, attrs={}, readsize=4096):
+                      chunkshape=None, attrs=None, readsize=4096):
     
+    if attrs is None:
+        attrs = {}
     from uts.io.hdf5 import loadh5
 
     import scikits.audiolab as audiolab

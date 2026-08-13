@@ -54,7 +54,7 @@ class test_RectangularLattice(TestCase):
         # OK
         pointnames_list = pn(nx*ny)
         pointnames_tuple = tuple(pointnames_list)
-        pointnames_array = np.array(pointnames_list, dtype=np.unicode_)
+        pointnames_array = np.array(pointnames_list, dtype=np.str_)
         for pointnames in (pointnames_list, pointnames_tuple,
                            pointnames_array):
             g = RectangularLattice(nx=nx, ny=ny, pointnames=pointnames)

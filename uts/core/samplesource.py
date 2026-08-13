@@ -104,7 +104,7 @@ class Samples(object):
         for ax in shape:
             if not np.issubdtype(type(ax), np.integer):
                 raise ValueError("shape dimensions should be ints")
-        size = np.product(shape, dtype='int64')
+        size = np.prod(shape, dtype='int64')
         return shape, size
 
     def _check_axes(self, axes, shape):
@@ -385,7 +385,9 @@ class NumpyArraySamples(Samples):
         return array
 
     def append(self, samples, axis):
-        samples = np.array(samples, copy=False)
+        # asarray, not array(copy=False): in NumPy 2 copy=False means "never
+        # copy, raise if a copy is needed" rather than "copy only if needed".
+        samples = np.asarray(samples)
         if not (self.dtype == samples.dtype):
             raise TypeError("samples has wrong dtype")
         self.__array = np.append(self.__array, samples, axis=axis)
@@ -407,8 +409,8 @@ class NumpyArraySamples(Samples):
         axesnames = list(self.axes.keys())
         if ignore_missingaxes:
             neworder = [ax for ax in neworder if ax in axesnames]
-        neworder = np.array(neworder)#,  dtype=np.string_)
-        axesnames = np.array(axesnames)#,  dtype=np.string_)  # we still need to order
+        neworder = np.array(neworder)#,  dtype=np.bytes_)
+        axesnames = np.array(axesnames)#,  dtype=np.bytes_)  # we still need to order
         if not len(neworder) == len(axesnames):
             raise ValueError("neworder argument (%s) does not have the right number of axes (%s)" \
                              % (neworder, axesnames))

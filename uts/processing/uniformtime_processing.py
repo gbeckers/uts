@@ -307,7 +307,9 @@ def convolve(uts, kernel, mode='same', threads=None,
     else:
         uts = uts.astype(dtype)
         dtype = uts.dtype
-    kernel = np.array(kernel, copy=False, dtype=dtype)
+    # asarray, not array(copy=False): in NumPy 2 copy=False means "never copy,
+    # raise if a copy is needed", and a dtype change needs one.
+    kernel = np.asarray(kernel, dtype=dtype)
     #print(uts.dtype, kernel.dtype)
     ## is the following necessary?? We want to be flexible and upcast
     #if kernel.dtype != uts.dtype:
@@ -831,10 +833,6 @@ def stft(tss, windowtype='gaussian', windowduration=None, fftduration=None,
         raise ValueError("symmetric must be either True or False")
 
 
-
-        #stft = strft(a=tss.samples.get(copy=False), windowsize=windowsize,
-        #stepsize=stepsize, windowtype=windowtype, fftsize=fftsize,
-        #symmetric=symmetric, power=False)
     stft, firstsamplecenter = signalprocessing.stft(
         s=tss.samples.get(copy=False),
         windowsize=windowsize, stepsize=stepsize,
@@ -1309,9 +1307,9 @@ def fftconvolve(signal, kernellist, mode='same'):
     for kernel in kernellist:
         kernel = np.array(kernel)
         assert kernel.ndim == 1
-        complex_result |= np.issubdtype(kernel.dtype, np.complex)
+        complex_result |= np.issubdtype(kernel.dtype, np.complexfloating)
         kernellengths.append(kernel.size)
-    complex_result |= np.issubdtype(signal.dtype, np.complex)
+    complex_result |= np.issubdtype(signal.dtype, np.complexfloating)
 
     kernellengths = np.array(kernellengths)
 
