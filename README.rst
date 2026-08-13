@@ -1,6 +1,10 @@
 UTS
 ===
 
+.. image:: https://github.com/gbeckers/uts/actions/workflows/tests.yml/badge.svg
+   :target: https://github.com/gbeckers/uts/actions/workflows/tests.yml
+   :alt: test status
+
 A python package for uniform time series manipulation and analysis. Works efficiently
 with very large signals that may be multichannel and/or epoched.
 
@@ -64,4 +68,9 @@ pytest also works: ::
 Note that pytest collects ten more tests than ``uts.test()`` does, because the
 latter loads only ``TestCase`` subclasses and so skips module-level test
 functions. Two of those extra tests currently fail; both date from an earlier
-version of the time API and have not yet been reconciled with it.
+version of the time API and have not yet been reconciled with it. They are
+excluded by name in CI, and listed in ``.github/workflows/tests.yml``.
+
+Every push runs the suite in three configurations: the exact pins in
+``environment.yml``, the same python with current numpy 2 and pandas 3, and
+the newest python with everything current. Linux only.
