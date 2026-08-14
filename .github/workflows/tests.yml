@@ -37,14 +37,14 @@ jobs:
               numpy>=2 scipy pandas tables h5py numexpr cython>=3.0.10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # setuptools-scm derives the version from the git tags, and a
           # shallow clone fetches none: the version comes out as
           # 0.0.post1.dev1+g<hash> instead of 2.4.5.post1.dev10+g<hash>.
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
 
