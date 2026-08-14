@@ -283,6 +283,9 @@ def test_UniformTime_index_to_time():
 
     assert_raises(TypeError, s.index_to_time, index=None)
 
+    # keepdims should keep array if only one item
+    assert_equal(s.index_to_time([0], keepdims=True), np.array([0.25]))
+
 
 def test_movingtimeframeindices():
     s = UniformTime(ntimesamples=5, fs=5.0)

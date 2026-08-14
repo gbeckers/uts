@@ -25,7 +25,7 @@ from .defs import defined_integers
 from .utils import fit_frames
 from .samplesource import assamples
 from .check_arg import check_arg, check_argarray, check_int, \
-    check_intarray
+    check_intarray, check_bool
 
 
 class UniformTime(object):
@@ -248,7 +248,7 @@ class UniformTime(object):
         """
         self.__origintime = check_arg(origintime, 'time')
 
-    def time_to_index(self, time, nearest_boundary=False):
+    def time_to_index(self, time, nearest_boundary=False, keepdims=False):
         """
         Converts a time, or array of times, to their corresponding sample
         indices. Time is in *seconds* with respect to `origintime`.
@@ -285,6 +285,7 @@ class UniformTime(object):
         # check parameter
         time = check_argarray(time, 'time')
         nearest_boundary = check_arg(nearest_boundary, 'nearest_boundary')
+        keepdims = check_bool(keepdims)
         outsiderange = (time < self.__timerange[0]) | \
                        (time > self.__timerange[1])
         if outsiderange.any():
@@ -301,7 +302,7 @@ class UniformTime(object):
                               * self.__fs)).astype(np.int64)
         #index = ((time + self.__origintime) // self.__dt).astype(np.int64)
         #idx = (ta.view(np.ndarray) - self.t0) // self.sampling_interval
-        if index.size == 1:
+        if not keepdims and (index.size == 1):
             return index.item()
         else:
             return index
@@ -310,7 +311,7 @@ class UniformTime(object):
         dt = self.startdatetime + np.array((time + self.__origintime)*1e9, 'timedelta64[ns]')
         return dt
 
-    def index_to_time(self, index):
+    def index_to_time(self, index, keepdims=False):
         """
         Converts a sample index, or array of indices, to their 
         corresponding times. Note that the *time of sample center* 
@@ -330,12 +331,13 @@ class UniformTime(object):
 
         """
         index = check_intarray(index, cast=np.int64)
+        keepdims = check_bool(keepdims)
         if ((index < 0) | (index >= self.__ntimesamples)).any():
             raise ValueError("index (%s) cannot be smaller than zero or higher"
                              " than ntimesamples-1 (%d)" \
                              % (index, self.__ntimesamples - 1))
         result = ((index + 0.5) / self.__fs) - self.__origintime
-        if result.size == 1:
+        if not keepdims and (result.size == 1):
             return result.item()
         else:
             return result
@@ -1444,9 +1446,9 @@ class MultiChannelUniformTimeSeries(MultiChannel, UniformTimeSeries):
             raise ValueError(
                 "Either 'starttimes' or 'epochs' should not be None")
         if starttimes is not None:
-            startsamples = self.time_to_index(starttimes)
+            startsamples = self.time_to_index(starttimes, keepdims=True)
         else:
-            startsamples = self.time_to_index(epochs['starttime'])
+            startsamples = self.time_to_index(epochs['starttime'], keepdims=True)
         if epochs is None:
             epochs = np.array(list(starttimes),
                               dtype=[('starttime', np.float64)])
