@@ -7,6 +7,17 @@ class ChannelIndexError(IndexError): pass
 
 class ChannelFormatError(Exception): pass
 
+
+def default_channelnames(nchannels):
+    """The channel names a multichannel object gets when none are given.
+
+    Anything that has to build a geometry whose point names match those
+    defaults needs the same rule, so it lives here rather than inline.
+
+    """
+    s = 'channel_%%.%dd' % max(1, int(np.ceil(np.log10(nchannels))))
+    return np.array([s % i for i in range(nchannels)], dtype=np.str_)
+
 class MultiChannel(object):
 
     """Super class for multichannel classes.
@@ -67,8 +78,7 @@ class MultiChannel(object):
         """
         # we first take care of the channels
         if channelnames is None:
-            s = 'channel_%%.%dd' % max(1, int(np.ceil(np.log10(nchannels))))
-            channelnames = np.array([s % i for i in range(nchannels)], dtype=np.str_)
+            channelnames = default_channelnames(nchannels)
         else: # fixme do we want to check if first entry is string? else raise error
             channelnames = np.array(channelnames, dtype=np.str_)
         if not channelnames.ndim == 1:

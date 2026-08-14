@@ -1,5 +1,7 @@
 import numpy as np
 import time
+from uts.core.geometry import RectangularLattice
+from uts.core.multichannel import default_channelnames
 from uts.core.uniformtime import UniformTimeSeries, EpochedUniformTimeSeries, \
       MultiChannelUniformTimeSeries, EpochedMultiChannelUniformTimeSeries
 
@@ -39,11 +41,16 @@ def testmcuts(duration=0.3, nchannels=5, fs=14000., dtype=np.float32,
     if not geometryshape is None:
         if not nchannels == np.prod(geometryshape):
             raise ValueError('shape not congruent with nchannels')
-        pointnames = ['channel_%.3d' % i for i in range(nchannels)]
-        geometry = uts.core.geometry.RectangularLattice(*geometryshape, pointnames=pointnames)
+        # the point names have to be the channel names, which is checked on
+        # construction; 'channel_%.3d' never matched the defaults. A geometry
+        # also requires the channel names to be passed explicitly.
+        channelnames = default_channelnames(nchannels)
+        geometry = RectangularLattice(*geometryshape, pointnames=channelnames)
     else:
+        channelnames = None
         geometry = None
     return MultiChannelUniformTimeSeries(samples=samples, fs=fs, channelaxis=0,
+                                         channelnames=channelnames,
                                          geometry=geometry, starttime=starttime,
                                          dtype=dtype)
 
@@ -61,11 +68,17 @@ def testemcuts(epochdur=0.3, nchannels=5, fs=14000., dtype=np.float32,
     if not geometryshape is None:
         if not nchannels == np.prod(geometryshape):
             raise ValueError('shape not congruent with nchannels')
-        pointnames = ['channel_%.3d' % i for i in range(nchannels)]
-        geometry = uts.core.geometry.RectangularLattice(*geometryshape, pointnames=pointnames)
+        # the point names have to be the channel names, which is checked on
+        # construction; 'channel_%.3d' never matched the defaults. A geometry
+        # also requires the channel names to be passed explicitly.
+        channelnames = default_channelnames(nchannels)
+        geometry = RectangularLattice(*geometryshape, pointnames=channelnames)
     else:
+        channelnames = None
         geometry = None
     return EpochedMultiChannelUniformTimeSeries(samples=samples, fs=fs,
                                                 epochs=epochs, channelaxis=0,
-                                                epochaxis=1, geometry=geometry,
+                                                epochaxis=1,
+                                                channelnames=channelnames,
+                                                geometry=geometry,
                                                 dtype=dtype)
