@@ -15,6 +15,7 @@ from . import test_stats
 from . import test_testsignals
 from . import test_uniformtime
 from . import test_uniformtime_processing
+from . import test_shufflecorrcrosscov
 
 modules = [create_testarrays, defs, test_checkarg, test_coreutils, test_epoched,
            test_geometry, test_ifdv, test_iodarr, test_multichannel,

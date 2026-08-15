@@ -36,4 +36,6 @@ from .processing.uniformtime_processing import *
 from .processing.elementwise_math import *
 from .processing.stats import *
 
+from .processing.shufflecorrcrosscov import *
+
 from .tests import test

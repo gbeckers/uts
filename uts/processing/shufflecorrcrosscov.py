@@ -21,6 +21,9 @@ from uts import EpochedUniformTimeSeries, iseuts
 from uts.core.check_arg import check_int
 
 
+__all__ = ["shuffle_corrected_crosscovariance"]
+
+
 FloatArray = NDArray[np.float64]
 IntArray = NDArray[np.int64]
 
